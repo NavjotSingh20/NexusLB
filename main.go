@@ -78,7 +78,7 @@ func main() {
 	}()
 
 	// 7. Start Observability Dashboard Server
-	dashServer := dashboard.NewServer(cfg.DashboardPort, cfg.ProxyPort, collector, rr)
+	dashServer := dashboard.NewServer(cfg.DashboardPort, cfg.ProxyPort, collector, rr, checker)
 	go func() {
 		if err := dashServer.Start(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Dashboard server failed: %v", err)

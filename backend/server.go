@@ -69,7 +69,14 @@ func (s *ServerInstance) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *ServerInstance) handleChaos(w http.ResponseWriter, r *http.Request) {
 	s.mux.Lock()
-	s.isDown = !s.isDown
+	stateParam := r.URL.Query().Get("state")
+	if stateParam == "down" || stateParam == "offline" {
+		s.isDown = true
+	} else if stateParam == "up" || stateParam == "online" {
+		s.isDown = false
+	} else {
+		s.isDown = !s.isDown
+	}
 	currState := s.isDown
 	s.mux.Unlock()
 

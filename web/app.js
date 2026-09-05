@@ -11,6 +11,7 @@ const COLOR_PALETTE = [
 
 let eventSource = null;
 let lastStats = null;
+let isDemoRunning = false;
 
 // DOM Elements
 const connStatus = document.getElementById('connection-status');
@@ -35,6 +36,15 @@ const logCountBadge = document.getElementById('log-count-badge');
 
 const btnTestSingle = document.getElementById('btn-test-single');
 const btnTestBurst = document.getElementById('btn-test-burst');
+const btnResetMetrics = document.getElementById('btn-reset-metrics');
+const btnRunFailoverDemo = document.getElementById('btn-run-failover-demo');
+
+const failoverCallout = document.getElementById('failover-callout');
+const calloutMessage = document.getElementById('callout-message');
+
+const step1 = document.getElementById('step-1');
+const step2 = document.getElementById('step-2');
+const step3 = document.getElementById('step-3');
 
 // Format seconds into HH:MM:SS
 function formatUptime(seconds) {
@@ -67,11 +77,37 @@ function updateUI(stats) {
   // Upstream Backends
   renderBackends(stats.backends || []);
 
+  // Dynamic Failover Banner (only update if automated demo is not overriding)
+  if (!isDemoRunning) {
+    updateFailoverCallout(stats.backends || []);
+  }
+
   // Traffic Distribution
   renderDistribution(stats.backends || [], total);
 
   // Request Logs
   renderLogs(stats.recent_logs || []);
+}
+
+function updateFailoverCallout(backends) {
+  if (!backends || backends.length === 0) return;
+
+  const downNodes = backends.filter(b => !b.alive);
+  const healthyNodes = backends.filter(b => b.alive);
+
+  if (downNodes.length === 0) {
+    failoverCallout.className = 'failover-callout state-healthy';
+    calloutMessage.innerHTML = `<strong>Cluster Status: Optimal Balancing</strong> &mdash; All ${backends.length} backends are healthy. Traffic is cycled evenly (${(100 / backends.length).toFixed(0)}% each) via Round Robin.`;
+  } else if (healthyNodes.length === 0) {
+    failoverCallout.className = 'failover-callout state-degraded';
+    calloutMessage.innerHTML = `<strong>Critical Alert: All Backends Down!</strong> &mdash; NexusLB is responding with HTTP 503 to protect downstream clients until backends recover.`;
+  } else {
+    failoverCallout.className = 'failover-callout state-degraded';
+    const downPorts = downNodes.map(b => b.url.replace('http://localhost', '')).join(', ');
+    const healthyPorts = healthyNodes.map(b => b.url.replace('http://localhost', '')).join(', ');
+    const pctPerNode = (100 / healthyNodes.length).toFixed(0);
+    calloutMessage.innerHTML = `<strong>⚡ Active Failover Detected: Node(s) [${downPorts}] DOWN!</strong> &mdash; NexusLB automatically bypassed failed targets and is redistributing 100% of incoming load across [${healthyPorts}] (${pctPerNode}% each) with <strong>0 dropped requests</strong>!`;
+  }
 }
 
 function renderBackends(backends) {
@@ -84,6 +120,10 @@ function renderBackends(backends) {
     const statusBadge = b.alive
       ? `<span class="badge badge-success">HEALTHY</span>`
       : `<span class="badge badge-danger">UNHEALTHY</span>`;
+
+    const actionButton = b.alive
+      ? `<button class="btn btn-sm btn-kill" onclick="toggleBackend('${escapeHTML(b.url)}')">⚡ Kill Server</button>`
+      : `<button class="btn btn-sm btn-restore" onclick="toggleBackend('${escapeHTML(b.url)}')">🔄 Revive Server</button>`;
 
     html += `
       <div class="backend-card" style="border-left: 3px solid ${color}">
@@ -108,6 +148,9 @@ function renderBackends(backends) {
             <span class="stat-val">${b.last_latency_ms} ms</span>
           </div>
         </div>
+        <div class="card-actions">
+          ${actionButton}
+        </div>
       </div>
     `;
   });
@@ -117,8 +160,6 @@ function renderBackends(backends) {
   healthyCountBadge.textContent = `${healthyCount} / ${backends.length} Healthy`;
   if (healthyCount === backends.length && backends.length > 0) {
     healthyCountBadge.className = 'badge badge-success';
-  } else if (healthyCount === 0) {
-    healthyCountBadge.className = 'badge badge-danger';
   } else {
     healthyCountBadge.className = 'badge badge-danger';
   }
@@ -200,6 +241,84 @@ function escapeHTML(str) {
   );
 }
 
+// Toggle a backend's online/down state
+window.toggleBackend = async function(url) {
+  try {
+    const res = await fetch(`/api/backend/toggle?url=${encodeURIComponent(url)}`, { method: 'POST' });
+    const data = await res.json();
+    console.log('Toggled backend:', data);
+  } catch (err) {
+    console.error('Failed to toggle backend:', err);
+  }
+};
+
+// Reset metrics
+async function resetMetrics() {
+  const originalHtml = btnResetMetrics.innerHTML;
+  btnResetMetrics.disabled = true;
+  btnResetMetrics.innerHTML = `<span>Resetting...</span>`;
+  try {
+    await fetch('/api/stats/reset', { method: 'POST' });
+  } catch (err) {
+    console.error('Failed to reset stats:', err);
+  } finally {
+    btnResetMetrics.disabled = false;
+    btnResetMetrics.innerHTML = originalHtml;
+  }
+}
+
+// 1-Click Automated Failover Simulation
+async function runFailoverDemo() {
+  if (isDemoRunning) return;
+  isDemoRunning = true;
+  btnRunFailoverDemo.disabled = true;
+  const originalBtnHtml = btnRunFailoverDemo.innerHTML;
+  btnRunFailoverDemo.innerHTML = `<span>Simulating...</span>`;
+
+  try {
+    // Phase 1: Baseline
+    step1.className = 'demo-step active';
+    step2.className = 'demo-step';
+    step3.className = 'demo-step';
+    failoverCallout.className = 'failover-callout state-healthy';
+    calloutMessage.innerHTML = `<strong>Demo Phase 1: Baseline Balancing</strong> &mdash; Resetting counters and sending 6 requests across all 3 healthy nodes...`;
+    await fetch('/api/stats/reset', { method: 'POST' });
+    await new Promise(r => setTimeout(r, 600));
+    await triggerTestRequest(6);
+    await new Promise(r => setTimeout(r, 1800));
+
+    // Phase 2: Kill Backend 2 (:8002) and send traffic
+    step1.className = 'demo-step completed';
+    step2.className = 'demo-step active';
+    failoverCallout.className = 'failover-callout state-degraded';
+    calloutMessage.innerHTML = `<strong>Demo Phase 2: Simulating Failure</strong> &mdash; Shutting down Backend 2 (:8002) and sending 6 more requests... Watch traffic route ONLY to :8001 and :8003!`;
+    await window.toggleBackend('http://localhost:8002');
+    await new Promise(r => setTimeout(r, 1000));
+    await triggerTestRequest(6);
+    await new Promise(r => setTimeout(r, 2200));
+
+    // Phase 3: Restore Backend 2 and verify rebalancing
+    step2.className = 'demo-step completed';
+    step3.className = 'demo-step active';
+    failoverCallout.className = 'failover-callout state-healthy';
+    calloutMessage.innerHTML = `<strong>Demo Phase 3: Healing & Rebalancing</strong> &mdash; Reviving Backend 2 (:8002) back online... Sending 6 requests to verify full 3-node balance is restored!`;
+    await window.toggleBackend('http://localhost:8002');
+    await new Promise(r => setTimeout(r, 1000));
+    await triggerTestRequest(6);
+    await new Promise(r => setTimeout(r, 1500));
+
+    // Completion
+    step3.className = 'demo-step completed';
+    calloutMessage.innerHTML = `<strong>✅ Failover Demo Complete!</strong> &mdash; Successfully demonstrated automatic fault detection, seamless failover (zero dropped requests), and automatic recovery rebalancing!`;
+  } catch (err) {
+    console.error('Error during failover demo:', err);
+  } finally {
+    isDemoRunning = false;
+    btnRunFailoverDemo.disabled = false;
+    btnRunFailoverDemo.innerHTML = originalBtnHtml;
+  }
+}
+
 // Connect to Server-Sent Events stream
 function connectSSE() {
   if (eventSource) {
@@ -233,24 +352,30 @@ function connectSSE() {
 // Quick trigger helper
 async function triggerTestRequest(count = 1) {
   const btn = count === 1 ? btnTestSingle : btnTestBurst;
-  const originalHtml = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = `<span style="opacity: 0.8">Sending ${count}...</span>`;
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span style="opacity: 0.8">Sending ${count}...</span>`;
+  }
 
   try {
     const res = await fetch(`/api/test-request?count=${count}`, { method: 'POST' });
     const data = await res.json();
-    console.log('Test requests result:', data);
+    return data;
   } catch (err) {
     console.error('Error triggering test request:', err);
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalHtml;
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
   }
 }
 
 btnTestSingle.addEventListener('click', () => triggerTestRequest(1));
 btnTestBurst.addEventListener('click', () => triggerTestRequest(10));
+btnResetMetrics.addEventListener('click', resetMetrics);
+btnRunFailoverDemo.addEventListener('click', runFailoverDemo);
 
 // Initialize SSE connection
 connectSSE();

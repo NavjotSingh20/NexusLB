@@ -61,6 +61,25 @@ func NewCollector() *Collector {
 	}
 }
 
+func (c *Collector) Reset(backends []*backend.Backend) {
+	c.mux.Lock()
+	atomic.StoreInt64(&c.totalRequests, 0)
+	atomic.StoreInt64(&c.totalSuccess, 0)
+	atomic.StoreInt64(&c.totalClientErrors, 0)
+	atomic.StoreInt64(&c.totalServerErrors, 0)
+	atomic.StoreInt64(&c.totalLatencyMs, 0)
+	c.recentLogs = make([]RequestLog, 0, 50)
+	c.lastRPSReqCount = 0
+	c.currentRPS = 0
+	c.mux.Unlock()
+
+	for _, b := range backends {
+		atomic.StoreInt64(&b.TotalRequests, 0)
+		atomic.StoreInt64(&b.TotalErrors, 0)
+		atomic.StoreInt64(&b.LastLatencyMs, 0)
+	}
+}
+
 func (c *Collector) Record(method, path, clientIP, targetBackend string, status int, latency time.Duration) {
 	atomic.AddInt64(&c.totalRequests, 1)
 	latencyMs := latency.Milliseconds()

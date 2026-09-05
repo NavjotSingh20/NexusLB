@@ -11,24 +11,27 @@ import (
 	"time"
 
 	"nexuslb/pkg/balancer"
+	"nexuslb/pkg/health"
 	"nexuslb/pkg/metrics"
 	"nexuslb/web"
 )
 
 type Server struct {
-	addr        string
-	proxyAddr   string
-	collector   *metrics.Collector
-	balancer    balancer.Balancer
-	httpServer  *http.Server
+	addr       string
+	proxyAddr  string
+	collector  *metrics.Collector
+	balancer   balancer.Balancer
+	checker    *health.Checker
+	httpServer *http.Server
 }
 
-func NewServer(addr, proxyAddr string, collector *metrics.Collector, b balancer.Balancer) *Server {
+func NewServer(addr, proxyAddr string, collector *metrics.Collector, b balancer.Balancer, checker *health.Checker) *Server {
 	return &Server{
 		addr:      addr,
 		proxyAddr: proxyAddr,
 		collector: collector,
 		balancer:  b,
+		checker:   checker,
 	}
 }
 
@@ -43,6 +46,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/stats", s.handleStats)
 	mux.HandleFunc("/api/stream", s.handleStream)
 	mux.HandleFunc("/api/test-request", s.handleTestRequest)
+	mux.HandleFunc("/api/backend/toggle", s.handleToggleBackend)
+	mux.HandleFunc("/api/stats/reset", s.handleResetStats)
 
 	s.httpServer = &http.Server{
 		Addr:         s.addr,
@@ -142,3 +147,49 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 		"success":   successCount,
 	})
 }
+
+func (s *Server) handleToggleBackend(w http.ResponseWriter, r *http.Request) {
+	targetURL := r.URL.Query().Get("url")
+	if targetURL == "" {
+		http.Error(w, "missing url param", http.StatusBadRequest)
+		return
+	}
+
+	stateParam := r.URL.Query().Get("state")
+	chaosURL := fmt.Sprintf("%s/chaos/toggle", targetURL)
+	if stateParam != "" {
+		chaosURL = fmt.Sprintf("%s?state=%s", chaosURL, stateParam)
+	}
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(chaosURL)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":   "failed to contact backend",
+			"details": err.Error(),
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	// Trigger immediate health checks to instantly sync load balancer state
+	if s.checker != nil {
+		s.checker.CheckAll()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	io.Copy(w, resp.Body)
+}
+
+func (s *Server) handleResetStats(w http.ResponseWriter, r *http.Request) {
+	s.collector.Reset(s.balancer.GetBackends())
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "ok",
+		"message": "Metrics reset successfully",
+	})
+}
+
