@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusLB - High Availability Load Balancer & Proxy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-background"></div>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-branding">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+        </div>
+        <div class="branding-text">
+          <div class="title-row">
+            <h1>NexusLB</h1>
+            <span class="version-badge">v0.1.0</span>
+          </div>
+          <p class="subtitle">Custom Reverse Proxy & Intelligent Traffic Balancer</p>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <div class="connection-status" id="connection-status">
+          <span class="status-pulse online"></span>
+          <span class="status-label" id="conn-status-text">LIVE TELEMETRY</span>
+        </div>
+        <div class="uptime-pill" id="uptime-display">
+          <span class="pill-label">UPTIME</span>
+          <span class="pill-val" id="uptime-val">00:00:00</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Top Banner with Quick Actions -->
+    <section class="action-banner">
+      <div class="banner-info">
+        <div class="ingress-indicator">
+          <span class="ingress-label">PROXY INGRESS</span>
+          <span class="ingress-url" id="proxy-url-display">http://localhost:8080</span>
+        </div>
+        <div class="ingress-indicator">
+          <span class="ingress-label">ACTIVE STRATEGY</span>
+          <span class="ingress-strategy" id="active-strategy-display">Round Robin</span>
+        </div>
+      </div>
+
+      <div class="traffic-generator">
+        <span class="generator-label">Traffic Simulator:</span>
+        <button id="btn-test-single" class="btn btn-secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          Send 1 Request
+        </button>
+        <button id="btn-test-burst" class="btn btn-primary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          Burst 10 Requests
+        </button>
+      </div>
+    </section>
+
+    <!-- Hero KPI Stats -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap icon-requests">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+            <path d="M12 12v9"></path>
+            <path d="m8 17 4 4 4-4"></path>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-title">Total Requests</span>
+          <span class="kpi-value" id="kpi-total-requests">0</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap icon-rps">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-title">Throughput</span>
+          <span class="kpi-value" id="kpi-rps">0.0 <span class="kpi-unit">req/s</span></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap icon-latency">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-title">Avg Latency</span>
+          <span class="kpi-value" id="kpi-latency">0.0 <span class="kpi-unit">ms</span></span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrap icon-success">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-title">Success Rate</span>
+          <span class="kpi-value" id="kpi-success-rate">100<span class="kpi-unit">%</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Upstream Nodes Section -->
+    <section class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h2>Upstream Backend Pool</h2>
+          <span class="section-subtitle">Real-time health state and load distribution across targets</span>
+        </div>
+        <div class="pool-summary">
+          <span id="healthy-count-badge" class="badge badge-success">3 / 3 Healthy</span>
+        </div>
+      </div>
+
+      <!-- Traffic Distribution Bar -->
+      <div class="distribution-card">
+        <div class="distribution-header">
+          <span>Traffic Distribution Share</span>
+          <span id="distribution-total-label">0 total proxied</span>
+        </div>
+        <div class="distribution-bar" id="distribution-bar">
+          <!-- Filled dynamically -->
+        </div>
+        <div class="distribution-legend" id="distribution-legend">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+
+      <!-- Backend Cards Grid -->
+      <div class="backend-grid" id="backend-cards-container">
+        <!-- Rendered via app.js -->
+      </div>
+    </section>
+
+    <!-- Live Request Activity Stream -->
+    <section class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <h2>Live Request Stream</h2>
+          <span class="section-subtitle">Real-time trace logs of incoming client requests and routing decisions</span>
+        </div>
+        <div class="stream-actions">
+          <span class="badge badge-subtle" id="log-count-badge">0 requests</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="request-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Method</th>
+              <th>Client IP</th>
+              <th>Target Backend</th>
+              <th>Status</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody id="logs-table-body">
+            <tr class="empty-row">
+              <td colspan="6">Waiting for requests... Click "Send 1 Request" or "Burst 10" above to begin.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>NexusLB Infrastructure Proxy &bull; Course UCS503P &bull; Thapar Institute of Engineering & Technology</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "proxy_port": ":8080",
+  "dashboard_port": ":8081",
+  "backends": [
+    "http://localhost:8001",
+    "http://localhost:8002",
+    "http://localhost:8003"
+  ],
+  "health_check_interval": "3s",
+  "health_check_path": "/health",
+  "strategy": "round_robin"
+}
