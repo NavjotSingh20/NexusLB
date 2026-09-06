@@ -145,6 +145,9 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 		concurrency = count
 	}
 
+	// Register queued burst requests
+	s.collector.IncQueue(int64(count))
+
 	jobs := make(chan struct{}, count)
 	for i := 0; i < count; i++ {
 		jobs <- struct{}{}
@@ -166,6 +169,7 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 						atomic.AddInt64(&successCount, 1)
 					}
 				}
+				s.collector.DecQueue()
 			}
 		}()
 	}

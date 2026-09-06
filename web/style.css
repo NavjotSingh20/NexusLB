@@ -215,6 +215,7 @@ body {
   color: var(--text-secondary);
 }
 
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -292,7 +293,7 @@ body {
 /* KPI Grid */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
   gap: 1.25rem;
 }
 
@@ -326,6 +327,16 @@ body {
 .icon-rps { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
 .icon-latency { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 .icon-success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.icon-queue { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+
+.kpi-card.queue-active {
+  border-color: rgba(192, 132, 252, 0.5);
+  box-shadow: 0 0 18px rgba(192, 132, 252, 0.2);
+}
+
+.kpi-card.queue-active .kpi-value {
+  color: #c084fc;
+}
 
 .kpi-body {
   display: flex;

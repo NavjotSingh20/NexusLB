@@ -25,6 +25,7 @@ type DashboardStats struct {
 	TotalClientErrors  int64                  `json:"total_client_errors"`
 	TotalServerErrors  int64                  `json:"total_server_errors"`
 	ActiveConnections  int64                  `json:"active_connections"`
+	QueuedRequests     int64                  `json:"queued_requests"`
 	RequestsPerSecond  float64                `json:"rps"`
 	AverageLatencyMs   float64                `json:"avg_latency_ms"`
 	Backends           []backend.BackendStats `json:"backends"`
@@ -39,6 +40,7 @@ type Collector struct {
 	totalClientErrors int64
 	totalServerErrors int64
 	totalLatencyMs    int64
+	queuedRequests    int64
 
 	startTime         time.Time
 	lastRPSCheckTime  time.Time
@@ -68,6 +70,7 @@ func (c *Collector) Reset(backends []*backend.Backend) {
 	atomic.StoreInt64(&c.totalClientErrors, 0)
 	atomic.StoreInt64(&c.totalServerErrors, 0)
 	atomic.StoreInt64(&c.totalLatencyMs, 0)
+	atomic.StoreInt64(&c.queuedRequests, 0)
 	c.recentLogs = make([]RequestLog, 0, 50)
 	c.lastRPSReqCount = 0
 	c.currentRPS = 0
@@ -78,6 +81,22 @@ func (c *Collector) Reset(backends []*backend.Backend) {
 		atomic.StoreInt64(&b.TotalErrors, 0)
 		atomic.StoreInt64(&b.LastLatencyMs, 0)
 	}
+}
+
+func (c *Collector) IncQueue(n int64) {
+	atomic.AddInt64(&c.queuedRequests, n)
+}
+
+func (c *Collector) DecQueue() {
+	atomic.AddInt64(&c.queuedRequests, -1)
+}
+
+func (c *Collector) GetQueue() int64 {
+	q := atomic.LoadInt64(&c.queuedRequests)
+	if q < 0 {
+		return 0
+	}
+	return q
 }
 
 func (c *Collector) Record(method, path, clientIP, targetBackend string, status int, latency time.Duration) {
@@ -162,6 +181,7 @@ func (c *Collector) Snapshot(strategyName string, backends []*backend.Backend) D
 		TotalClientErrors: atomic.LoadInt64(&c.totalClientErrors),
 		TotalServerErrors: atomic.LoadInt64(&c.totalServerErrors),
 		ActiveConnections: activeConns,
+		QueuedRequests:    c.GetQueue(),
 		RequestsPerSecond: rps,
 		AverageLatencyMs:  avgLatency,
 		Backends:          backendStats,

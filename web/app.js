@@ -22,6 +22,8 @@ const kpiTotalRequests = document.getElementById('kpi-total-requests');
 const kpiRps = document.getElementById('kpi-rps');
 const kpiLatency = document.getElementById('kpi-latency');
 const kpiSuccessRate = document.getElementById('kpi-success-rate');
+const kpiQueued = document.getElementById('kpi-queued');
+const kpiCardQueue = document.getElementById('kpi-card-queue');
 
 const healthyCountBadge = document.getElementById('healthy-count-badge');
 const backendCardsContainer = document.getElementById('backend-cards-container');
@@ -66,6 +68,19 @@ function updateUI(stats) {
   const success = stats.total_success || 0;
   const successRate = total > 0 ? ((success / total) * 100).toFixed(1) : '100.0';
   kpiSuccessRate.innerHTML = `${successRate}<span class="kpi-unit">%</span>`;
+
+  // Queued Requests
+  const queued = stats.queued_requests || 0;
+  if (kpiQueued) {
+    kpiQueued.textContent = queued.toLocaleString();
+    if (kpiCardQueue) {
+      if (queued > 0) {
+        kpiCardQueue.classList.add('queue-active');
+      } else {
+        kpiCardQueue.classList.remove('queue-active');
+      }
+    }
+  }
 
   // Upstream Backends
   renderBackends(stats.backends || []);
@@ -302,6 +317,14 @@ function connectSSE() {
 
 // Quick trigger helper
 async function triggerTestRequest(count = 1) {
+  // Optimistically reflect queued request count immediately
+  if (kpiQueued) {
+    const current = parseInt(kpiQueued.textContent.replace(/,/g, ''), 10) || 0;
+    const newQueued = current + count;
+    kpiQueued.textContent = newQueued.toLocaleString();
+    if (kpiCardQueue) kpiCardQueue.classList.add('queue-active');
+  }
+
   try {
     const res = await fetch(`/api/test-request?count=${count}`, { method: 'POST' });
     const data = await res.json();
