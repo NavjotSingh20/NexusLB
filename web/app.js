@@ -14,8 +14,6 @@ let lastStats = null;
 let autoTrafficTimer = null;
 
 // DOM Elements
-const connStatus = document.getElementById('connection-status');
-const connStatusText = document.getElementById('conn-status-text');
 const uptimeVal = document.getElementById('uptime-val');
 const strategyDisplay = document.getElementById('active-strategy-display');
 const proxyUrlDisplay = document.getElementById('proxy-url-display');
@@ -283,8 +281,7 @@ function connectSSE() {
   eventSource = new EventSource('/api/stream');
 
   eventSource.onopen = () => {
-    connStatusText.textContent = 'LIVE TELEMETRY';
-    connStatus.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+    // Connected to stream
   };
 
   eventSource.onmessage = (event) => {
@@ -297,8 +294,6 @@ function connectSSE() {
   };
 
   eventSource.onerror = () => {
-    connStatusText.textContent = 'RECONNECTING...';
-    connStatus.style.borderColor = 'rgba(245, 158, 11, 0.4)';
     eventSource.close();
     setTimeout(connectSSE, 2000);
   };

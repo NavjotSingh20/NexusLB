@@ -135,37 +135,7 @@ body {
   gap: 1rem;
 }
 
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  padding: 0.35rem 0.85rem;
-  border-radius: var(--radius-full);
-}
 
-.status-pulse {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent-emerald);
-  box-shadow: 0 0 10px var(--accent-emerald);
-  animation: pulse-glow 2s infinite;
-}
-
-@keyframes pulse-glow {
-  0% { transform: scale(0.95); opacity: 0.7; }
-  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 14px var(--accent-emerald); }
-  100% { transform: scale(0.95); opacity: 0.7; }
-}
-
-.status-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: #34d399;
-}
 
 .uptime-pill {
   display: flex;
@@ -813,6 +783,12 @@ input:checked + .slider:before {
   background: #10b981;
   box-shadow: 0 0 10px #10b981;
   animation: pulse-glow 1s infinite;
+}
+
+@keyframes pulse-glow {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 14px #10b981; }
+  100% { transform: scale(0.95); opacity: 0.7; }
 }
 
 
