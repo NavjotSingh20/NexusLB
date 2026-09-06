@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"nexuslb/pkg/balancer"
@@ -122,24 +124,52 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 			count = val
 		}
 	}
-	if count > 50 {
-		count = 50
+	if count > 2000 {
+		count = 2000
 	}
 
 	targetURL := fmt.Sprintf("http://localhost%s/", s.proxyAddr)
-	client := &http.Client{Timeout: 3 * time.Second}
-
-	successCount := 0
-	for i := 0; i < count; i++ {
-		resp, err := client.Get(targetURL)
-		if err == nil {
-			io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
-			if resp.StatusCode < 500 {
-				successCount++
-			}
-		}
+	tr := &http.Transport{
+		MaxIdleConns:        150,
+		MaxIdleConnsPerHost: 150,
+		IdleConnTimeout:     30 * time.Second,
 	}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   5 * time.Second,
+	}
+
+	// Dispatch requests concurrently with a bounded worker pool
+	concurrency := 25
+	if count < concurrency {
+		concurrency = count
+	}
+
+	jobs := make(chan struct{}, count)
+	for i := 0; i < count; i++ {
+		jobs <- struct{}{}
+	}
+	close(jobs)
+
+	var successCount int64
+	var wg sync.WaitGroup
+	for w := 0; w < concurrency; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range jobs {
+				resp, err := client.Get(targetURL)
+				if err == nil {
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+					if resp.StatusCode < 500 {
+						atomic.AddInt64(&successCount, 1)
+					}
+				}
+			}
+		}()
+	}
+	wg.Wait()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

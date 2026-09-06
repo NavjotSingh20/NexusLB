@@ -61,12 +61,23 @@
           </svg>
           Send 1 Request
         </button>
-        <button id="btn-test-burst" class="btn btn-primary">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-          </svg>
-          Burst 10 Requests
-        </button>
+        <div class="burst-input-group">
+          <input 
+            type="number" 
+            id="burst-count-input" 
+            class="burst-number-input" 
+            min="1" 
+            max="2000" 
+            value="10" 
+            title="Number of burst requests (1-2000)"
+          />
+          <button id="btn-test-burst" class="btn btn-primary" title="Send custom burst requests">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            Send Burst
+          </button>
+        </div>
         <button id="btn-auto-traffic" class="btn btn-auto">
           <span class="live-dot pulse"></span>
           <span id="auto-traffic-label">Start Continuous Traffic</span>
@@ -199,7 +210,7 @@
           </thead>
           <tbody id="logs-table-body">
             <tr class="empty-row">
-              <td colspan="6">Waiting for requests... Click "Send 1 Request" or "Burst 10" above to begin.</td>
+              <td colspan="6">Waiting for requests... Click "Send 1 Request" or "Send Burst" above to begin.</td>
             </tr>
           </tbody>
         </table>

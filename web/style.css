@@ -255,6 +255,40 @@ body {
   box-shadow: 0 6px 18px rgba(99, 102, 241, 0.5);
 }
 
+.burst-input-group {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+.burst-number-input {
+  width: 75px;
+  background: rgba(15, 23, 42, 0.85);
+  border: none;
+  border-right: 1px solid rgba(99, 102, 241, 0.3);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.45rem 0.35rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.burst-number-input:focus {
+  background: rgba(30, 41, 59, 0.95);
+  border-right-color: var(--accent-cyan);
+}
+
+.burst-input-group .btn-primary {
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* KPI Grid */
 .kpi-grid {
   display: grid;

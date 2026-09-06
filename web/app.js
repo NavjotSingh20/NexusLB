@@ -34,6 +34,7 @@ const logCountBadge = document.getElementById('log-count-badge');
 
 const btnTestSingle = document.getElementById('btn-test-single');
 const btnTestBurst = document.getElementById('btn-test-burst');
+const burstCountInput = document.getElementById('burst-count-input');
 const btnAutoTraffic = document.getElementById('btn-auto-traffic');
 const autoTrafficLabel = document.getElementById('auto-traffic-label');
 const btnResetMetrics = document.getElementById('btn-reset-metrics');
@@ -192,7 +193,7 @@ function renderLogs(logs) {
   if (!logs || logs.length === 0) {
     logsTableBody.innerHTML = `
       <tr class="empty-row">
-        <td colspan="6">Waiting for requests... Start Continuous Traffic or click "Burst 10" above.</td>
+        <td colspan="6">Waiting for requests... Start Continuous Traffic or click "Send Burst" above.</td>
       </tr>
     `;
     return;
@@ -311,7 +312,16 @@ async function triggerTestRequest(count = 1) {
 }
 
 btnTestSingle.addEventListener('click', () => triggerTestRequest(1));
-btnTestBurst.addEventListener('click', () => triggerTestRequest(10));
+btnTestBurst.addEventListener('click', () => {
+  let count = parseInt(burstCountInput ? burstCountInput.value : 10, 10);
+  if (isNaN(count) || count <= 0) {
+    count = 10;
+  }
+  if (count > 2000) {
+    count = 2000;
+  }
+  triggerTestRequest(count);
+});
 btnAutoTraffic.addEventListener('click', toggleAutoTraffic);
 btnResetMetrics.addEventListener('click', resetMetrics);
 
