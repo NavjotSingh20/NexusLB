@@ -87,57 +87,6 @@
       </div>
     </section>
 
-    <!-- Failover Demonstration & Live Explainer Panel -->
-    <section class="failover-demo-panel">
-      <div class="failover-demo-header">
-        <div class="demo-title-group">
-          <div class="demo-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v20"></path>
-              <path d="m17 5-5-3-5 3"></path>
-              <path d="m17 19-5 3-5-3"></path>
-              <path d="M2 12h20"></path>
-              <path d="m5 7-3 5 3 5"></path>
-              <path d="m19 7 3 5-3 5"></path>
-            </svg>
-          </div>
-          <div>
-            <h3>Fault Tolerance & Load Rebalancing Simulator</h3>
-            <p class="demo-desc">See how NexusLB detects backend failures and transparently redistributes traffic to remaining healthy nodes with zero dropped requests.</p>
-          </div>
-        </div>
-        <button id="btn-run-failover-demo" class="btn btn-demo">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          Run 1-Click Failover Demo
-        </button>
-      </div>
-
-      <!-- Live Dynamic System Status Banner -->
-      <div id="failover-callout" class="failover-callout state-healthy">
-        <span class="callout-indicator"></span>
-        <div class="callout-text" id="callout-message">
-          <strong>Cluster Status: Normal Balancing</strong> &mdash; All 3 upstream backends are healthy. Incoming requests are evenly cycled (33% / 33% / 33%) via Round Robin.
-        </div>
-      </div>
-
-      <!-- Step Progress Cards (Visible during 1-click demo) -->
-      <div class="demo-steps" id="demo-steps-bar">
-        <div class="demo-step active" id="step-1">
-          <span class="step-num">1</span>
-          <span class="step-text">Baseline Traffic (All 3 Online)</span>
-        </div>
-        <div class="demo-step" id="step-2">
-          <span class="step-num">2</span>
-          <span class="step-text">Backend 2 Crash & Rebalance</span>
-        </div>
-        <div class="demo-step" id="step-3">
-          <span class="step-num">3</span>
-          <span class="step-text">Backend 2 Restored & Rebalanced</span>
-        </div>
-      </div>
-    </section>
 
     <!-- Hero KPI Stats -->
     <section class="kpi-grid">

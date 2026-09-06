@@ -85,9 +85,9 @@ func main() {
 		}
 	}()
 
-	log.Printf("\n🚀 NexusLB is running!")
-	log.Printf("👉 Ingress Proxy:     http://localhost%s", cfg.ProxyPort)
-	log.Printf("📊 Admin Dashboard:   http://localhost%s\n", cfg.DashboardPort)
+	log.Printf("\nNexusLB is running!")
+	log.Printf("Ingress Proxy:     http://localhost%s", cfg.ProxyPort)
+	log.Printf("Admin Dashboard:   http://localhost%s\n", cfg.DashboardPort)
 
 	// 8. Graceful Shutdown
 	stop := make(chan os.Signal, 1)

@@ -11,7 +11,6 @@ const COLOR_PALETTE = [
 
 let eventSource = null;
 let lastStats = null;
-let isDemoRunning = false;
 let autoTrafficTimer = null;
 
 // DOM Elements
@@ -40,14 +39,6 @@ const btnTestBurst = document.getElementById('btn-test-burst');
 const btnAutoTraffic = document.getElementById('btn-auto-traffic');
 const autoTrafficLabel = document.getElementById('auto-traffic-label');
 const btnResetMetrics = document.getElementById('btn-reset-metrics');
-const btnRunFailoverDemo = document.getElementById('btn-run-failover-demo');
-
-const failoverCallout = document.getElementById('failover-callout');
-const calloutMessage = document.getElementById('callout-message');
-
-const step1 = document.getElementById('step-1');
-const step2 = document.getElementById('step-2');
-const step3 = document.getElementById('step-3');
 
 // Format seconds into HH:MM:SS
 function formatUptime(seconds) {
@@ -80,37 +71,11 @@ function updateUI(stats) {
   // Upstream Backends
   renderBackends(stats.backends || []);
 
-  // Dynamic Failover Banner
-  if (!isDemoRunning) {
-    updateFailoverCallout(stats.backends || []);
-  }
-
   // Traffic Distribution
   renderDistribution(stats.backends || [], total);
 
   // Request Logs
   renderLogs(stats.recent_logs || []);
-}
-
-function updateFailoverCallout(backends) {
-  if (!backends || backends.length === 0) return;
-
-  const downNodes = backends.filter(b => !b.alive);
-  const healthyNodes = backends.filter(b => b.alive);
-
-  if (downNodes.length === 0) {
-    failoverCallout.className = 'failover-callout state-healthy';
-    calloutMessage.innerHTML = `<strong>Cluster Status: Optimal Balancing (All ${backends.length} Nodes Online)</strong> &mdash; Incoming traffic is distributed evenly (33.3% / 33.3% / 33.3%) across all servers via Round Robin.`;
-  } else if (healthyNodes.length === 0) {
-    failoverCallout.className = 'failover-callout state-degraded';
-    calloutMessage.innerHTML = `<strong>⚠️ Critical: All Backend Servers Switched OFF!</strong> &mdash; NexusLB is responding with HTTP 503 to protect clients until at least one server is toggled back ON.`;
-  } else {
-    failoverCallout.className = 'failover-callout state-degraded';
-    const downPorts = downNodes.map(b => b.url.replace('http://localhost', '')).join(', ');
-    const healthyPorts = healthyNodes.map(b => b.url.replace('http://localhost', '')).join(', ');
-    const pctPerNode = (100 / healthyNodes.length).toFixed(1);
-    calloutMessage.innerHTML = `<strong>⚡ Dynamic Load Shift: Server ${downPorts} Switched OFF!</strong> &mdash; NexusLB automatically rerouted traffic: <strong>100% of incoming load</strong> is now dynamically split across healthy servers <strong>[${healthyPorts}] (${pctPerNode}% each)</strong> with <strong>0 dropped requests</strong>!`;
-  }
 }
 
 function renderBackends(backends) {
@@ -307,57 +272,7 @@ function toggleAutoTraffic() {
   }
 }
 
-// 1-Click Automated Failover Simulation
-async function runFailoverDemo() {
-  if (isDemoRunning) return;
-  isDemoRunning = true;
-  btnRunFailoverDemo.disabled = true;
-  const originalBtnHtml = btnRunFailoverDemo.innerHTML;
-  btnRunFailoverDemo.innerHTML = `<span>Simulating Demo...</span>`;
 
-  try {
-    // Phase 1: Baseline (All ON)
-    step1.className = 'demo-step active';
-    step2.className = 'demo-step';
-    step3.className = 'demo-step';
-    failoverCallout.className = 'failover-callout state-healthy';
-    calloutMessage.innerHTML = `<strong>Demo Phase 1: Baseline Balancing</strong> &mdash; Resetting counters and sending 6 requests across all 3 healthy nodes...`;
-    await fetch('/api/stats/reset', { method: 'POST' });
-    await new Promise(r => setTimeout(r, 600));
-    await triggerTestRequest(6);
-    await new Promise(r => setTimeout(r, 1800));
-
-    // Phase 2: Switch Backend 2 (:8002) OFF
-    step1.className = 'demo-step completed';
-    step2.className = 'demo-step active';
-    failoverCallout.className = 'failover-callout state-degraded';
-    calloutMessage.innerHTML = `<strong>Demo Phase 2: Switching Server :8002 OFF</strong> &mdash; Server toggled OFF! Sending 6 requests... Watch traffic automatically route ONLY to :8001 and :8003 (50% each)!`;
-    await window.toggleServer('http://localhost:8002', false);
-    await new Promise(r => setTimeout(r, 1000));
-    await triggerTestRequest(6);
-    await new Promise(r => setTimeout(r, 2200));
-
-    // Phase 3: Switch Backend 2 (:8002) back ON
-    step2.className = 'demo-step completed';
-    step3.className = 'demo-step active';
-    failoverCallout.className = 'failover-callout state-healthy';
-    calloutMessage.innerHTML = `<strong>Demo Phase 3: Switching Server :8002 back ON</strong> &mdash; Server toggled ON! Sending 6 requests to verify full 33.3% 3-node balance is restored!`;
-    await window.toggleServer('http://localhost:8002', true);
-    await new Promise(r => setTimeout(r, 1000));
-    await triggerTestRequest(6);
-    await new Promise(r => setTimeout(r, 1500));
-
-    // Completion
-    step3.className = 'demo-step completed';
-    calloutMessage.innerHTML = `<strong>✅ Failover Demo Complete!</strong> &mdash; Successfully demonstrated automatic fault detection, seamless failover (zero dropped requests), and automatic recovery rebalancing!`;
-  } catch (err) {
-    console.error('Error during failover demo:', err);
-  } finally {
-    isDemoRunning = false;
-    btnRunFailoverDemo.disabled = false;
-    btnRunFailoverDemo.innerHTML = originalBtnHtml;
-  }
-}
 
 // Connect to Server-Sent Events stream
 function connectSSE() {
@@ -404,7 +319,6 @@ btnTestSingle.addEventListener('click', () => triggerTestRequest(1));
 btnTestBurst.addEventListener('click', () => triggerTestRequest(10));
 btnAutoTraffic.addEventListener('click', toggleAutoTraffic);
 btnResetMetrics.addEventListener('click', resetMetrics);
-btnRunFailoverDemo.addEventListener('click', runFailoverDemo);
 
 // Initialize SSE connection
 connectSSE();
