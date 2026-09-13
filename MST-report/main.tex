@@ -281,8 +281,13 @@ The project lifecycle was partitioned into five consecutive engineering iteratio
 \draw[arrow] (gate1) -- node[right, font=\footnotesize\bfseries]{Yes} (eval);
 
 % Feedback Iterations
-\draw[dashedarrow] (gate1.west) -- ++(-1.5,0) |- node[near end, left, font=\scriptsize\bfseries]{Failure: Refactor} (sp2.west);
-\draw[dashedarrow] (eval.east) -- ++(1.5,0) |- node[near end, right, font=\scriptsize\bfseries]{Retrospective} (arch.east);
+\draw[dashedarrow] (gate1.west) -- ++(-1.6,0)
+  node[pos=0.5, above=1pt, font=\scriptsize\bfseries, text=red!75!black, fill=white, inner sep=2pt]{Quality Gate Fail}
+  |- (sp2.west)
+  node[pos=0.85, above=1pt, font=\scriptsize\bfseries, text=red!75!black, fill=white, inner sep=2pt]{Refactor Sprint};
+\draw[dashedarrow] (eval.east) -- ++(1.6,0)
+  |- (arch.east)
+  node[pos=0.25, right=2pt, font=\scriptsize\bfseries, text=red!75!black, fill=white, inner sep=2pt]{Sprint Retrospective};
 
 \end{tikzpicture}%
 }
@@ -337,17 +342,17 @@ Figure~\ref{fig:usecase_diagram} depicts the UML Use Case Diagram for NexusLB, i
 
 \begin{figure}[!htbp]
 \centering
-\resizebox{0.92\textwidth}{!}{%
+\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
   actor/.style={
     rectangle,
-    rounded corners=3pt,
+    rounded corners=4pt,
     draw=blue!80!black,
     fill=blue!10,
     thick,
-    minimum width=2.4cm,
-    minimum height=0.9cm,
+    minimum width=2.6cm,
+    minimum height=1.0cm,
     align=center,
     font=\bfseries\footnotesize
   },
@@ -356,69 +361,67 @@ Figure~\ref{fig:usecase_diagram} depicts the UML Use Case Diagram for NexusLB, i
     draw=teal!80!black,
     fill=teal!5,
     thick,
-    minimum width=3.4cm,
-    minimum height=0.8cm,
+    minimum width=3.6cm,
+    minimum height=1.0cm,
     align=center,
     font=\footnotesize
   },
   systemboundary/.style={
     rectangle,
-    rounded corners=8pt,
-    draw=gray!60,
+    rounded corners=10pt,
+    draw=gray!50,
     thick,
     dashed,
     fill=gray!2
   },
   link/.style={
     thick,
-    draw=black!75
+    draw=black!60
   },
   rel/.style={
-    -{Stealth[scale=0.9]},
+    -{Stealth[scale=0.8]},
     thick,
     dashed,
-    draw=blue!75!black,
-    font=\tiny\bfseries
+    draw=blue!65!black
   }
 ]
 
-% System Boundary (compact: 11cm x 8.8cm)
-\node[systemboundary, minimum width=11.2cm, minimum height=8.8cm] (box) at (4.6, -5.2) {};
-\node[anchor=north west, font=\bfseries\normalsize, text=gray!80!black] at (box.north west) {\quad NexusLB System Boundary};
+% System Boundary — generous size
+\node[systemboundary, minimum width=12.5cm, minimum height=12.0cm] (box) at (5.0, -5.8) {};
+\node[anchor=north, font=\bfseries\normalsize, text=gray!70!black] at ([yshift=-3pt]box.north) {NexusLB System Boundary};
 
-% Actors
-\node[actor] (client) at (-1.8, -3.0) {Client /\\Consumer};
-\node[actor] (admin) at (-1.8, -7.0) {DevOps /\\Administrator};
-\node[actor] (backend) at (11.0, -4.5) {Upstream\\Backend Node};
+% ——— LEFT COLUMN: Traffic \& Reliability Use Cases (x = 2.8, 2.0cm gaps) ———
+\node[usecase] (uc1) at (2.8, -1.6) {Send HTTP\\Request};
+\node[usecase] (uc2) at (2.8, -3.6) {Dispatch Traffic\\via Strategy};
+\node[usecase] (uc3) at (2.8, -5.6) {Execute Algorithm\\(RR / LC / IP)};
+\node[usecase] (uc4) at (2.8, -7.6) {Dual Health Check\\(Active \& In-Flight)};
+\node[usecase] (uc5) at (2.8, -9.6) {Automatic Failover\\\& Isolation};
 
-% Column 1: Request & Routing Use Cases (x = 2.4)
-\node[usecase] (uc1) at (2.4, -2.2) {Send HTTP\\Request};
-\node[usecase] (uc2) at (2.4, -3.8) {Dispatch Traffic\\via Strategy};
-\node[usecase] (uc3) at (2.4, -5.4) {Execute Algorithm\\(RR / LC / IP)};
-\node[usecase] (uc4) at (2.4, -7.0) {Dual Health Check\\(Active \& In-Flight)};
-\node[usecase] (uc5) at (2.4, -8.4) {Automatic Failover\\\& Isolation};
+% ——— RIGHT COLUMN: Management \& Observability (x = 7.2, 2.0cm gaps) ———
+\node[usecase] (uc6) at (7.2, -2.6) {View Live Telemetry\\(SSE KPIs \& RPS)};
+\node[usecase] (uc7) at (7.2, -4.6) {Hot-Swap Load\\Balancing Policy};
+\node[usecase] (uc8) at (7.2, -6.6) {Simulate Fault\\(Toggle Server)};
+\node[usecase] (uc9) at (7.2, -8.6) {Inspect Request\\Trace Log Buffer};
 
-% Column 2: Management & Observability Use Cases (x = 6.8)
-\node[usecase] (uc6) at (6.8, -2.6) {View Live Telemetry\\(SSE KPIs \& RPS)};
-\node[usecase] (uc7) at (6.8, -4.4) {Hot-Swap Load\\Balancing Policy};
-\node[usecase] (uc8) at (6.8, -6.2) {Simulate Fault\\(Toggle Server)};
-\node[usecase] (uc9) at (6.8, -8.0) {Inspect Request\\Trace Log Buffer};
+% ——— ACTORS (far outside boundary) ———
+\node[actor] (client) at (-2.4, -2.5) {Client /\\Consumer};
+\node[actor] (backend) at (-2.4, -7.6) {Upstream\\Backend Node};
+\node[actor] (admin) at (12.4, -5.5) {DevOps /\\Administrator};
 
-% Actor Links
-\draw[link] (client) -- (uc1);
-\draw[link] (backend) -- (uc2);
-\draw[link] (backend) -- (uc4);
+% ——— LEFT ACTOR → LEFT COLUMN (straight horizontal, zero crossings) ———
+\draw[link] (client.east) -- (uc1.west);
+\draw[link] (backend.east) -- (uc4.west);
 
-\draw[link] (admin) -- (uc6);
-\draw[link] (admin) -- (uc7);
-\draw[link] (admin) -- (uc8);
-\draw[link] (admin) -- (uc9);
+% ——— RIGHT ACTOR → RIGHT COLUMN (straight horizontal, zero crossings) ———
+\draw[link] (admin.west) -- (uc6.east);
+\draw[link] (admin.west) -- (uc7.east);
+\draw[link] (admin.west) -- (uc8.east);
+\draw[link] (admin.west) -- (uc9.east);
 
-% Use Case Dependencies
-\draw[rel] (uc1) -- node[left]{$\ll$include$\gg$} (uc2);
-\draw[rel] (uc2) -- node[left]{$\ll$include$\gg$} (uc3);
-\draw[rel] (uc4) -- node[left]{$\ll$extend$\gg$} (uc5);
-\draw[rel] (uc2) to[bend right=25] node[right]{$\ll$extend$\gg$} (uc5);
+% ——— INTERNAL USE CASE RELATIONSHIPS (vertical, generous spacing for labels) ———
+\draw[rel] (uc1) -- node[right, font=\tiny\bfseries]{$\ll$include$\gg$} (uc2);
+\draw[rel] (uc2) -- node[right, font=\tiny\bfseries]{$\ll$include$\gg$} (uc3);
+\draw[rel] (uc4) -- node[right, font=\tiny\bfseries]{$\ll$extend$\gg$} (uc5);
 
 \end{tikzpicture}%
 }
@@ -432,17 +435,16 @@ NexusLB is engineered as a decoupled set of interacting subsystems. Ingress conn
 
 \begin{figure}[!htbp]
 \centering
-\resizebox{0.92\textwidth}{!}{%
+\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  node distance=0.9cm and 1.3cm,
   comp/.style={
     rectangle,
     draw=blue!70!black,
     fill=blue!5,
     thick,
-    minimum width=3.4cm,
-    minimum height=1.0cm,
+    minimum width=4.0cm,
+    minimum height=1.1cm,
     align=center
   },
   engine/.style={
@@ -450,8 +452,8 @@ NexusLB is engineered as a decoupled set of interacting subsystems. Ingress conn
     draw=teal!70!black,
     fill=teal!6,
     thick,
-    minimum width=3.4cm,
-    minimum height=1.0cm,
+    minimum width=4.0cm,
+    minimum height=1.1cm,
     align=center
   },
   subcomp/.style={
@@ -460,69 +462,69 @@ NexusLB is engineered as a decoupled set of interacting subsystems. Ingress conn
     draw=gray!60,
     fill=white,
     minimum width=2.4cm,
-    minimum height=0.75cm,
+    minimum height=0.8cm,
     align=center,
     font=\footnotesize
   },
   arrow/.style={
-    -{Stealth[scale=1.1]},
+    -{Stealth[scale=1.0]},
     thick,
     draw=blue!80!black
   },
   biarrow/.style={
-    {Stealth[scale=1.1]}-{Stealth[scale=1.1]},
+    {Stealth[scale=1.0]}-{Stealth[scale=1.0]},
     thick,
     draw=purple!80!black
   },
   dasharrow/.style={
-    -{Stealth[scale=1.0]},
+    -{Stealth[scale=0.9]},
     thick,
     dashed,
     draw=teal!70!black
   }
 ]
 
-% Core Components
-\node[comp] (client) {\textbf{Client Layer}\\[2pt]\footnotesize HTTP Web Clients};
-\node[comp, below=0.9cm of client] (ingress) {\textbf{Ingress Proxy Pipeline}\\[2pt]\footnotesize Header Normalization \& Recorder};
-\node[engine, below=0.9cm of ingress] (manager) {\textbf{Strategy Manager}\\[2pt]\footnotesize Dynamic Zero-Downtime Swapping};
+% ——— LEFT COLUMN: Main Request Pipeline (x = 0) ———
+\node[comp] (client) at (0, 0) {\textbf{Client Layer}\\[2pt]\footnotesize HTTP Web Clients};
+\node[comp] (ingress) at (0, -2.0) {\textbf{Ingress Proxy Pipeline}\\[2pt]\footnotesize Header Normalization \& Recorder};
+\node[engine] (manager) at (0, -4.0) {\textbf{Strategy Manager}\\[2pt]\footnotesize Dynamic Zero-Downtime Swapping};
 
-% Strategy Sub-components
-\node[subcomp, below left=0.9cm and 0.2cm of manager] (rr) {Round-Robin};
-\node[subcomp, below=0.9cm of manager] (lc) {Least Connections};
-\node[subcomp, below right=0.9cm and 0.2cm of manager] (iph) {IP Hash};
+% Strategy Sub-components (fan out below manager)
+\node[subcomp] (rr) at (-3.0, -5.8) {Round-Robin};
+\node[subcomp] (lc) at (0, -5.8) {Least Connections};
+\node[subcomp] (iph) at (3.0, -5.8) {IP Hash};
 
-% Registry & Upstreams
-\node[comp, below=2.2cm of lc] (pool) {\textbf{Backend Server Registry}\\[2pt]\footnotesize Thread-Safe Pointer Pool (\texttt{sync.RWMutex})};
-\node[subcomp, below left=0.8cm and 0.3cm of pool] (b1) {Backend 1\\:8001};
-\node[subcomp, below=0.8cm of pool] (b2) {Backend 2\\:8002};
-\node[subcomp, below right=0.8cm and 0.3cm of pool] (b3) {Backend 3\\:8003};
+% Backend Registry & Instances
+\node[comp] (pool) at (0, -7.6) {\textbf{Backend Server Registry}\\[2pt]\footnotesize Thread-Safe Pointer Pool (\texttt{sync.RWMutex})};
+\node[subcomp] (b1) at (-3.0, -9.2) {Backend 1\\:8001};
+\node[subcomp] (b2) at (0, -9.2) {Backend 2\\:8002};
+\node[subcomp] (b3) at (3.0, -9.2) {Backend 3\\:8003};
 
-% Health, Metrics & Dashboard
-\node[engine, right=1.6cm of pool] (health) {\textbf{Dual-Mode Health}\\[2pt]\footnotesize Active Poller \& Catch Handler};
-\node[engine, right=1.6cm of manager] (metrics) {\textbf{Metrics Aggregator}\\[2pt]\footnotesize Ring Buffer \& Live KPIs};
-\node[comp, right=1.6cm of ingress] (dash) {\textbf{Dashboard Server}\\[2pt]\footnotesize SSE Push (:8081) \& \texttt{go:embed}};
+% ——— RIGHT COLUMN: Observability & Health Pipeline (x = 7.5) ———
+\node[engine] (metrics) at (7.5, -2.0) {\textbf{Metrics Aggregator}\\[2pt]\footnotesize Ring Buffer \& Live KPIs};
+\node[comp] (dash) at (7.5, -4.0) {\textbf{Dashboard Server}\\[2pt]\footnotesize SSE Push (:8081) \& \texttt{go:embed}};
+\node[engine] (health) at (7.5, -7.6) {\textbf{Dual-Mode Health}\\[2pt]\footnotesize Active Poller \& Catch Handler};
 
-% Transitions
+% ——— LEFT COLUMN VERTICAL FLOW ———
 \draw[arrow] (client) -- node[right, font=\footnotesize]{HTTP Requests (:8080)} (ingress);
 \draw[arrow] (ingress) -- (manager);
-
 \draw[dasharrow] (manager) -- (rr);
 \draw[dasharrow] (manager) -- (lc);
 \draw[dasharrow] (manager) -- (iph);
-
 \draw[arrow] (rr) -- (pool);
 \draw[arrow] (lc) -- (pool);
 \draw[arrow] (iph) -- (pool);
-
 \draw[arrow] (pool) -- (b1);
 \draw[arrow] (pool) -- (b2);
 \draw[arrow] (pool) -- (b3);
 
-\draw[biarrow] (health) -- node[above, font=\scriptsize]{Poll / Catch} (pool);
-\draw[arrow] (ingress) -- node[above, font=\scriptsize]{Record Status} (metrics);
+% ——— RIGHT COLUMN VERTICAL FLOW ———
 \draw[arrow] (metrics) -- node[right, font=\scriptsize]{Live Telemetry} (dash);
-\draw[dasharrow] (dash) -- node[left, font=\scriptsize]{Hot-Swap API} (manager);
+
+% ——— CROSS-COLUMN CONNECTIONS (well separated, zero overlaps) ———
+\draw[arrow] (ingress.east) -- node[above, font=\scriptsize]{Record Status} (metrics.west);
+\draw[dasharrow] (dash.west) -- node[above, font=\scriptsize]{Hot-Swap API} (manager.east);
+\draw[biarrow] (pool.east) -- node[above, font=\scriptsize]{Poll / Catch} (health.west);
 
 \end{tikzpicture}%
 }
@@ -555,7 +557,7 @@ Figure~\ref{fig:class_diagram} depicts the UML Class Diagram of NexusLB, highlig
 
 \begin{figure}[!htbp]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.98\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\footnotesize,
   classbox/.style={
@@ -564,8 +566,9 @@ Figure~\ref{fig:class_diagram} depicts the UML Class Diagram of NexusLB, highlig
     draw=blue!80!black,
     fill=blue!3,
     thick,
-    minimum width=4.3cm,
-    minimum height=1.7cm,
+    text width=4.3cm,
+    minimum height=2.4cm,
+    inner sep=6pt,
     align=left
   },
   interfacebox/.style={
@@ -574,112 +577,142 @@ Figure~\ref{fig:class_diagram} depicts the UML Class Diagram of NexusLB, highlig
     draw=teal!80!black,
     fill=teal!4,
     thick,
-    minimum width=4.5cm,
-    minimum height=1.7cm,
+    text width=4.3cm,
+    minimum height=2.0cm,
+    inner sep=6pt,
+    align=left
+  },
+  subclassbox/.style={
+    rectangle,
+    rounded corners=3pt,
+    draw=blue!80!black,
+    fill=blue!3,
+    thick,
+    text width=3.5cm,
+    minimum height=1.8cm,
+    inner sep=5pt,
     align=left
   },
   rel/.style={
-    -{Stealth[scale=1.0]},
+    -{Stealth[scale=0.9]},
     thick,
     draw=blue!80!black
   },
   impl/.style={
-    -{Triangle[open, scale=1.1]},
+    -{Triangle[open, scale=1.0]},
     thick,
     dashed,
     draw=teal!80!black
   },
   aggr/.style={
-    {Diamond[open, scale=1.2]}-,
+    {Diamond[open, scale=1.1]}-,
     thick,
     draw=purple!80!black
   }
 ]
 
-% Row 1: Ingress & Core (y = 3.6)
-\node[classbox] (rp) at (-5.0, 3.6) {
-  \textbf{ReverseProxy}\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  - proxy: *httputil.ReverseProxy\\
-  - manager: *StrategyManager\\
-  - metrics: *MetricsCollector\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
+% ——— ROW 1 (y = 4.5) ———
+\node[classbox] (rp) at (-6.0, 4.5) {
+  \textbf{ReverseProxy}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  - proxy: *httputil.RP\\
+  - manager: *StrategyMgr\\
+  - metrics: *MetricsColl\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
   + ServeHTTP(w, r)\\
   + ErrorHandler(w, r, err)
 };
 
-\node[classbox] (sm) at (0.0, 3.6) {
-  \textbf{StrategyManager}\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
+\node[classbox] (sm) at (0.0, 4.5) {
+  \textbf{StrategyManager}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
   - current: Balancer\\
-  - strategies: map[string]Balancer\\
-  - mu: sync.RWMutex\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  + SetStrategy(name): error\\
+  - strategies: map[string]Bal\\
+  - mu: sync.RWMutex\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  + SetStrategy(name): err\\
   + GetStrategy(): Balancer
 };
 
-\node[classbox] (be) at (5.0, 3.6) {
-  \textbf{Backend}\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  - URL: *url.URL\\
-  - Alive: bool\\
-  - ActiveConns: int64\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  + IsAlive(): bool\\
-  + IncConns() / DecConns()
+\node[classbox] (hc) at (6.0, 4.5) {
+  \textbf{HealthChecker}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  - backends: []*Backend\\
+  - interval: time.Duration\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  + Start(ctx: Context)\\
+  + checkAllBackends()
 };
 
-% Row 2: Metrics, Interface & Health (y = 0.0)
-\node[classbox] (mc) at (-5.0, 0.0) {
-  \textbf{MetricsCollector}\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  - totalRequests: uint64\\
-  - recentLatency: []time.Duration\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  + RecordRequest(status, dur)\\
+% ——— ROW 2 (y = 0.0) ———
+\node[classbox] (mc) at (-6.0, 0.0) {
+  \textbf{MetricsCollector}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  - totalReqs: uint64\\
+  - latencies: []time.Dur\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  + RecordRequest(st, dur)\\
   + GetSnapshot(): Snapshot
 };
 
 \node[interfacebox] (ib) at (0.0, 0.0) {
-  \textbf{$\ll$interface$\gg$ Balancer}\\[2pt]\rule{4.2cm}{0.4pt}\vspace{2pt}
-  + NextBackend(b, r): (*Backend, error)\\
+  \textbf{$\ll$interface$\gg$ Balancer}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  + NextBackend(b, r):\\
+  \quad (*Backend, error)\\
   + Name(): string
 };
 
-\node[classbox] (hc) at (5.0, 0.0) {
-  \textbf{HealthChecker}\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  - backends: []*Backend\\
-  - interval: time.Duration\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  + Start(ctx: context.Context)\\
-  + checkAllBackends()
+\node[classbox] (be) at (6.0, 0.0) {
+  \textbf{Backend}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  - URL: *url.URL\\
+  - Alive: bool\\
+  - ActiveConns: int64\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  + IsAlive(): bool\\
+  + IncConns() / DecConns()
 };
 
-% Row 3: Concrete Balancers (y = -3.2)
-\node[classbox] (rr) at (-5.0, -3.2) {
-  \textbf{RoundRobin}\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  - current: uint64\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
+% ——— ROW 3 (y = -4.5) ———
+\node[subclassbox] (rr) at (-5.0, -4.5) {
+  \textbf{RoundRobin}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  - current: uint64\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
   + NextBackend(b, r)\\
-  + Name(): ``RoundRobin''
+  + Name(): string
 };
 
-\node[classbox] (lc) at (0.0, -3.2) {
-  \textbf{LeastConn}\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  - current: uint64\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
+\node[subclassbox] (lc) at (0.0, -4.5) {
+  \textbf{LeastConn}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  - current: uint64\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
   + NextBackend(b, r)\\
-  + Name(): ``LeastConn''
+  + Name(): string
 };
 
-\node[classbox] (iph) at (5.0, -3.2) {
-  \textbf{IPHash}\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
-  - hashFn: func(string) uint32\\[2pt]\rule{4.0cm}{0.4pt}\vspace{2pt}
+\node[subclassbox] (iph) at (5.0, -4.5) {
+  \textbf{IPHash}\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
+  - hashFn: HashFunc\\[-1pt]
+  \rule{\linewidth}{0.4pt}\\[2pt]
   + NextBackend(b, r)\\
-  + Name(): ``IPHash''
+  + Name(): string
 };
 
-% Clean, Non-Crossing Relationships
+% ——— RELATIONSHIPS (all orthogonal) ———
 \draw[rel] (rp.east) -- node[above, font=\scriptsize]{routes} (sm.west);
-\draw[rel] (rp.south) -- node[right, font=\scriptsize]{records} (mc.north);
+\draw[rel] (rp.south) -- node[left, font=\scriptsize]{records} (mc.north);
 \draw[aggr] (sm.south) -- node[right, font=\scriptsize]{manages} (ib.north);
-\draw[aggr] (hc.north) -- node[right, font=\scriptsize]{monitors} (be.south);
-\draw[rel] (ib.north east) -- node[above, font=\scriptsize, sloped]{selects} (be.south west);
+\draw[aggr] (hc.south) -- node[right, font=\scriptsize]{monitors} (be.north);
+\draw[rel] (ib.east) -- node[above, font=\scriptsize]{selects} (be.west);
 
-% Concrete Balancer Realizations (from bottom row up to Balancer interface)
-\draw[impl] (rr.north) |- ++(0, 0.6) -| (ib.south west);
+% ——— INTERFACE REALIZATIONS (clean vertical) ———
 \draw[impl] (lc.north) -- (ib.south);
-\draw[impl] (iph.north) |- ++(0, 0.6) -| (ib.south east);
+\draw[impl] (rr.north) |- ([yshift=-0.7cm]ib.south) -- ([xshift=-1.0cm]ib.south);
+\draw[impl] (iph.north) |- ([yshift=-0.7cm]ib.south) -- ([xshift=1.0cm]ib.south);
 
 \end{tikzpicture}%
 }
@@ -693,23 +726,22 @@ The operational execution model of NexusLB captures every phase of request inges
 
 \begin{figure}[!htbp]
 \centering
-\resizebox{0.82\textwidth}{!}{%
+\resizebox{0.88\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\footnotesize,
-  node distance=0.55cm,
   action/.style={
     rectangle,
     rounded corners=4pt,
     draw=blue!70!black,
     fill=blue!5,
     thick,
-    minimum width=4.4cm,
-    minimum height=0.65cm,
+    minimum width=4.8cm,
+    minimum height=0.75cm,
     align=center
   },
   decision/.style={
     diamond,
-    aspect=2.0,
+    aspect=2.2,
     draw=orange!80!black,
     fill=orange!10,
     thick,
@@ -732,52 +764,56 @@ The operational execution model of NexusLB captures every phase of request inges
     -{Stealth[scale=1.0]},
     thick,
     draw=blue!80!black
+  },
+  redarrow/.style={
+    -{Stealth[scale=0.9]},
+    thick,
+    draw=red!70!black
   }
 ]
 
-% Start & Validation
-\node[circlepoint] (start) {};
-\node[action, below=0.45cm of start] (a1) {Ingress Receives HTTP Request};
-\node[decision, below=0.5cm of a1] (d1) {Alive Backends\\Available?};
-\node[action, right=1.3cm of d1] (e503) {Return 503 Service Unavailable\\[1pt]\scriptsize Record Failure Metric};
+% ——— CENTER SPINE ———
+\node[circlepoint] (start) at (0, 0) {};
+\node[action] (a1) at (0, -1.2) {Ingress Receives HTTP Request};
+\node[decision] (d1) at (0, -2.8) {Alive Backends\\Available?};
+\node[action] (a2) at (0, -4.6) {Query Strategy Manager for Active Balancer};
+\node[action] (a3) at (0, -6.0) {Evaluate Algorithm \& Select Target Backend $b^*$};
+\node[action] (a4) at (0, -7.4) {Increment $b^*$.ActiveConns via Atomic Primitive};
+\node[action] (a5) at (0, -8.8) {Forward Request via Custom ReverseProxy};
+\node[decision] (d2) at (0, -10.6) {Socket Drop /\\Network Error?};
+\node[action] (a6) at (0, -12.6) {Decrement $b^*$.ActiveConns via Atomic Primitive};
+\node[action] (a7) at (0, -14.0) {Wrap Status \& Measure Latency via \texttt{statusRecorder}};
+\node[action] (a8) at (0, -15.4) {Push Metrics to Ring Buffer \& Dispatch SSE Event};
+\node[action] (a9) at (0, -16.8) {Flush HTTP Response to Client};
+\node[endpoint] (end) at (0, -17.8) {};
 
-% Scheduling & Dispatching
-\node[action, below=0.6cm of d1] (a2) {Query Strategy Manager for\\Active Balancer};
-\node[action, below=0.5cm of a2] (a3) {Evaluate Algorithm \& Select\\Target Backend $b^*$};
-\node[action, below=0.5cm of a3] (a4) {Increment $b^*$.ActiveConns\\via Atomic Primitive};
-\node[action, below=0.5cm of a4] (a5) {Forward Request via\\Custom ReverseProxy};
+% ——— LEFT BRANCH: 503 Failure (x = -5.5) ———
+\node[action] (e503) at (-5.5, -2.8) {Return 503 Unavailable\\[1pt]\scriptsize Record Failure Metric};
 
-% Interception & Retries
-\node[decision, below=0.6cm of a5] (d2) {Socket Drop /\\Network Error?};
-\node[action, right=1.3cm of d2] (failover) {Intercept via ErrorHandler\\[1pt]\scriptsize Flag Node Dead ($\textit{Alive} \gets \textit{false}$)\\[1pt]\scriptsize Reroute to Alternate Healthy Node};
+% ——— RIGHT BRANCH: In-Flight Failover (x = +5.8) ———
+\node[action] (failover) at (5.8, -10.6) {Intercept via ErrorHandler\\[1pt]\scriptsize Flag Dead, Reroute to Alt Node};
 
-% Metric Wrapping & Completion
-\node[action, below=0.6cm of d2] (a6) {Decrement $b^*$.ActiveConns\\via Atomic Primitive};
-\node[action, below=0.5cm of a6] (a7) {Wrap Status \& Measure Latency\\via \texttt{statusRecorder}};
-\node[action, below=0.5cm of a7] (a8) {Push Metrics to Ring Buffer\\\& Dispatch SSE Telemetry Event};
-\node[action, below=0.5cm of a8] (a9) {Flush HTTP Response to Client};
-\node[endpoint, below=0.45cm of a9] (end) {};
-
-% Transitions
+% ——— CENTER SPINE ARROWS ———
 \draw[arrow] (start) -- (a1);
 \draw[arrow] (a1) -- (d1);
 \draw[arrow] (d1) -- node[right, font=\scriptsize\bfseries]{Yes} (a2);
-\draw[arrow] (d1) -- node[above, font=\scriptsize\bfseries]{No} (e503);
-\draw[arrow] (e503) |- (a8);
-
 \draw[arrow] (a2) -- (a3);
 \draw[arrow] (a3) -- (a4);
 \draw[arrow] (a4) -- (a5);
 \draw[arrow] (a5) -- (d2);
-
 \draw[arrow] (d2) -- node[right, font=\scriptsize\bfseries]{No (200 OK)} (a6);
-\draw[arrow] (d2) -- node[above, font=\scriptsize\bfseries]{Yes} (failover);
-\draw[arrow] (failover) |- (a5);
-
 \draw[arrow] (a6) -- (a7);
 \draw[arrow] (a7) -- (a8);
 \draw[arrow] (a8) -- (a9);
 \draw[arrow] (a9) -- (end);
+
+% ——— LEFT BRANCH: 503 (separate channel, no overlap) ———
+\draw[redarrow] (d1.west) -- node[above, font=\scriptsize\bfseries]{No} (e503.east);
+\draw[redarrow] (e503.south) -- ++(0,-12.0) -| (a8.south west);
+
+% ——— RIGHT BRANCH: Failover retry loop (separate channel, no overlap) ———
+\draw[redarrow] (d2.east) -- node[above, font=\scriptsize\bfseries]{Yes} (failover.west);
+\draw[redarrow] (failover.north) -- ++(0,1.2) -| (a5.south east);
 
 \end{tikzpicture}%
 }
@@ -934,24 +970,19 @@ To evaluate fault tolerance under realistic outage conditions, NexusLB's embedde
 
 \begin{figure}[!htbp]
 \centering
-\resizebox{0.90\textwidth}{!}{%
+\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  node distance=1.5cm,
   state/.style={
     rectangle,
-    rounded corners=5pt,
+    rounded corners=6pt,
     draw=blue!70!black,
     fill=blue!6,
     thick,
-    minimum width=3.3cm,
-    minimum height=1.1cm,
+    text width=4.2cm,
+    minimum height=1.6cm,
+    inner sep=8pt,
     align=center
-  },
-  arrow/.style={
-    -{Stealth[scale=1.1]},
-    thick,
-    draw=blue!80!black
   },
   critarrow/.style={
     -{Stealth[scale=1.1]},
@@ -965,12 +996,12 @@ To evaluate fault tolerance under realistic outage conditions, NexusLB's embedde
   }
 ]
 
-\node[state] (s1) {\textbf{Phase 1: Baseline}\\[2pt]\footnotesize 3 Nodes Healthy (:8001-:8003)\\[2pt]\footnotesize 33.3\% Traffic Each};
-\node[state, right=1.4cm of s1] (s2) {\textbf{Phase 2: Chaos Injection}\\[2pt]\footnotesize Backend 2 (:8002) Killed\\[2pt]\footnotesize In-Flight Socket Catch};
-\node[state, right=1.4cm of s2] (s3) {\textbf{Phase 3: Self-Healing}\\[2pt]\footnotesize Backend 2 Restored\\[2pt]\footnotesize Health Ping Returns 200};
+\node[state] (s1) at (0, 0) {\textbf{Phase 1: Baseline}\\[3pt]\footnotesize 3 Nodes Healthy\\\footnotesize (:8001--:8003)\\[2pt]\footnotesize 33.3\% Traffic Each};
+\node[state] (s2) at (6.8, 0) {\textbf{Phase 2: Chaos Injection}\\[3pt]\footnotesize Backend 2 (:8002) Killed\\[2pt]\footnotesize In-Flight Socket Catch};
+\node[state] (s3) at (13.6, 0) {\textbf{Phase 3: Self-Healing}\\[3pt]\footnotesize Backend 2 Restored\\[2pt]\footnotesize Health Ping Returns 200};
 
-\draw[critarrow] (s1) -- node[above, font=\scriptsize\bfseries, text=red!80!black]{Power Switch OFF} node[below, font=\tiny]{Reactive Reroute (0 drops)} (s2);
-\draw[recovarrow] (s2) -- node[above, font=\scriptsize\bfseries, text=teal!80!black]{Power Switch ON} node[below, font=\tiny]{Auto-Reintegration $\le$ 3.0s} (s3);
+\draw[critarrow] (s1.east) -- node[above=3pt, font=\scriptsize\bfseries, text=red!80!black]{Power Switch OFF} node[below=3pt, font=\scriptsize]{Reactive Reroute (0 drops)} (s2.west);
+\draw[recovarrow] (s2.east) -- node[above=3pt, font=\scriptsize\bfseries, text=teal!80!black]{Power Switch ON} node[below=3pt, font=\scriptsize]{Auto-Reintegration $\le$ 3.0s} (s3.west);
 
 \end{tikzpicture}%
 }
