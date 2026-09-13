@@ -46,8 +46,11 @@ func main() {
 	}
 
 	// 3. Initialize Balancer Strategy
-	rr := balancer.NewRoundRobin(backends)
-	log.Printf("[INIT] Active routing algorithm: %s", rr.Name())
+	sm, err := balancer.NewStrategyManager(cfg.Strategy, backends)
+	if err != nil {
+		log.Fatalf("Failed to initialize load balancer strategy: %v", err)
+	}
+	log.Printf("[INIT] Active routing algorithm: %s", sm.Name())
 
 	// 4. Initialize Metrics Collector
 	collector := metrics.NewCollector()
@@ -61,7 +64,7 @@ func main() {
 	log.Printf("[INIT] Health checker active (probing every %v on %s)", cfg.HealthCheckInterval, cfg.HealthCheckPath)
 
 	// 6. Start Reverse Proxy Server
-	proxyHandler := proxy.NewProxyHandler(rr, collector)
+	proxyHandler := proxy.NewProxyHandler(sm, collector)
 	proxyServer := &http.Server{
 		Addr:         cfg.ProxyPort,
 		Handler:      proxyHandler,
@@ -78,7 +81,7 @@ func main() {
 	}()
 
 	// 7. Start Observability Dashboard Server
-	dashServer := dashboard.NewServer(cfg.DashboardPort, cfg.ProxyPort, collector, rr, checker)
+	dashServer := dashboard.NewServer(cfg.DashboardPort, cfg.ProxyPort, collector, sm, checker)
 	go func() {
 		if err := dashServer.Start(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Dashboard server failed: %v", err)

@@ -30,8 +30,10 @@ type DashboardStats struct {
 	AverageLatencyMs   float64                `json:"avg_latency_ms"`
 	Backends           []backend.BackendStats `json:"backends"`
 	RecentLogs         []RequestLog           `json:"recent_logs"`
-	Strategy           string                 `json:"strategy"`
-	UptimeSeconds      int64                  `json:"uptime_seconds"`
+	Strategy            string                 `json:"strategy"`
+	StrategyKey         string                 `json:"strategy_key,omitempty"`
+	AvailableStrategies []string               `json:"available_strategies,omitempty"`
+	UptimeSeconds       int64                  `json:"uptime_seconds"`
 }
 
 type Collector struct {

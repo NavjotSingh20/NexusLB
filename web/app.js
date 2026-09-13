@@ -12,6 +12,7 @@ const COLOR_PALETTE = [
 let eventSource = null;
 let lastStats = null;
 let autoTrafficTimer = null;
+const backendDelays = {};
 
 // DOM Elements
 const uptimeVal = document.getElementById('uptime-val');
@@ -37,9 +38,41 @@ const logCountBadge = document.getElementById('log-count-badge');
 const btnTestSingle = document.getElementById('btn-test-single');
 const btnTestBurst = document.getElementById('btn-test-burst');
 const burstCountInput = document.getElementById('burst-count-input');
+const checkSimIPs = document.getElementById('check-sim-ips');
 const btnAutoTraffic = document.getElementById('btn-auto-traffic');
 const autoTrafficLabel = document.getElementById('auto-traffic-label');
 const btnResetMetrics = document.getElementById('btn-reset-metrics');
+
+// Update active strategy pill styling
+function updateStrategyPills(key) {
+  if (!key) return;
+  const pills = document.querySelectorAll('.strategy-pill');
+  pills.forEach(pill => {
+    if (pill.getAttribute('data-strategy') === key) {
+      pill.classList.add('active');
+    } else {
+      pill.classList.remove('active');
+    }
+  });
+}
+
+// Hook strategy switcher buttons
+document.querySelectorAll('.strategy-pill').forEach(pill => {
+  pill.addEventListener('click', async () => {
+    const strat = pill.getAttribute('data-strategy');
+    if (!strat) return;
+    updateStrategyPills(strat);
+    try {
+      const res = await fetch(`/api/strategy?name=${encodeURIComponent(strat)}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.key) {
+        updateStrategyPills(data.key);
+      }
+    } catch (err) {
+      console.error('Failed to change strategy:', err);
+    }
+  });
+});
 
 // Format seconds into HH:MM:SS
 function formatUptime(seconds) {
@@ -55,7 +88,10 @@ function updateUI(stats) {
 
   // Uptime & Strategy
   uptimeVal.textContent = formatUptime(stats.uptime_seconds || 0);
-  if (stats.strategy) {
+  if (stats.strategy_key) {
+    updateStrategyPills(stats.strategy_key);
+  }
+  if (stats.strategy && strategyDisplay) {
     strategyDisplay.textContent = stats.strategy;
   }
 
@@ -137,9 +173,16 @@ function renderBackends(backends) {
         </div>
 
         <div class="backend-stats-grid">
-          <div class="stat-item">
-            <span class="stat-label">Active Conn</span>
-            <span class="stat-val">${b.active_connections}</span>
+          <div class="stat-item active-conn-stat">
+            <div class="stat-header">
+              <span class="stat-label">Active Conn</span>
+              <div class="conn-steppers">
+                <button class="btn-stepper" onclick="window.adjustBackendConn('${escapeHTML(b.url)}', -1)" title="Decrease active connections by 1">-</button>
+                <button class="btn-stepper" onclick="window.adjustBackendConn('${escapeHTML(b.url)}', 1)" title="Increase active connections by 1">+</button>
+                <button class="btn-stepper btn-stepper-reset" onclick="window.setBackendConn('${escapeHTML(b.url)}', 0)" title="Reset active connections to 0">0</button>
+              </div>
+            </div>
+            <span class="stat-val ${b.active_connections > 0 ? 'highlight-conn' : ''}">${b.active_connections}</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">Handled</span>
@@ -148,6 +191,16 @@ function renderBackends(backends) {
           <div class="stat-item">
             <span class="stat-label">Latency</span>
             <span class="stat-val">${b.last_latency_ms} ms</span>
+          </div>
+        </div>
+
+        <div class="backend-delay-bar">
+          <span class="delay-label">Latency Sim:</span>
+          <div class="delay-buttons">
+            <button class="btn-delay-preset ${(!backendDelays[b.url] || backendDelays[b.url] === 0) ? 'active' : ''}" onclick="window.setBackendDelay('${escapeHTML(b.url)}', 0)">0ms</button>
+            <button class="btn-delay-preset ${backendDelays[b.url] === 100 ? 'active' : ''}" onclick="window.setBackendDelay('${escapeHTML(b.url)}', 100)">100ms</button>
+            <button class="btn-delay-preset ${backendDelays[b.url] === 300 ? 'active' : ''}" onclick="window.setBackendDelay('${escapeHTML(b.url)}', 300)">300ms</button>
+            <button class="btn-delay-preset ${backendDelays[b.url] === 600 ? 'active' : ''}" onclick="window.setBackendDelay('${escapeHTML(b.url)}', 600)">600ms</button>
           </div>
         </div>
       </div>
@@ -254,6 +307,21 @@ window.toggleServer = async function(url, isOnline) {
   }
 };
 
+// Set simulated latency on a backend server
+window.setBackendDelay = async function(url, ms) {
+  backendDelays[url] = ms;
+  try {
+    const res = await fetch(`/api/backend/delay?url=${encodeURIComponent(url)}&ms=${ms}`, { method: 'POST' });
+    const data = await res.json();
+    console.log(`Server ${url} latency set to ${ms}ms:`, data);
+    if (lastStats && lastStats.backends) {
+      renderBackends(lastStats.backends);
+    }
+  } catch (err) {
+    console.error(`Failed to set latency for ${url}:`, err);
+  }
+};
+
 // Reset metrics
 async function resetMetrics() {
   const originalHtml = btnResetMetrics.innerHTML;
@@ -285,8 +353,6 @@ function toggleAutoTraffic() {
     }, 500);
   }
 }
-
-
 
 // Connect to Server-Sent Events stream
 function connectSSE() {
@@ -325,8 +391,9 @@ async function triggerTestRequest(count = 1) {
     if (kpiCardQueue) kpiCardQueue.classList.add('queue-active');
   }
 
+  const simIPs = checkSimIPs ? checkSimIPs.checked : true;
   try {
-    const res = await fetch(`/api/test-request?count=${count}`, { method: 'POST' });
+    const res = await fetch(`/api/test-request?count=${count}&sim_ips=${simIPs}`, { method: 'POST' });
     const data = await res.json();
     return data;
   } catch (err) {
@@ -345,6 +412,54 @@ btnTestBurst.addEventListener('click', () => {
   }
   triggerTestRequest(count);
 });
+
+// Adjust active connections manually on a backend server
+window.adjustBackendConn = async function(url, delta) {
+  try {
+    await fetch(`/api/backend/connections?url=${encodeURIComponent(url)}&delta=${delta}`, { method: 'POST' });
+  } catch (err) {
+    console.error(`Failed to adjust connections for ${url}:`, err);
+  }
+};
+
+window.setBackendConn = async function(url, count) {
+  try {
+    await fetch(`/api/backend/connections?url=${encodeURIComponent(url)}&count=${count}`, { method: 'POST' });
+  } catch (err) {
+    console.error(`Failed to set connections for ${url}:`, err);
+  }
+};
+
+const btnTestSlow = document.getElementById('btn-test-slow');
+const holdConnsCount = document.getElementById('hold-conns-count');
+const holdConnsSec = document.getElementById('hold-conns-sec');
+
+if (btnTestSlow) {
+  btnTestSlow.addEventListener('click', async () => {
+    let count = parseInt(holdConnsCount ? holdConnsCount.value : 15, 10) || 15;
+    let sec = parseInt(holdConnsSec ? holdConnsSec.value : 4, 10) || 4;
+    if (count > 150) count = 150;
+    if (count < 1) count = 1;
+    if (sec > 30) sec = 30;
+    if (sec < 1) sec = 1;
+
+    const delayMs = sec * 1000;
+    btnTestSlow.disabled = true;
+    const origHtml = btnTestSlow.innerHTML;
+    btnTestSlow.innerHTML = `<span>Holding ${count} Conns (${sec}s)...</span>`;
+    try {
+      await fetch(`/api/test-request?count=${count}&delay=${delayMs}`, { method: 'POST' });
+    } catch (err) {
+      console.error('Error triggering custom hold requests:', err);
+    } finally {
+      setTimeout(() => {
+        btnTestSlow.disabled = false;
+        btnTestSlow.innerHTML = origHtml;
+      }, delayMs);
+    }
+  });
+}
+
 btnAutoTraffic.addEventListener('click', toggleAutoTraffic);
 btnResetMetrics.addEventListener('click', resetMetrics);
 
