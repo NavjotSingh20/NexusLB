@@ -130,9 +130,16 @@ NexusLB/
 │   │   └── backend.go        # Thread-safe Backend state & atomic counters
 │   ├── balancer/
 │   │   ├── balancer.go       # Pluggable Balancer interface & Round-Robin algorithm
-│   │   └── balancer_test.go  # Unit tests for routing and health skips
+│   │   ├── balancer_test.go  # Unit tests for routing and health skips
+│   │   ├── ip_hash.go        # Deterministic 32-bit FNV-1a IP hash routing with ring failover
+│   │   ├── ip_hash_test.go   # Unit tests for sticky sessions & failover
+│   │   ├── least_conn.go     # Least Connections balancing with atomic counters & fair tie-breaking
+│   │   ├── least_conn_test.go# Unit tests for least connections selection
+│   │   ├── manager.go        # Thread-safe StrategyManager for zero-downtime hot-swapping
+│   │   └── manager_test.go   # Concurrency and hot-swap unit tests
 │   ├── dashboard/
-│   │   └── server.go         # Dashboard HTTP server (SSE telemetry stream & REST API)
+│   │   ├── server.go         # Dashboard HTTP server (SSE telemetry, strategy switching & REST API)
+│   │   └── server_test.go    # Unit tests for dashboard API endpoints
 │   ├── health/
 │   │   ├── checker.go        # Background active health monitoring daemon
 │   │   └── checker_test.go   # Unit tests for active health detection
@@ -180,7 +187,22 @@ NexusLB is configured using [`config.json`](./config.json):
 | `backends` | `[]string` | `3 nodes` | Array of upstream backend URLs |
 | `health_check_interval` | `string` | `"3s"` | Interval between active health probes |
 | `health_check_path` | `string` | `"/health"`| Endpoint path to probe on upstream servers |
-| `strategy` | `string` | `"round_robin"` | Load balancing routing algorithm |
+| `strategy` | `string` | `"round_robin"` | Initial load balancing routing algorithm (`round_robin`, `least_connections`, `ip_hash`) |
+
+### Supported Load Balancing Strategies
+
+NexusLB ships with three production-grade routing strategies managed by a thread-safe `StrategyManager`:
+
+| Strategy | Config Key | Description | Best For |
+| :--- | :--- | :--- | :--- |
+| **Round Robin** | `"round_robin"` | Distributes incoming requests sequentially in a circular ring using atomic pointers. Transparently skips unhealthy nodes. | Homogeneous upstream instances with uniform response latencies. |
+| **Least Connections** | `"least_connections"` | Dynamically queries in-flight connection counts (`ActiveConnections`) and routes to the least busy healthy backend. Employs circular tie-breaking to avoid clustering. | Long-lived connections (WebSockets, SSE), complex DB queries, or servers with asymmetric processing power. |
+| **IP Hashing** | `"ip_hash"` | Computes a deterministic 32-bit FNV-1a hash over the client's IP address (`X-Forwarded-For`, `X-Real-IP`, or `RemoteAddr`). Features sequential ring walk failover if primary node fails. | Stateful sessions, localized caching, and sticky user affinity without requiring centralized session stores. |
+
+#### Zero-Downtime Hot-Swapping:
+- **Web UI**: Click any of the strategy pills in the top action banner (`[Round Robin]`, `[Least Connections]`, `[IP Hash]`).
+- **REST API**: Send `POST /api/strategy?name=<strategy_key>`.
+- **Thread Safety**: Backed by `sync.RWMutex`, allowing ongoing proxy requests to read strategies concurrently while atomic pointer swaps execute instantaneously.
 
 ---
 
@@ -305,24 +327,28 @@ curl http://localhost:8080/
 ### NexusLB Proxy (`http://localhost:8080`)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `ANY` | `/*` | Forwards client request to a healthy backend server using Round-Robin |
+| `ANY` | `/*` | Forwards client request to a healthy backend server using the active strategy |
 
 ### NexusLB Admin & Metrics API (`http://localhost:8081`)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/` | Serves the embedded observability dashboard UI |
-| `GET` | `/api/stats` | Returns JSON snapshot of current metrics, backend states, and logs |
+| `GET` | `/api/stats` | Returns JSON snapshot of current metrics, backend states, logs, and active strategy |
 | `GET` | `/api/stream` | Server-Sent Events (SSE) stream pushing metrics every 1 second |
-| `POST` | `/api/test-request?count=N` | Fires `N` requests (max 50) through the proxy for testing |
+| `GET` | `/api/strategy` | Returns active strategy key, formal name, and list of available algorithms |
+| `POST` | `/api/strategy?name=STRAT` | Dynamically switches routing strategy (`round_robin`, `least_connections`, `ip_hash`) |
+| `POST` | `/api/test-request?count=N&sim_ips=[true\|false]` | Fires `N` requests through proxy with optional diverse client IP simulation |
 | `POST` | `/api/backend/toggle?url=URL&state=[up\|down]` | Toggles a backend server online or offline |
+| `POST` | `/api/backend/delay?url=URL&ms=N` | Injects simulated artificial latency (e.g. `300ms`) on target backend |
 | `POST` | `/api/stats/reset` | Resets all counters and log buffers to zero |
 
 ### Mock Upstream Cluster (`http://localhost:8001`, `8002`, `8003`)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/` | Returns server identity string and port number |
+| `GET` | `/?delay=MS` | Returns server identity string and port number with optional per-request delay |
 | `GET` | `/health` | Returns `200 OK` (healthy) or `503 Unavailable` (simulated down) |
 | `GET/POST`| `/chaos/toggle?state=[up\|down]` | Toggles failure simulation state for that node |
+| `GET/POST`| `/chaos/delay?ms=MS` | Sets persistent simulated processing latency for that node |
 
 ---
 

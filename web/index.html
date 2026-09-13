@@ -48,14 +48,27 @@
           <span class="ingress-url" id="proxy-url-display">http://localhost:8080</span>
         </div>
         <div class="ingress-indicator">
-          <span class="ingress-label">ACTIVE STRATEGY</span>
-          <span class="ingress-strategy" id="active-strategy-display">Round Robin</span>
+          <span class="ingress-label">LOAD BALANCING ALGORITHM</span>
+          <div class="strategy-selector" id="strategy-selector" role="group" aria-label="Strategy Selector">
+            <button type="button" class="strategy-pill active" data-strategy="round_robin" id="pill-round-robin" title="Even sequential distribution across healthy targets">
+              <span class="pill-dot"></span>
+              <span>Round Robin</span>
+            </button>
+            <button type="button" class="strategy-pill" data-strategy="least_connections" id="pill-least-conn" title="Route to healthy backend with fewest active connections">
+              <span class="pill-dot"></span>
+              <span>Least Connections</span>
+            </button>
+            <button type="button" class="strategy-pill" data-strategy="ip_hash" id="pill-ip-hash" title="Deterministic client IP hash with sticky sessions">
+              <span class="pill-dot"></span>
+              <span>IP Hash</span>
+            </button>
+          </div>
         </div>
       </div>
 
       <div class="traffic-generator">
         <span class="generator-label">Traffic Simulator:</span>
-        <button id="btn-test-single" class="btn btn-secondary">
+        <button id="btn-test-single" class="btn btn-secondary" title="Dispatch 1 request to proxy">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
@@ -78,6 +91,17 @@
             Send Burst
           </button>
         </div>
+        <button id="btn-test-slow" class="btn btn-secondary" title="Dispatch 15 concurrent requests that each hold connections for 3 seconds to clearly display Active Connections in real-time">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          Hold Active (3s)
+        </button>
+        <label class="sim-ip-toggle" title="When active, burst requests simulate multiple client IPs (192.168.1.x) to demonstrate IP Hash load distribution">
+          <input type="checkbox" id="check-sim-ips" checked />
+          <span class="sim-ip-text">Diverse IPs</span>
+        </label>
         <button id="btn-auto-traffic" class="btn btn-auto">
           <span class="live-dot pulse"></span>
           <span id="auto-traffic-label">Start Continuous Traffic</span>

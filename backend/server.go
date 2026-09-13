@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -26,6 +27,13 @@ func (s *ServerInstance) handleRoot(w http.ResponseWriter, r *http.Request) {
 	down := s.isDown
 	delay := s.delayMs
 	s.mux.RUnlock()
+
+	// Support query param ?delay=N (in ms) for per-request latency simulation
+	if qDelay := r.URL.Query().Get("delay"); qDelay != "" {
+		if d, err := strconv.Atoi(qDelay); err == nil && d >= 0 {
+			delay = d
+		}
+	}
 
 	if delay > 0 {
 		time.Sleep(time.Duration(delay) * time.Millisecond)
@@ -94,6 +102,25 @@ func (s *ServerInstance) handleChaos(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[SIMULATOR] Backend %d (:%d) toggled to %s", s.id, s.port, stateStr)
 }
 
+func (s *ServerInstance) handleDelay(w http.ResponseWriter, r *http.Request) {
+	s.mux.Lock()
+	if msStr := r.URL.Query().Get("ms"); msStr != "" {
+		if ms, err := strconv.Atoi(msStr); err == nil && ms >= 0 {
+			s.delayMs = ms
+		}
+	}
+	currDelay := s.delayMs
+	s.mux.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"server":   s.id,
+		"port":     s.port,
+		"delay_ms": currDelay,
+	})
+	log.Printf("[SIMULATOR] Backend %d (:%d) simulated latency set to %dms", s.id, s.port, currDelay)
+}
+
 func startServer(id, port int) *http.Server {
 	instance := &ServerInstance{
 		id:   id,
@@ -104,6 +131,7 @@ func startServer(id, port int) *http.Server {
 	mux.HandleFunc("/", instance.handleRoot)
 	mux.HandleFunc("/health", instance.handleHealth)
 	mux.HandleFunc("/chaos/toggle", instance.handleChaos)
+	mux.HandleFunc("/chaos/delay", instance.handleDelay)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
