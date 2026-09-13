@@ -65,6 +65,13 @@ func (b *Backend) DecConn() {
 	atomic.AddInt64(&b.ActiveConnections, -1)
 }
 
+func (b *Backend) SetActiveConnections(count int64) {
+	if count < 0 {
+		count = 0
+	}
+	atomic.StoreInt64(&b.ActiveConnections, count)
+}
+
 func (b *Backend) RecordRequest(latency time.Duration, isErr bool) {
 	atomic.AddInt64(&b.TotalRequests, 1)
 	if isErr {

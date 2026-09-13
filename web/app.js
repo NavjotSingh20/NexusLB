@@ -173,9 +173,16 @@ function renderBackends(backends) {
         </div>
 
         <div class="backend-stats-grid">
-          <div class="stat-item">
-            <span class="stat-label">Active Conn</span>
-            <span class="stat-val">${b.active_connections}</span>
+          <div class="stat-item active-conn-stat">
+            <div class="stat-header">
+              <span class="stat-label">Active Conn</span>
+              <div class="conn-steppers">
+                <button class="btn-stepper" onclick="window.adjustBackendConn('${escapeHTML(b.url)}', -1)" title="Decrease active connections by 1">-</button>
+                <button class="btn-stepper" onclick="window.adjustBackendConn('${escapeHTML(b.url)}', 1)" title="Increase active connections by 1">+</button>
+                <button class="btn-stepper btn-stepper-reset" onclick="window.setBackendConn('${escapeHTML(b.url)}', 0)" title="Reset active connections to 0">0</button>
+              </div>
+            </div>
+            <span class="stat-val ${b.active_connections > 0 ? 'highlight-conn' : ''}">${b.active_connections}</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">Handled</span>
@@ -406,21 +413,49 @@ btnTestBurst.addEventListener('click', () => {
   triggerTestRequest(count);
 });
 
+// Adjust active connections manually on a backend server
+window.adjustBackendConn = async function(url, delta) {
+  try {
+    await fetch(`/api/backend/connections?url=${encodeURIComponent(url)}&delta=${delta}`, { method: 'POST' });
+  } catch (err) {
+    console.error(`Failed to adjust connections for ${url}:`, err);
+  }
+};
+
+window.setBackendConn = async function(url, count) {
+  try {
+    await fetch(`/api/backend/connections?url=${encodeURIComponent(url)}&count=${count}`, { method: 'POST' });
+  } catch (err) {
+    console.error(`Failed to set connections for ${url}:`, err);
+  }
+};
+
 const btnTestSlow = document.getElementById('btn-test-slow');
+const holdConnsCount = document.getElementById('hold-conns-count');
+const holdConnsSec = document.getElementById('hold-conns-sec');
+
 if (btnTestSlow) {
   btnTestSlow.addEventListener('click', async () => {
+    let count = parseInt(holdConnsCount ? holdConnsCount.value : 15, 10) || 15;
+    let sec = parseInt(holdConnsSec ? holdConnsSec.value : 4, 10) || 4;
+    if (count > 150) count = 150;
+    if (count < 1) count = 1;
+    if (sec > 30) sec = 30;
+    if (sec < 1) sec = 1;
+
+    const delayMs = sec * 1000;
     btnTestSlow.disabled = true;
     const origHtml = btnTestSlow.innerHTML;
-    btnTestSlow.innerHTML = `<span>Holding 15 Conns (3s)...</span>`;
+    btnTestSlow.innerHTML = `<span>Holding ${count} Conns (${sec}s)...</span>`;
     try {
-      await fetch(`/api/test-request?count=15&delay=3000`, { method: 'POST' });
+      await fetch(`/api/test-request?count=${count}&delay=${delayMs}`, { method: 'POST' });
     } catch (err) {
-      console.error('Error triggering slow requests:', err);
+      console.error('Error triggering custom hold requests:', err);
     } finally {
       setTimeout(() => {
         btnTestSlow.disabled = false;
         btnTestSlow.innerHTML = origHtml;
-      }, 3000);
+      }, delayMs);
     }
   });
 }

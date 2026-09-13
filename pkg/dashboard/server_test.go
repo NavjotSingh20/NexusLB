@@ -124,3 +124,30 @@ func TestServer_ResetAPI(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", rec.Code)
 	}
 }
+
+func TestServer_ConnectionsAPI(t *testing.T) {
+	srv, _ := setupTestServer(t)
+
+	// Set count to 8
+	req := httptest.NewRequest(http.MethodPost, "/api/backend/connections?url=http://localhost:8001&count=8", nil)
+	rec := httptest.NewRecorder()
+	srv.handleBackendConnections(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	// Add delta +2
+	req2 := httptest.NewRequest(http.MethodPost, "/api/backend/connections?url=http://localhost:8001&delta=2", nil)
+	rec2 := httptest.NewRecorder()
+	srv.handleBackendConnections(rec2, req2)
+
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec2.Code)
+	}
+
+	backends := srv.balancer.GetBackends()
+	if backends[0].GetStats().ActiveConnections != 10 {
+		t.Errorf("expected 10 active connections, got %d", backends[0].GetStats().ActiveConnections)
+	}
+}

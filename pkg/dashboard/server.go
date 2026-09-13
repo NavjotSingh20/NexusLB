@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"nexuslb/pkg/backend"
 	"nexuslb/pkg/balancer"
 	"nexuslb/pkg/health"
 	"nexuslb/pkg/metrics"
@@ -56,6 +57,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/test-request", s.handleTestRequest)
 	mux.HandleFunc("/api/backend/toggle", s.handleToggleBackend)
 	mux.HandleFunc("/api/backend/delay", s.handleBackendDelay)
+	mux.HandleFunc("/api/backend/connections", s.handleBackendConnections)
 	mux.HandleFunc("/api/strategy", s.handleStrategy)
 	mux.HandleFunc("/api/stats/reset", s.handleResetStats)
 
@@ -160,15 +162,24 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 		MaxIdleConnsPerHost: 150,
 		IdleConnTimeout:     30 * time.Second,
 	}
+	timeout := 10 * time.Second
+	if delayParam != "" {
+		if d, err := strconv.Atoi(delayParam); err == nil && d > 0 {
+			timeout = time.Duration(d)*time.Millisecond + 5*time.Second
+		}
+	}
 	client := &http.Client{
 		Transport: tr,
-		Timeout:   5 * time.Second,
+		Timeout:   timeout,
 	}
 
-	// Dispatch requests concurrently with a bounded worker pool
-	concurrency := 25
-	if count < concurrency {
-		concurrency = count
+	// Dispatch requests concurrently up to 150 workers
+	concurrency := count
+	if concurrency > 150 {
+		concurrency = 150
+	}
+	if concurrency < 1 {
+		concurrency = 1
 	}
 
 	// Register queued burst requests
@@ -357,6 +368,59 @@ func (s *Server) handleBackendDelay(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	io.Copy(w, resp.Body)
+}
+
+func (s *Server) handleBackendConnections(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	targetURL := r.URL.Query().Get("url")
+	if targetURL == "" {
+		http.Error(w, "missing url param", http.StatusBadRequest)
+		return
+	}
+
+	countStr := r.URL.Query().Get("count")
+	deltaStr := r.URL.Query().Get("delta")
+
+	backends := s.balancer.GetBackends()
+	var found *backend.Backend
+	for _, b := range backends {
+		if b.URL.String() == targetURL {
+			found = b
+			break
+		}
+	}
+
+	if found == nil {
+		http.Error(w, "backend not found", http.StatusNotFound)
+		return
+	}
+
+	if deltaStr != "" {
+		if delta, err := strconv.ParseInt(deltaStr, 10, 64); err == nil {
+			curr := atomic.LoadInt64(&found.ActiveConnections)
+			newCount := curr + delta
+			found.SetActiveConnections(newCount)
+		}
+	} else if countStr != "" {
+		if count, err := strconv.ParseInt(countStr, 10, 64); err == nil {
+			found.SetActiveConnections(count)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":             "ok",
+		"url":                found.URL.String(),
+		"active_connections": atomic.LoadInt64(&found.ActiveConnections),
+	})
 }
 
 func (s *Server) handleResetStats(w http.ResponseWriter, r *http.Request) {

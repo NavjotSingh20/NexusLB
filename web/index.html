@@ -91,13 +91,35 @@
             Send Burst
           </button>
         </div>
-        <button id="btn-test-slow" class="btn btn-secondary" title="Dispatch 15 concurrent requests that each hold connections for 3 seconds to clearly display Active Connections in real-time">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          Hold Active (3s)
-        </button>
+        <div class="hold-conns-group">
+          <input 
+            type="number" 
+            id="hold-conns-count" 
+            class="burst-number-input" 
+            min="1" 
+            max="150" 
+            value="15" 
+            title="Number of custom concurrent active connections to open (1-150)"
+          />
+          <span class="hold-separator">conns for</span>
+          <input 
+            type="number" 
+            id="hold-conns-sec" 
+            class="burst-number-input" 
+            min="1" 
+            max="30" 
+            value="4" 
+            title="Duration to hold active connections open in seconds (1-30s)"
+          />
+          <span class="hold-separator">sec</span>
+          <button id="btn-test-slow" class="btn btn-secondary" title="Dispatch custom concurrent requests to hold active connections">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Hold Active
+          </button>
+        </div>
         <label class="sim-ip-toggle" title="When active, burst requests simulate multiple client IPs (192.168.1.x) to demonstrate IP Hash load distribution">
           <input type="checkbox" id="check-sim-ips" checked />
           <span class="sim-ip-text">Diverse IPs</span>

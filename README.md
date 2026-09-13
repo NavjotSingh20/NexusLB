@@ -337,9 +337,10 @@ curl http://localhost:8080/
 | `GET` | `/api/stream` | Server-Sent Events (SSE) stream pushing metrics every 1 second |
 | `GET` | `/api/strategy` | Returns active strategy key, formal name, and list of available algorithms |
 | `POST` | `/api/strategy?name=STRAT` | Dynamically switches routing strategy (`round_robin`, `least_connections`, `ip_hash`) |
-| `POST` | `/api/test-request?count=N&sim_ips=[true\|false]` | Fires `N` requests through proxy with optional diverse client IP simulation |
+| `POST` | `/api/test-request?count=N&delay=MS&sim_ips=[true\|false]` | Dispatches custom concurrent requests holding connections for `MS` |
 | `POST` | `/api/backend/toggle?url=URL&state=[up\|down]` | Toggles a backend server online or offline |
 | `POST` | `/api/backend/delay?url=URL&ms=N` | Injects simulated artificial latency (e.g. `300ms`) on target backend |
+| `POST` | `/api/backend/connections?url=URL&count=N&delta=N` | Sets or adjusts active connections counter on a backend node |
 | `POST` | `/api/stats/reset` | Resets all counters and log buffers to zero |
 
 ### Mock Upstream Cluster (`http://localhost:8001`, `8002`, `8003`)
