@@ -71,9 +71,9 @@
 \newcommand{\@tpTitle}{NexusLB}
 \newcommand{\@tpSubTitle}{A Custom Reverse Proxy \& Intelligent Load Balancer}
 \newcommand{\@tpAuthors}{%
-  \texttt{1024030313} Navjot Singh \\
-  \texttt{1024030316} Shaina Gera \\
-  \texttt{1024030320} Prabhgun Kaur%
+  \texttt{1024030313} & Navjot Singh \\
+  \texttt{1024030316} & Shaina Gera \\
+  \texttt{1024030320} & Prabhgun Kaur%
 }
 \newcommand{\@tpSubText}{Group: \texttt{3C23} BE Third Year, CSE}
 \newcommand{\@tpAdvisor}{Jhonsy Bansal}
@@ -114,8 +114,12 @@
     \vspace{3.5cm}
     {\large \textbf{Submitted by:}}
 
-    \vspace{0.2cm}
-    {\large \@tpAuthors}
+    \vspace{0.25cm}
+    {\large
+    \begin{tabular}{@{}l@{\hspace{1.2em}}l@{}}
+      \@tpAuthors
+    \end{tabular}
+    }
 
     \vspace{0.5cm}
     {\normalsize \@tpSubText}
@@ -138,9 +142,9 @@
 \ProjectTitle{NexusLB}
 \ProjectSubTitle{A Custom Reverse Proxy \& Intelligent Load Balancer}
 \author{%
-  \texttt{1024030313} Navjot Singh \\
-  \texttt{1024030316} Shaina Gera \\
-  \texttt{1024030320} Prabhgun Kaur%
+  \texttt{1024030313} & Navjot Singh \\
+  \texttt{1024030316} & Shaina Gera \\
+  \texttt{1024030320} & Prabhgun Kaur%
 }
 \TitlePageSubText{Group: \texttt{3C23} BE Third Year, CSE}
 \AdvisorName{Jhonsy Bansal}
@@ -209,9 +213,9 @@ NexusLB was developed using an \textbf{Agile Incremental Iterative Prototyping M
 
 The project lifecycle was partitioned into five consecutive engineering iterations (Sprints). Each sprint produced a verified, runnable increment that was subjected to automated unit tests, concurrency race audits (\texttt{go test -race}), and structural code reviews before advancing to the next phase. Figure~\ref{fig:sdlc_diagram} illustrates the structured progression of the NexusLB SDLC, highlighting the feedback mechanisms between implementation, testing, and architectural refinement.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
+\resizebox{!}{11.0cm}{%
 \begin{tikzpicture}[
   font=\small,
   node distance=0.55cm and 1.0cm,
@@ -281,13 +285,15 @@ The project lifecycle was partitioned into five consecutive engineering iteratio
 \draw[arrow] (gate1) -- node[right, font=\footnotesize\bfseries]{Yes} (eval);
 
 % Feedback Iterations
-\draw[dashedarrow] (gate1.west) -- ++(-1.6,0)
-  node[pos=0.5, above=1pt, font=\scriptsize\bfseries, text=red!75!black, fill=white, inner sep=2pt]{Quality Gate Fail}
-  |- (sp2.west)
-  node[pos=0.85, above=1pt, font=\scriptsize\bfseries, text=red!75!black, fill=white, inner sep=2pt]{Refactor Sprint};
-\draw[dashedarrow] (eval.east) -- ++(1.6,0)
-  |- (arch.east)
-  node[pos=0.25, right=2pt, font=\scriptsize\bfseries, text=red!75!black, fill=white, inner sep=2pt]{Sprint Retrospective};
+\draw[dashedarrow] (gate1.west) -- ++(-2.0,0) coordinate (gateleft)
+  node[midway, above=2pt, font=\footnotesize\bfseries, text=red!75!black]{No}
+  -- (gateleft |- sp2.west)
+  node[midway, left=3pt, font=\scriptsize\bfseries, text=red!75!black, fill=white, inner sep=1.5pt]{Refactor Sprint}
+  -- (sp2.west);
+\draw[dashedarrow] (eval.east) -- ++(2.0,0) coordinate (evalright)
+  -- (evalright |- arch.east)
+  node[midway, right=3pt, font=\scriptsize\bfseries, text=red!75!black, fill=white, inner sep=1.5pt]{Sprint Retrospective}
+  -- (arch.east);
 
 \end{tikzpicture}%
 }
@@ -429,13 +435,14 @@ Figure~\ref{fig:usecase_diagram} depicts the UML Use Case Diagram for NexusLB, i
 \label{fig:usecase_diagram}
 \end{figure}
 
+\clearpage
 \subsection{High-Level UML Architecture}
 
 NexusLB is engineered as a decoupled set of interacting subsystems. Ingress connection handling, routing strategy management, health evaluation, and metrics dissemination are separated into distinct modules. Figure~\ref{fig:uml_arch} illustrates the high-level UML Component Architecture.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.88\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
   comp/.style={
@@ -524,7 +531,7 @@ NexusLB is engineered as a decoupled set of interacting subsystems. Ingress conn
 % ——— CROSS-COLUMN CONNECTIONS (well separated, zero overlaps) ———
 \draw[arrow] (ingress.east) -- node[above, font=\scriptsize]{Record Status} (metrics.west);
 \draw[dasharrow] (dash.west) -- node[above, font=\scriptsize]{Hot-Swap API} (manager.east);
-\draw[biarrow] (pool.east) -- node[above, font=\scriptsize]{Poll / Catch} (health.west);
+\draw[biarrow] (pool.east) -- node[above, font=\scriptsize]{Poll/Catch} (health.west);
 
 \end{tikzpicture}%
 }
@@ -543,6 +550,7 @@ The technology choices for NexusLB directly align with its performance and syste
   \item \textbf{Embedded Observability (\texttt{embed.FS} \& SSE):} Static web UI assets are embedded directly into the Go executable via compiler directives (\texttt{//go:embed}). Live operational metrics are streamed via standard Server-Sent Events (SSE), providing real-time visual updates without the connection overhead of WebSockets or external agents.
 \end{itemize}
 
+\clearpage
 \section{Detailed Design and Implementation}
 
 \subsection{Object-Oriented Design and Data Structures}
@@ -555,9 +563,9 @@ In Go, object-oriented design is achieved through structural subtyping and inter
 
 Figure~\ref{fig:class_diagram} depicts the UML Class Diagram of NexusLB, highlighting structs, interfaces, encapsulation boundaries, and associations arranged in a clean, non-overlapping 3-tier matrix.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
 \centering
-\resizebox{0.98\textwidth}{!}{%
+\resizebox{0.82\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\footnotesize,
   classbox/.style={
@@ -720,13 +728,14 @@ Figure~\ref{fig:class_diagram} depicts the UML Class Diagram of NexusLB, highlig
 \label{fig:class_diagram}
 \end{figure}
 
+\clearpage
 \subsection{Core Request Workflow and Activity Model}
 
 The operational execution model of NexusLB captures every phase of request ingestion, algorithm selection, connection tracking, fault isolation, and metrics collection. Figure~\ref{fig:activity_diagram} presents the detailed UML Activity Diagram.
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
+\resizebox{!}{12.8cm}{%
 \begin{tikzpicture}[
   font=\footnotesize,
   action/.style={
@@ -821,6 +830,7 @@ The operational execution model of NexusLB captures every phase of request inges
 \label{fig:activity_diagram}
 \end{figure}
 
+\clearpage
 \subsection{Load Balancing Strategies}
 
 NexusLB implements three scheduling algorithms tailored to distinct workload characteristics:
@@ -882,15 +892,16 @@ Table~\ref{tab:performance_comparison} reports the comparative performance of th
 \begin{table}[!htbp]
 \centering
 \small
-\begin{tabularx}{\textwidth}{lrrrr}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} l r r r r @{}}
   \toprule
-  \textbf{Balancing Strategy} & \textbf{Throughput (req/s)} & \textbf{Mean Latency (ms)} & \textbf{P99 Latency (ms)} & \textbf{Distribution StdDev ($\sigma$)} \\
+  \textbf{Strategy} & \textbf{Throughput} & \textbf{Mean Lat.} & \textbf{P99 Lat.} & \textbf{Dist.\ $\sigma$} \\
+  & \textbf{(req/s)} & \textbf{(ms)} & \textbf{(ms)} & \\
   \midrule
   Round-Robin & 1,498.4 & 2.14 & 5.82 & 1.24 \\
   Least Connections & 1,496.2 & 1.89 & 4.12 & 3.86 \\
   Deterministic IP Hash & 1,492.0 & 2.28 & 6.45 & 14.72 \\
   \bottomrule
-\end{tabularx}
+\end{tabular*}
 \caption{Empirical performance benchmark across load balancing strategies at 1,500 RPS.}
 \label{tab:performance_comparison}
 \end{table}
@@ -915,13 +926,13 @@ Table~\ref{tab:performance_comparison} reports the comparative performance of th
 ]
 
 % Axes
-\draw[thick, ->] (0,0) -- (10.5,0) node[right]{Strategy};
-\draw[thick, ->] (0,0) -- (0,5.0) node[above]{Latency (ms)};
+\draw[thick, ->] (0,0) -- (10.8,0) node[right]{Strategy};
+\draw[thick, ->] (0,0) -- (0,5.5) node[above]{Latency (ms)};
 
 % Y-ticks
 \foreach \y/\val in {1/1.0, 2/2.0, 3/3.0, 4/4.0, 5/5.0} {
   \draw (0.1,\y) -- (-0.1,\y) node[left]{\val};
-  \draw[gray!20, dashed] (0,\y) -- (10.2,\y);
+  \draw[gray!20, dashed] (0,\y) -- (10.4,\y);
 }
 
 % Bars for Mean Latency
@@ -949,12 +960,12 @@ Table~\ref{tab:performance_comparison} reports the comparative performance of th
 \node[below=0.3cm] at (5.7, 0) {\textbf{Least Connections}};
 \node[below=0.3cm] at (9.0, 0) {\textbf{IP Hash}};
 
-% Legend drawn with pure TikZ coordinates (avoids tabular ampersand collision)
-\draw[draw=gray!50, fill=white, rounded corners=2pt] (7.2, 3.8) rectangle (10.2, 4.9);
-\draw[bar, minimum width=0.4cm, minimum height=0.3cm] (7.4, 4.45) rectangle (7.8, 4.7);
-\node[right, font=\scriptsize] at (7.9, 4.58) {Mean Latency};
-\draw[bar2, minimum width=0.4cm, minimum height=0.3cm] (7.4, 4.0) rectangle (7.8, 4.25);
-\node[right, font=\scriptsize] at (7.9, 4.12) {P99 Latency (scaled)};
+% Large, spacious legend with generous padding
+\draw[draw=gray!50, fill=white, rounded corners=4pt, thick] (5.8, 3.85) rectangle (10.6, 5.35);
+\filldraw[draw=blue!80!black, fill=blue!40, thick] (6.15, 4.75) rectangle (6.75, 5.15);
+\node[right, font=\footnotesize] at (6.95, 4.95) {Mean Latency};
+\filldraw[draw=teal!80!black, fill=teal!40, thick] (6.15, 4.05) rectangle (6.75, 4.45);
+\node[right, font=\footnotesize] at (6.95, 4.25) {P99 Latency (scaled)};
 
 \end{tikzpicture}%
 }
@@ -968,40 +979,40 @@ The benchmark demonstrates that \textbf{Least Connections} achieves the lowest m
 
 To evaluate fault tolerance under realistic outage conditions, NexusLB's embedded dashboard was utilized to execute real-time failure injection:
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
   state/.style={
     rectangle,
-    rounded corners=6pt,
+    rounded corners=5pt,
     draw=blue!70!black,
     fill=blue!6,
     thick,
-    text width=4.2cm,
-    minimum height=1.6cm,
-    inner sep=8pt,
+    text width=3.8cm,
+    minimum height=1.5cm,
+    inner sep=6pt,
     align=center
   },
   critarrow/.style={
-    -{Stealth[scale=1.1]},
-    thick,
+    -{Stealth[scale=1.0]},
+    very thick,
     draw=red!80!black
   },
   recovarrow/.style={
-    -{Stealth[scale=1.1]},
-    thick,
+    -{Stealth[scale=1.0]},
+    very thick,
     draw=teal!80!black
   }
 ]
 
-\node[state] (s1) at (0, 0) {\textbf{Phase 1: Baseline}\\[3pt]\footnotesize 3 Nodes Healthy\\\footnotesize (:8001--:8003)\\[2pt]\footnotesize 33.3\% Traffic Each};
-\node[state] (s2) at (6.8, 0) {\textbf{Phase 2: Chaos Injection}\\[3pt]\footnotesize Backend 2 (:8002) Killed\\[2pt]\footnotesize In-Flight Socket Catch};
-\node[state] (s3) at (13.6, 0) {\textbf{Phase 3: Self-Healing}\\[3pt]\footnotesize Backend 2 Restored\\[2pt]\footnotesize Health Ping Returns 200};
+\node[state] (s1) at (0, 0) {\textbf{Phase 1: Baseline}\\[2pt]\scriptsize 3 Nodes Healthy\\(:8001--:8003)\\33.3\% Traffic Each};
+\node[state] (s2) at (6.5, 0) {\textbf{Phase 2: Chaos}\\[2pt]\scriptsize Backend 2 Killed\\In-Flight Socket Catch};
+\node[state] (s3) at (13.0, 0) {\textbf{Phase 3: Healing}\\[2pt]\scriptsize Backend 2 Restored\\Health Ping Returns 200};
 
-\draw[critarrow] (s1.east) -- node[above=3pt, font=\scriptsize\bfseries, text=red!80!black]{Power Switch OFF} node[below=3pt, font=\scriptsize]{Reactive Reroute (0 drops)} (s2.west);
-\draw[recovarrow] (s2.east) -- node[above=3pt, font=\scriptsize\bfseries, text=teal!80!black]{Power Switch ON} node[below=3pt, font=\scriptsize]{Auto-Reintegration $\le$ 3.0s} (s3.west);
+\draw[critarrow] (s1.east) -- node[above=2pt, font=\scriptsize\bfseries, text=red!80!black]{Switch OFF} node[below=2pt, font=\scriptsize]{0 dropped req.} (s2.west);
+\draw[recovarrow] (s2.east) -- node[above=2pt, font=\scriptsize\bfseries, text=teal!80!black]{Switch ON} node[below=2pt, font=\scriptsize]{Reintegrate $\le$ 3s} (s3.west);
 
 \end{tikzpicture}%
 }
@@ -1017,28 +1028,31 @@ To evaluate fault tolerance under realistic outage conditions, NexusLB's embedde
 
 \section{Engineering Challenges and Resolutions}
 
-Throughout the development lifecycle, three critical systems challenges were identified, analyzed, and resolved, as documented in our individual engineering journals:
+During the development and testing of NexusLB, our team encountered three key engineering challenges. This section describes each issue, explains why it occurred, and outlines how it was resolved.
 
-\subsection{Concurrent Slice Mutation Panics (Navjot Singh)}
-\textit{Journal Reference: \texttt{journals/1024030313-navjot/01-concurrent-slice-mutation.md}}
+\subsection{Uneven Traffic in Least Connections Routing}
 
-During initial prototyping of the health checker, dead backends were removed by mutating the active backend slice in-place via \texttt{append(backends[:i], backends[i+1:]...)}. Under concurrent client request dispatching, modifying the slice header while worker goroutines were evaluating slice length produced intermittent \texttt{runtime error: index out of range} panics. 
+\textbf{Problem Statement:} When testing the Least Connections algorithm with sequential requests, traffic distribution became heavily skewed. In a test run of 1,000 requests, the first backend handled 994 requests (99.4\%), while the other two servers received only 3 requests each. Despite having three healthy servers running, almost all the traffic was directed to just one node.
 
-\textbf{Resolution:} The system was refactored to treat the backend slice as an immutable, static array of pointers populated at startup. State transitions are now tracked purely through an internal \texttt{Alive bool} flag within each \texttt{Backend} struct, protected by readers-writer locks and atomic checks. Round-Robin traversal skips dead nodes by indexing over the fixed pointer ring, completely eliminating slice race conditions.
+\textbf{Root Cause Analysis:} For fast endpoints that complete in under a millisecond, each connection closes before the next request arrives. As a result, all servers usually show an active connection count of zero. The original selection code looped through the servers from index $0$ to $n-1$ looking for the lowest connection count using \texttt{conns < minConns}. Because Backend 1 had zero connections, it became the initial minimum ($0$). When the loop evaluated the other backends, their connection count of zero was not strictly less than zero ($0 < 0$ is false), so Backend 1 was always chosen. Changing the comparison to \texttt{<=} merely flipped the problem, sending all traffic to the final server instead.
 
-\subsection{Upstream Response Status Telemetry Loss (Shaina Gera)}
-\textit{Journal Reference: \texttt{journals/1024030316-shaina/01-reverse-proxy-telemetry-loss.md}}
+\textbf{Resolution and Implementation:} We introduced a rotating counter (\texttt{offset}) using Go's \texttt{atomic.AddUint64(\&lc.offset, 1)}. Instead of always starting the search from index 0, each incoming request starts inspecting from the next server in sequence. If all servers have equal connection counts (such as zero), traffic is distributed evenly in a round-robin order (33.3\% each). When actual load spikes occur, the algorithm still directs traffic to the server with the fewest active connections.
 
-Standard implementations of \texttt{httputil.ReverseProxy} stream backend responses directly to the underlying \texttt{http.ResponseWriter}, bypassing application-layer inspection. As a result, status codes (such as 404, 500, or 502) and response payload sizes were unavailable to the metrics collector, causing the dashboard to report erroneous 0\% error rates even during server outages.
+\subsection{Broken Sticky Sessions in IP Hash Balancing}
 
-\textbf{Resolution:} A custom HTTP response wrapper (\texttt{statusRecorder}) was implemented, embedding \texttt{http.ResponseWriter} and intercepting \texttt{WriteHeader(code int)} and \texttt{Write(b []byte)} calls. This captured the exact upstream HTTP status code and byte count, enabling the proxy pipeline to update error distributions, live RPS, and latency moving averages accurately.
+\textbf{Problem Statement:} The IP Hash strategy is intended to keep a client consistently routed to the same backend to maintain session state. However, when testing with a real web browser loading a web page alongside its CSS and JavaScript files, parallel requests were scattered across three different servers at the same time. This broke user session affinity and caused HTTP 401 Unauthorized errors because login sessions only existed on the first server.
 
-\subsection{Compile-Time Asset Embedding Boundary Violations (Prabhgun Kaur)}
-\textit{Journal Reference: \texttt{journals/1024030320-prabhgun/01-asset-embedding-boundary-violation.md}}
+\textbf{Root Cause Analysis:} The initial code calculated the hash using Go's \texttt{r.RemoteAddr}, which includes both the IP address and the port number (for example, \texttt{192.168.1.50:54321}). Web browsers open multiple parallel TCP connections, and the operating system assigns a different ephemeral port to each connection. Because hash functions produce very different results even with minor text changes, each unique port generated a different hash, sending requests from the same user to different backends.
 
-To satisfy the single-binary deployment requirement (NFR3), the web dashboard assets (\texttt{index.html}, \texttt{style.css}, \texttt{app.js}) needed to be embedded via Go's \texttt{//go:embed} directive. However, Go's compiler strictly prohibits embedding files outside the package's immediate directory or subdirectories (e.g., using relative paths such as \texttt{../web}). Initial attempts to reference assets from \texttt{pkg/dashboard} failed at build time.
+\textbf{Resolution and Implementation:} We implemented a helper function (\texttt{ExtractClientIP}) to isolate the client's actual IP address. It inspects proxy headers like \texttt{X-Forwarded-For} and \texttt{X-Real-IP}, and uses Go's \texttt{net.SplitHostPort} to strip out the dynamic port number. It also standardizes loopback formats (such as converting IPv6 \texttt{::1} to standard IPv4). By hashing only the clean IP address, requests from the same client are reliably routed to the same backend.
 
-\textbf{Resolution:} The repository layout was restructured to cleanly encapsulate static web assets within the dashboard package boundary, decoupling frontend compilation from the root runtime and enabling seamless cross-platform binary distribution.
+\subsection{Goroutine Leaks and Connection Drops in the Live Dashboard}
+
+\textbf{Problem Statement:} During extended testing of the real-time web dashboard, the Server-Sent Events (SSE) telemetry stream disconnected every 15 seconds with a \texttt{context deadline exceeded} error, causing the page to reload and flicker. In addition, checking server diagnostics revealed that active goroutines climbed from 14 to 386 after reloading the page 50 times, indicating that old connections were never being cleaned up.
+
+\textbf{Root Cause Analysis:} This issue stemmed from two conflicting behaviors in the streaming setup. First, Go's standard \texttt{http.Server} was configured with a default \texttt{WriteTimeout} of 15 seconds. In Go, \texttt{WriteTimeout} measures the total time from the start of a request to the end of the response, rather than the idle time between writes. Because SSE streams are designed to stay open continuously, the server aborted the connection after 15 seconds. Second, the streaming handler ran an infinite ticker loop without checking whether the client had disconnected. When a user refreshed or closed the browser tab, the background goroutine remained in memory, continuing to send metrics to a closed connection.
+
+\textbf{Resolution and Implementation:} We resolved this by removing the global \texttt{WriteTimeout} on the dashboard stream server and managing connection lifecycles using Go's request context. The streaming loop was updated to use a \texttt{select} block that listens to both the 1-second ticker and \texttt{r.Context().Done()}. When a user closes or refreshes the page, the cancellation signal triggers immediately, stopping the ticker with \texttt{defer ticker.Stop()} and exiting the goroutine. This stabilized the goroutine count at baseline and prevented stream disconnects.
 
 
 % ===================================================

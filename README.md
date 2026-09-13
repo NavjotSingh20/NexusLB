@@ -122,9 +122,9 @@ NexusLB/
 ├── config/
 │   └── config.go             # Configuration data models and JSON loader
 ├── journals/                 # Academic engineering issue journals
-│   ├── 1024030313-navjot/    # Navjot Singh: Concurrency & slice race conditions
-│   ├── 1024030316-shaina/    # Shaina Gera: Upstream status telemetry capture
-│   └── 1024030320-prabhgun/  # Prabhgun Kaur: Compile-time go:embed package boundaries
+│   ├── 1024030313-navjot/    # Navjot Singh: Concurrency races & Least-Connections tie-breaking
+│   ├── 1024030316-shaina/    # Shaina Gera: Telemetry status capture & IP-Hash ephemeral port skew
+│   └── 1024030320-prabhgun/  # Prabhgun Kaur: go:embed package boundaries & SSE goroutine leaks
 ├── pkg/
 │   ├── backend/
 │   │   └── backend.go        # Thread-safe Backend state & atomic counters

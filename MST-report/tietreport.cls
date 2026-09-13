@@ -197,8 +197,12 @@
     \vspace{3.5cm}
     {\large \textbf{Submitted by:}}
 
-    \vspace{0.2cm}
-    {\large \@tpAuthors}
+    \vspace{0.25cm}
+    {\large
+    \begin{tabular}{@{}l@{\hspace{1.2em}}l@{}}
+      \@tpAuthors
+    \end{tabular}
+    }
 
     \vspace{0.5cm}
     {\normalsize \@tpSubText}
