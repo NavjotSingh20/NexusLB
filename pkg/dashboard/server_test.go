@@ -9,6 +9,7 @@ import (
 	"nexuslb/pkg/backend"
 	"nexuslb/pkg/balancer"
 	"nexuslb/pkg/metrics"
+	"nexuslb/pkg/ratelimit"
 )
 
 func setupTestServer(t *testing.T) (*Server, *balancer.StrategyManager) {
@@ -28,7 +29,8 @@ func setupTestServer(t *testing.T) (*Server, *balancer.StrategyManager) {
 	}
 
 	collector := metrics.NewCollector()
-	srv := NewServer(":8081", ":8080", collector, sm, nil)
+	limiter := ratelimit.NewLimiter(10.0, 10, true)
+	srv := NewServer(":8081", ":8080", collector, sm, nil, limiter)
 	return srv, sm
 }
 
@@ -151,3 +153,41 @@ func TestServer_ConnectionsAPI(t *testing.T) {
 		t.Errorf("expected 10 active connections, got %d", backends[0].GetStats().ActiveConnections)
 	}
 }
+
+func TestServer_ShieldAPI(t *testing.T) {
+	srv, _ := setupTestServer(t)
+
+	// 1. GET /api/shield
+	req := httptest.NewRequest(http.MethodGet, "/api/shield", nil)
+	rec := httptest.NewRecorder()
+	srv.handleShield(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	// 2. Toggle shield off
+	toggleReq := httptest.NewRequest(http.MethodPost, "/api/shield/toggle?state=off", nil)
+	toggleRec := httptest.NewRecorder()
+	srv.handleToggleShield(toggleRec, toggleReq)
+
+	if toggleRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", toggleRec.Code)
+	}
+	if srv.limiter.IsEnabled() {
+		t.Errorf("expected shield to be disabled")
+	}
+
+	// 3. Configure shield rate & burst
+	cfgReq := httptest.NewRequest(http.MethodPost, "/api/shield/config?rate=25&burst=50", nil)
+	cfgRec := httptest.NewRecorder()
+	srv.handleConfigShield(cfgRec, cfgReq)
+
+	if cfgRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", cfgRec.Code)
+	}
+	if srv.limiter.Rate() != 25.0 || srv.limiter.Burst() != 50 {
+		t.Errorf("expected rate 25, burst 50; got rate %f, burst %d", srv.limiter.Rate(), srv.limiter.Burst())
+	}
+}
+

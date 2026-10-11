@@ -25,6 +25,8 @@ const kpiLatency = document.getElementById('kpi-latency');
 const kpiSuccessRate = document.getElementById('kpi-success-rate');
 const kpiQueued = document.getElementById('kpi-queued');
 const kpiCardQueue = document.getElementById('kpi-card-queue');
+const kpiThrottled = document.getElementById('kpi-throttled');
+const kpiCardShield = document.getElementById('kpi-card-shield');
 
 const healthyCountBadge = document.getElementById('healthy-count-badge');
 const backendCardsContainer = document.getElementById('backend-cards-container');
@@ -42,6 +44,14 @@ const checkSimIPs = document.getElementById('check-sim-ips');
 const btnAutoTraffic = document.getElementById('btn-auto-traffic');
 const autoTrafficLabel = document.getElementById('auto-traffic-label');
 const btnResetMetrics = document.getElementById('btn-reset-metrics');
+
+// Shield & Scenario Studio Elements
+const shieldStatusLabel = document.getElementById('shield-status-label');
+const btnToggleShield = document.getElementById('btn-toggle-shield');
+const shieldBtnText = document.getElementById('shield-btn-text');
+const btnRunDDoSScenario = document.getElementById('btn-run-ddos-scenario');
+const btnSpamAttacker = document.getElementById('btn-spam-attacker');
+const btnSendNormalUsers = document.getElementById('btn-send-normal-users');
 
 // Update active strategy pill styling
 function updateStrategyPills(key) {
@@ -115,6 +125,36 @@ function updateUI(stats) {
       } else {
         kpiCardQueue.classList.remove('queue-active');
       }
+    }
+  }
+
+  // Throttled (429) Requests
+  if (kpiThrottled) {
+    const throttled = stats.total_throttled || 0;
+    kpiThrottled.textContent = throttled.toLocaleString();
+    if (kpiCardShield) {
+      if (throttled > 0) {
+        kpiCardShield.classList.add('throttled-active');
+      } else {
+        kpiCardShield.classList.remove('throttled-active');
+      }
+    }
+  }
+
+  // Edge Shield Status
+  if (shieldStatusLabel && btnToggleShield && shieldBtnText) {
+    const isShieldOn = stats.shield_enabled !== false;
+    const rate = stats.shield_rate || 10;
+    const burst = stats.shield_burst || 10;
+    shieldStatusLabel.textContent = isShieldOn
+      ? `Edge Shield: ACTIVE (${rate} req/s, Burst: ${burst})`
+      : `Edge Shield: DISABLED`;
+    if (isShieldOn) {
+      btnToggleShield.className = 'btn btn-shield-active';
+      shieldBtnText.textContent = 'Shield Enabled';
+    } else {
+      btnToggleShield.className = 'btn btn-shield-disabled';
+      shieldBtnText.textContent = 'Shield Disabled';
     }
   }
 
@@ -270,16 +310,28 @@ function renderLogs(logs) {
   let html = '';
   logs.forEach(log => {
     let statusClass = 'status-2xx';
-    if (log.status >= 400 && log.status < 500) statusClass = 'status-4xx';
-    else if (log.status >= 500) statusClass = 'status-5xx';
+    let statusDisplay = `${log.status}`;
+
+    if (log.status === 429) {
+      statusClass = 'status-429';
+      statusDisplay = '429 BLOCKED';
+    } else if (log.status >= 400 && log.status < 500) {
+      statusClass = 'status-4xx';
+    } else if (log.status >= 500) {
+      statusClass = 'status-5xx';
+    }
+
+    const backendDisplay = log.backend === 'Edge Shield'
+      ? `<span class="badge badge-accent" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">🛡️ Edge Shield</span>`
+      : escapeHTML(log.backend);
 
     html += `
       <tr>
         <td>${escapeHTML(log.timestamp)}</td>
         <td><span class="method-tag method-${escapeHTML(log.method)}">${escapeHTML(log.method)}</span></td>
-        <td>${escapeHTML(log.client_ip || '127.0.0.1')}</td>
-        <td>${escapeHTML(log.backend)}</td>
-        <td><span class="status-tag ${statusClass}">${log.status}</span></td>
+        <td><code>${escapeHTML(log.client_ip || '127.0.0.1')}</code></td>
+        <td>${backendDisplay}</td>
+        <td><span class="status-tag ${statusClass}">${statusDisplay}</span></td>
         <td>${log.latency_ms} ms</td>
       </tr>
     `;
@@ -462,6 +514,148 @@ if (btnTestSlow) {
 
 btnAutoTraffic.addEventListener('click', toggleAutoTraffic);
 btnResetMetrics.addEventListener('click', resetMetrics);
+
+// Trigger request with custom client IP
+async function triggerTestRequestWithIP(count, clientIP) {
+  if (kpiQueued) {
+    const current = parseInt(kpiQueued.textContent.replace(/,/g, ''), 10) || 0;
+    kpiQueued.textContent = (current + count).toLocaleString();
+    if (kpiCardQueue) kpiCardQueue.classList.add('queue-active');
+  }
+  try {
+    const url = clientIP
+      ? `/api/test-request?count=${count}&client_ip=${encodeURIComponent(clientIP)}`
+      : `/api/test-request?count=${count}&sim_ips=true`;
+    const res = await fetch(url, { method: 'POST' });
+    return await res.json();
+  } catch (err) {
+    console.error('Error triggering custom IP request:', err);
+  }
+}
+
+// Edge Shield Toggle Handler
+if (btnToggleShield) {
+  btnToggleShield.addEventListener('click', async () => {
+    btnToggleShield.disabled = true;
+    try {
+      const res = await fetch('/api/shield/toggle', { method: 'POST' });
+      const data = await res.json();
+      if (shieldBtnText) {
+        shieldBtnText.textContent = data.enabled ? 'Shield Enabled' : 'Shield Disabled';
+      }
+    } catch (err) {
+      console.error('Failed to toggle shield:', err);
+    } finally {
+      btnToggleShield.disabled = false;
+    }
+  });
+}
+
+// Guided DDoS Scenario Runner
+let ddosRunning = false;
+
+async function runDDoSScenario() {
+  if (ddosRunning) return;
+  ddosRunning = true;
+
+  const banner = document.getElementById('storyline-banner');
+  const phaseBadge = document.getElementById('storyline-phase-badge');
+  const title = document.getElementById('storyline-title');
+  const message = document.getElementById('storyline-message');
+  const progressFill = document.getElementById('storyline-progress-fill');
+
+  if (banner) banner.classList.remove('hidden');
+  if (btnRunDDoSScenario) btnRunDDoSScenario.disabled = true;
+
+  function updateStory(phase, t, msg, pct) {
+    if (phaseBadge) phaseBadge.textContent = phase;
+    if (title) title.textContent = t;
+    if (message) message.textContent = msg;
+    if (progressFill) progressFill.style.width = `${pct}%`;
+  }
+
+  // Ensure shield is enabled
+  try {
+    await fetch('/api/shield/toggle?state=on', { method: 'POST' });
+  } catch (e) {}
+
+  // Phase 1: Baseline Legitimate Traffic
+  updateStory(
+    'Phase 1 of 4',
+    'Baseline Legitimate User Traffic',
+    'Sending 5 normal requests from legitimate user IPs (198.51.100.x)... All admitted with 200 OK.',
+    25
+  );
+  await triggerTestRequestWithIP(5, '');
+  await new Promise(r => setTimeout(r, 1500));
+
+  // Phase 2: Attacker Flood
+  updateStory(
+    'Phase 2 of 4',
+    'Rogue Botnet Flood Injected',
+    'Attacker IP 203.0.113.42 floods proxy with 20 rapid requests exceeding token bucket capacity (10 tokens)...',
+    50
+  );
+  await triggerTestRequestWithIP(20, '203.0.113.42');
+  await new Promise(r => setTimeout(r, 1500));
+
+  // Phase 3: Edge Shield Throttles Excess
+  updateStory(
+    'Phase 3 of 4',
+    'Edge Shield Active (HTTP 429)',
+    'Token bucket exhausted for attacker IP 203.0.113.42. Excess requests rejected at edge in <0.1ms with 429 Too Many Requests!',
+    75
+  );
+  await new Promise(r => setTimeout(r, 1600));
+
+  // Phase 4: Innocent User Continues Unaffected
+  updateStory(
+    'Phase 4 of 4',
+    'Legitimate User Admitted with Zero Lag',
+    'Innocent client (198.51.100.1) connects while attacker is throttled. Admitted instantly (200 OK) with zero noisy-neighbor degradation!',
+    100
+  );
+  await triggerTestRequestWithIP(2, '198.51.100.1');
+  await new Promise(r => setTimeout(r, 2000));
+
+  updateStory(
+    'Demo Completed',
+    'Anti-DDoS Mitigation Verified',
+    'Target attacker isolated and blocked at edge shield; legitimate users preserved with 100% availability.',
+    100
+  );
+
+  setTimeout(() => {
+    if (btnRunDDoSScenario) btnRunDDoSScenario.disabled = false;
+    ddosRunning = false;
+  }, 1000);
+}
+
+if (btnRunDDoSScenario) {
+  btnRunDDoSScenario.addEventListener('click', runDDoSScenario);
+}
+
+if (btnSpamAttacker) {
+  btnSpamAttacker.addEventListener('click', async () => {
+    btnSpamAttacker.disabled = true;
+    try {
+      await triggerTestRequestWithIP(20, '203.0.113.42');
+    } finally {
+      setTimeout(() => btnSpamAttacker.disabled = false, 500);
+    }
+  });
+}
+
+if (btnSendNormalUsers) {
+  btnSendNormalUsers.addEventListener('click', async () => {
+    btnSendNormalUsers.disabled = true;
+    try {
+      await triggerTestRequestWithIP(15, '');
+    } finally {
+      setTimeout(() => btnSendNormalUsers.disabled = false, 500);
+    }
+  });
+}
 
 // Initialize SSE connection
 connectSSE();

@@ -16,6 +16,7 @@ import (
 	"nexuslb/pkg/balancer"
 	"nexuslb/pkg/health"
 	"nexuslb/pkg/metrics"
+	"nexuslb/pkg/ratelimit"
 	"nexuslb/web"
 )
 
@@ -26,10 +27,11 @@ type Server struct {
 	balancer    balancer.Balancer
 	strategyMgr *balancer.StrategyManager
 	checker     *health.Checker
+	limiter     *ratelimit.Limiter
 	httpServer  *http.Server
 }
 
-func NewServer(addr, proxyAddr string, collector *metrics.Collector, b balancer.Balancer, checker *health.Checker) *Server {
+func NewServer(addr, proxyAddr string, collector *metrics.Collector, b balancer.Balancer, checker *health.Checker, limiter *ratelimit.Limiter) *Server {
 	var sm *balancer.StrategyManager
 	if mgr, ok := b.(*balancer.StrategyManager); ok {
 		sm = mgr
@@ -41,6 +43,7 @@ func NewServer(addr, proxyAddr string, collector *metrics.Collector, b balancer.
 		balancer:    b,
 		strategyMgr: sm,
 		checker:     checker,
+		limiter:     limiter,
 	}
 }
 
@@ -59,6 +62,9 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/backend/delay", s.handleBackendDelay)
 	mux.HandleFunc("/api/backend/connections", s.handleBackendConnections)
 	mux.HandleFunc("/api/strategy", s.handleStrategy)
+	mux.HandleFunc("/api/shield", s.handleShield)
+	mux.HandleFunc("/api/shield/toggle", s.handleToggleShield)
+	mux.HandleFunc("/api/shield/config", s.handleConfigShield)
 	mux.HandleFunc("/api/stats/reset", s.handleResetStats)
 
 	s.httpServer = &http.Server{
@@ -87,6 +93,12 @@ func (s *Server) getStats() metrics.DashboardStats {
 	} else {
 		stats.StrategyKey = "round_robin"
 		stats.AvailableStrategies = []string{"round_robin", "least_connections", "ip_hash"}
+	}
+	if s.limiter != nil {
+		stats.ShieldEnabled = s.limiter.IsEnabled()
+		stats.ShieldRate = s.limiter.Rate()
+		stats.ShieldBurst = s.limiter.Burst()
+		stats.TotalThrottled = s.limiter.TotalBlocked()
 	}
 	return stats
 }
@@ -156,6 +168,7 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 		targetURL = fmt.Sprintf("%s?delay=%s", targetURL, delayParam)
 	}
 	simIPs := r.URL.Query().Get("sim_ips") == "true" || r.URL.Query().Get("sim_ips") == "1"
+	customClientIP := r.URL.Query().Get("client_ip")
 
 	tr := &http.Transport{
 		MaxIdleConns:        150,
@@ -200,7 +213,9 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 			for reqIndex := range jobs {
 				req, err := http.NewRequest("GET", targetURL, nil)
 				if err == nil {
-					if simIPs {
+					if customClientIP != "" {
+						req.Header.Set("X-Forwarded-For", customClientIP)
+					} else if simIPs {
 						// Distribute across 10 deterministic simulated client IPs for IP hash demonstration
 						ipLastOctet := ((reqIndex + workerID) % 10) + 1
 						req.Header.Set("X-Forwarded-For", fmt.Sprintf("192.168.1.%d", 100+ipLastOctet))
@@ -423,8 +438,96 @@ func (s *Server) handleBackendConnections(w http.ResponseWriter, r *http.Request
 	})
 }
 
+func (s *Server) handleShield(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	if s.limiter == nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"enabled": false})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"enabled":       s.limiter.IsEnabled(),
+		"rate":          s.limiter.Rate(),
+		"burst":         s.limiter.Burst(),
+		"total_blocked": s.limiter.TotalBlocked(),
+		"total_allowed": s.limiter.TotalAllowed(),
+		"active_ips":    s.limiter.ActiveIPCount(),
+	})
+}
+
+func (s *Server) handleToggleShield(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if s.limiter == nil {
+		http.Error(w, `{"error":"rate limiter not initialized"}`, http.StatusBadRequest)
+		return
+	}
+
+	stateParam := r.URL.Query().Get("state")
+	if stateParam == "on" || stateParam == "true" {
+		s.limiter.SetEnabled(true)
+	} else if stateParam == "off" || stateParam == "false" {
+		s.limiter.SetEnabled(false)
+	} else {
+		s.limiter.SetEnabled(!s.limiter.IsEnabled())
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  "ok",
+		"enabled": s.limiter.IsEnabled(),
+		"rate":    s.limiter.Rate(),
+		"burst":   s.limiter.Burst(),
+	})
+}
+
+func (s *Server) handleConfigShield(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if s.limiter == nil {
+		http.Error(w, `{"error":"rate limiter not initialized"}`, http.StatusBadRequest)
+		return
+	}
+
+	rateStr := r.URL.Query().Get("rate")
+	burstStr := r.URL.Query().Get("burst")
+
+	rate := s.limiter.Rate()
+	burst := s.limiter.Burst()
+
+	if rVal, err := strconv.ParseFloat(rateStr, 64); err == nil && rVal > 0 {
+		rate = rVal
+	}
+	if bVal, err := strconv.Atoi(burstStr); err == nil && bVal > 0 {
+		burst = bVal
+	}
+
+	s.limiter.SetConfig(rate, burst)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok",
+		"rate":   rate,
+		"burst":  burst,
+	})
+}
+
 func (s *Server) handleResetStats(w http.ResponseWriter, r *http.Request) {
 	s.collector.Reset(s.balancer.GetBackends())
+	if s.limiter != nil {
+		s.limiter.Reset()
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(map[string]string{

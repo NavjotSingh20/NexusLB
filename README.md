@@ -59,6 +59,14 @@ NexusLB resolves these challenges by serving as an intelligent, non-blocking Lay
   - **Least Connections**: Dynamically routes to the upstream node with lowest in-flight connections, utilizing an atomic rotating circular offset for fair tie-breaking under sub-millisecond workloads.
   - **Deterministic IP Hashing**: 32-bit FNV-1a hash algorithm featuring client IP normalization (`X-Forwarded-For`, `X-Real-IP`, ephemeral port stripping) and sequential ring walk failover.
   - **Zero-Downtime Hot-Swapping**: Switch algorithms on-the-fly via Web UI or REST API backed by `sync.RWMutex`.
+- 🛡️ **Edge Security & Anti-DDoS Rate Limiting (Token Bucket)**:
+  - High-performance, lock-free per-IP token bucket rate limiting with automatic background bucket eviction.
+  - Rejects abusive traffic at the ingress edge with **HTTP 429 Too Many Requests**, `Retry-After`, and standard RFC rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`).
+  - Zero collateral damage to legitimate users (per-IP isolation prevents noisy-neighbor degradation).
+- 🎬 **Real-World Simulation Studio & Guided Scenarios**:
+  - Live in-dashboard simulation deck featuring an automated **4-Phase Guided DDoS Demonstration**.
+  - Interactive on-screen Storyline Banner displaying real-time phases, progress bars, and operational narratives.
+  - One-click testing for single rogue attacker spam vs. multi-client legitimate user browsing.
 - 🎛️ **Custom Active Connections Simulation & Steppers**:
   - Hold real in-flight connections for custom durations ($N$ connections held for $D$ ms) to observe Least Connections load-shedding live.
   - Interactively increment (`+`), decrement (`-`), or reset (`0`) active connection counters directly on backend cards in the UI or via REST API (`/api/backend/connections`).
@@ -69,8 +77,8 @@ NexusLB resolves these challenges by serving as an intelligent, non-blocking Lay
 - 📊 **Embedded Observability Dashboard**:
   - Hermetically bundled into the single binary executable via `embed.FS` (no external runtime asset dependencies).
   - Pushes live cluster telemetry via Server-Sent Events (SSE) every 1 second.
-  - Real-time KPIs: Total Requests, Live Throughput (RPS), Average Latency, and Success Rate.
-  - Dynamic traffic distribution share bar and real-time request trace logs.
+  - Real-time KPIs: Total Requests, Live Throughput (RPS), Average Latency, Success Rate, and **Blocked Requests (429)**.
+  - Dynamic traffic distribution share bar and real-time request trace logs with color-coded status badges.
 - ⚡ **Interactive Fault Injection**:
   - Individual **ON / OFF power toggle switches** on each backend card to simulate instant outages.
   - Configurable traffic generator (single request, continuous stream, or custom in-flight hold bursts).
@@ -420,7 +428,10 @@ As part of the UCS503P curriculum, each team member authored detailed engineerin
 | `GET` | `/api/stream` | Server-Sent Events (SSE) live telemetry feed (1 Hz) |
 | `GET` | `/api/strategy` | Returns active strategy key, display name, and list of available algorithms |
 | `POST` | `/api/strategy?name=STRAT` | Switches load balancing strategy (`round_robin`, `least_connections`, `ip_hash`) |
-| `POST` | `/api/test-request?count=N&delay=MS&sim_ips=[true\|false]` | Dispatches $N$ parallel requests held in-flight for $D$ ms with optional client IP simulation |
+| `POST` | `/api/test-request?count=N&delay=MS&client_ip=IP&sim_ips=[true\|false]` | Dispatches $N$ parallel requests held in-flight for $D$ ms with custom or randomized client IP simulation |
+| `GET` | `/api/shield` | Returns current Edge Shield status (`enabled`, `rate`, `burst`, `total_throttled`) |
+| `POST` | `/api/shield/toggle?state=[on\|off]` | Dynamically activates or disables Edge Shield per-IP rate limiting |
+| `POST` | `/api/shield/config?rate=N&burst=N` | Reconfigures token bucket replenishment rate and burst ceiling |
 | `POST` | `/api/backend/toggle?url=URL&state=[up\|down]` | Toggles backend health state online or offline |
 | `POST` | `/api/backend/connections?url=URL&count=N&delta=N` | Directly overrides or adjusts active connections counter on target backend |
 | `POST` | `/api/backend/delay?url=URL&ms=N` | Injects persistent artificial delay (latency) on target backend |

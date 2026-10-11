@@ -18,6 +18,7 @@ import (
 	"nexuslb/pkg/health"
 	"nexuslb/pkg/metrics"
 	"nexuslb/pkg/proxy"
+	"nexuslb/pkg/ratelimit"
 )
 
 func main() {
@@ -55,7 +56,12 @@ func main() {
 	// 4. Initialize Metrics Collector
 	collector := metrics.NewCollector()
 
-	// 5. Initialize & Start Active Health Checker
+	// 5. Initialize Edge Security & Rate Limiting Shield (10 req/s, burst 10)
+	limiter := ratelimit.NewLimiter(10.0, 10, true)
+	defer limiter.Close()
+	log.Printf("[INIT] Edge Shield rate limiter active (10.0 req/s, burst capacity 10)")
+
+	// 6. Initialize & Start Active Health Checker
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -63,8 +69,8 @@ func main() {
 	checker.Start(ctx)
 	log.Printf("[INIT] Health checker active (probing every %v on %s)", cfg.HealthCheckInterval, cfg.HealthCheckPath)
 
-	// 6. Start Reverse Proxy Server
-	proxyHandler := proxy.NewProxyHandler(sm, collector)
+	// 7. Start Reverse Proxy Server
+	proxyHandler := proxy.NewProxyHandler(sm, collector, limiter)
 	proxyServer := &http.Server{
 		Addr:         cfg.ProxyPort,
 		Handler:      proxyHandler,
@@ -80,8 +86,8 @@ func main() {
 		}
 	}()
 
-	// 7. Start Observability Dashboard Server
-	dashServer := dashboard.NewServer(cfg.DashboardPort, cfg.ProxyPort, collector, sm, checker)
+	// 8. Start Observability Dashboard Server
+	dashServer := dashboard.NewServer(cfg.DashboardPort, cfg.ProxyPort, collector, sm, checker, limiter)
 	go func() {
 		if err := dashServer.Start(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Dashboard server failed: %v", err)

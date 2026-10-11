@@ -213,6 +213,92 @@
           <span class="kpi-value" id="kpi-queued">0</span>
         </div>
       </div>
+
+      <div class="kpi-card" id="kpi-card-shield">
+        <div class="kpi-icon-wrap icon-shield">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-title">Blocked (429)</span>
+          <span class="kpi-value" id="kpi-throttled">0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Real-World Simulation Studio -->
+    <section class="section-container simulation-studio">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <div class="title-with-badge">
+            <h2>Real-World Simulation Studio</h2>
+            <span class="badge badge-accent">Live Scenarios</span>
+          </div>
+          <span class="section-subtitle">Demonstrate multi-layer edge protection, anti-DDoS mitigation, and client isolation in real-time</span>
+        </div>
+        <div class="shield-toggle-wrap">
+          <span class="shield-status-text" id="shield-status-label">Edge Shield: ACTIVE</span>
+          <button id="btn-toggle-shield" class="btn btn-shield-active" title="Toggle Edge Security Rate Limiter">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span id="shield-btn-text">Shield Enabled</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Storyline Banner (Visible during scenario execution) -->
+      <div id="storyline-banner" class="storyline-banner hidden">
+        <div class="storyline-header">
+          <span class="storyline-badge pulse" id="storyline-phase-badge">Phase 1 of 4</span>
+          <span class="storyline-title" id="storyline-title">Scenario Running...</span>
+        </div>
+        <div class="storyline-message" id="storyline-message">Initializing scenario...</div>
+        <div class="storyline-progress-bar">
+          <div class="storyline-progress-fill" id="storyline-progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="scenario-grid">
+        <!-- Scenario 1: DDoS Attack -->
+        <div class="scenario-card">
+          <div class="scenario-card-header">
+            <div class="scenario-icon ddos-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <div>
+              <h3>Scenario 1: DDoS Attack vs. Legitimate Users</h3>
+              <p>Simulates a rogue botnet flooding the proxy while innocent users continue browsing normally</p>
+            </div>
+          </div>
+          <div class="scenario-card-body">
+            <div class="scenario-stats-row">
+              <span class="chip">Attacker IP: <code>203.0.113.42</code></span>
+              <span class="chip">Normal Users: <code>198.51.100.x</code></span>
+              <span class="chip">Bucket: <code>10 req/s (Burst: 10)</code></span>
+            </div>
+            <div class="scenario-actions">
+              <button id="btn-run-ddos-scenario" class="btn btn-primary btn-scenario" title="Run 4-phase automated DDoS demonstration">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                Run Guided DDoS Demo
+              </button>
+              <button id="btn-spam-attacker" class="btn btn-danger" title="Send 20 rapid requests from attacker IP 203.0.113.42">
+                Spam Attacker IP (x20)
+              </button>
+              <button id="btn-send-normal-users" class="btn btn-secondary" title="Send 15 requests from 15 diverse client IPs">
+                Send Legitimate Users (x15)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Upstream Nodes Section -->

@@ -33,6 +33,10 @@ type DashboardStats struct {
 	Strategy            string                 `json:"strategy"`
 	StrategyKey         string                 `json:"strategy_key,omitempty"`
 	AvailableStrategies []string               `json:"available_strategies,omitempty"`
+	TotalThrottled      int64                  `json:"total_throttled"`
+	ShieldEnabled       bool                   `json:"shield_enabled"`
+	ShieldRate          float64                `json:"shield_rate"`
+	ShieldBurst         int                    `json:"shield_burst"`
 	UptimeSeconds       int64                  `json:"uptime_seconds"`
 }
 
@@ -41,6 +45,7 @@ type Collector struct {
 	totalSuccess      int64
 	totalClientErrors int64
 	totalServerErrors int64
+	totalThrottled    int64
 	totalLatencyMs    int64
 	queuedRequests    int64
 
@@ -71,6 +76,7 @@ func (c *Collector) Reset(backends []*backend.Backend) {
 	atomic.StoreInt64(&c.totalSuccess, 0)
 	atomic.StoreInt64(&c.totalClientErrors, 0)
 	atomic.StoreInt64(&c.totalServerErrors, 0)
+	atomic.StoreInt64(&c.totalThrottled, 0)
 	atomic.StoreInt64(&c.totalLatencyMs, 0)
 	atomic.StoreInt64(&c.queuedRequests, 0)
 	c.recentLogs = make([]RequestLog, 0, 50)
@@ -106,7 +112,10 @@ func (c *Collector) Record(method, path, clientIP, targetBackend string, status 
 	latencyMs := latency.Milliseconds()
 	atomic.AddInt64(&c.totalLatencyMs, latencyMs)
 
-	if status >= 200 && status < 400 {
+	if status == 429 {
+		atomic.AddInt64(&c.totalThrottled, 1)
+		atomic.AddInt64(&c.totalClientErrors, 1)
+	} else if status >= 200 && status < 400 {
 		atomic.AddInt64(&c.totalSuccess, 1)
 	} else if status >= 400 && status < 500 {
 		atomic.AddInt64(&c.totalClientErrors, 1)
@@ -182,6 +191,7 @@ func (c *Collector) Snapshot(strategyName string, backends []*backend.Backend) D
 		TotalSuccess:      atomic.LoadInt64(&c.totalSuccess),
 		TotalClientErrors: atomic.LoadInt64(&c.totalClientErrors),
 		TotalServerErrors: atomic.LoadInt64(&c.totalServerErrors),
+		TotalThrottled:    atomic.LoadInt64(&c.totalThrottled),
 		ActiveConnections: activeConns,
 		QueuedRequests:    c.GetQueue(),
 		RequestsPerSecond: rps,

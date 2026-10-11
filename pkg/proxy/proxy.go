@@ -2,13 +2,13 @@ package proxy
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
-	"strings"
+	"strconv"
 	"time"
 
 	"nexuslb/pkg/balancer"
 	"nexuslb/pkg/metrics"
+	"nexuslb/pkg/ratelimit"
 )
 
 type responseRecorder struct {
@@ -36,18 +36,50 @@ func (rec *responseRecorder) Write(b []byte) (int, error) {
 type ProxyHandler struct {
 	balancer  balancer.Balancer
 	collector *metrics.Collector
+	limiter   *ratelimit.Limiter
 }
 
-func NewProxyHandler(b balancer.Balancer, c *metrics.Collector) *ProxyHandler {
+func NewProxyHandler(b balancer.Balancer, c *metrics.Collector, l *ratelimit.Limiter) *ProxyHandler {
 	return &ProxyHandler{
 		balancer:  b,
 		collector: c,
+		limiter:   l,
 	}
 }
 
 func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	clientIP := getClientIP(r)
+	clientIP := balancer.ExtractClientIP(r)
+
+	// Layer 1: Edge Security & Rate Limiting Shield
+	if p.limiter != nil && p.limiter.IsEnabled() {
+		allowed, remaining, retryAfter := p.limiter.Allow(clientIP)
+		if !allowed {
+			duration := time.Since(start)
+			p.collector.Record(r.Method, r.URL.Path, clientIP, "Edge Shield", http.StatusTooManyRequests, duration)
+
+			retrySec := int(retryAfter.Seconds())
+			if retrySec < 1 {
+				retrySec = 1
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-RateLimit-Limit", strconv.Itoa(int(p.limiter.Rate())))
+			w.Header().Set("X-RateLimit-Remaining", "0")
+			w.Header().Set("Retry-After", strconv.Itoa(retrySec))
+			w.WriteHeader(http.StatusTooManyRequests)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error":               "Too Many Requests",
+				"message":             "NexusLB Edge Shield: Rate limit exceeded for IP " + clientIP,
+				"retry_after_seconds": retrySec,
+				"client_ip":           clientIP,
+			})
+			return
+		}
+
+		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(int(p.limiter.Rate())))
+		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
+	}
 
 	target, err := p.balancer.NextBackend(r)
 	if err != nil {
@@ -100,17 +132,4 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	isErr := rec.statusCode >= 500
 	target.RecordRequest(elapsed, isErr)
 	p.collector.Record(r.Method, r.URL.Path, clientIP, target.URL.String(), rec.statusCode, elapsed)
-}
-
-func getClientIP(r *http.Request) string {
-	xff := r.Header.Get("X-Forwarded-For")
-	if xff != "" {
-		parts := strings.Split(xff, ",")
-		return strings.TrimSpace(parts[0])
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }
