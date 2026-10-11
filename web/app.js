@@ -211,7 +211,7 @@ function renderBackends(backends) {
     }
 
     const shareBadge = isOnline
-      ? `<span class="target-share-badge active" title="Active share target">Target: ${targetPct}% share (W: ${weight}x)</span>`
+      ? `<span class="target-share-badge active" title="Active expected load share">Target: ${targetPct}% share</span>`
       : `<span class="target-share-badge inactive">0% (Bypassed)</span>`;
 
     html += `
@@ -237,26 +237,27 @@ function renderBackends(backends) {
           ${shareBadge}
         </div>
 
-        <div class="node-weight-bar">
+        <div class="node-weight-bar ${isOnline ? '' : 'controls-disabled'}">
           <div class="weight-stepper-wrap">
             <span class="weight-label">Weight:</span>
-            <button class="btn-stepper" onclick="window.adjustBackendWeight('${escapeHTML(b.url)}', -1)" title="Decrease weight">-</button>
+            <button class="btn-weight-stepper" ${isOnline ? '' : 'disabled'} onclick="window.adjustBackendWeight('${escapeHTML(b.url)}', -1)" title="Decrease weight">-</button>
             <span class="weight-val-badge">${weight}x</span>
-            <button class="btn-stepper" onclick="window.adjustBackendWeight('${escapeHTML(b.url)}', 1)" title="Increase weight">+</button>
+            <button class="btn-weight-stepper" ${isOnline ? '' : 'disabled'} onclick="window.adjustBackendWeight('${escapeHTML(b.url)}', 1)" title="Increase weight">+</button>
           </div>
-          <button class="canary-toggle-btn ${isCanary ? 'active' : ''}" onclick="window.toggleCanary('${escapeHTML(b.url)}', ${!isCanary})" title="Designate as Canary Release target">
-            <span>🐥 ${isCanary ? 'Canary Active' : 'Make Canary'}</span>
+          <button class="canary-toggle-btn ${isCanary ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.toggleCanary('${escapeHTML(b.url)}', ${!isCanary})" title="${isOnline ? 'Designate as Canary Release target' : 'Server is offline'}">
+            <span class="canary-indicator-dot"></span>
+            <span>${isCanary ? 'Canary Active' : 'Make Canary'}</span>
           </button>
         </div>
 
-        <div class="backend-stats-grid">
+        <div class="backend-stats-grid ${isOnline ? '' : 'controls-disabled'}">
           <div class="stat-item active-conn-stat">
             <div class="stat-header">
               <span class="stat-label">Active Conn</span>
               <div class="conn-steppers">
-                <button class="btn-stepper" onclick="window.adjustBackendConn('${escapeHTML(b.url)}', -1)" title="Decrease active connections by 1">-</button>
-                <button class="btn-stepper" onclick="window.adjustBackendConn('${escapeHTML(b.url)}', 1)" title="Increase active connections by 1">+</button>
-                <button class="btn-stepper btn-stepper-reset" onclick="window.setBackendConn('${escapeHTML(b.url)}', 0)" title="Reset active connections to 0">0</button>
+                <button class="btn-stepper" ${isOnline ? '' : 'disabled'} onclick="window.adjustBackendConn('${escapeHTML(b.url)}', -1)" title="Decrease active connections by 1">-</button>
+                <button class="btn-stepper" ${isOnline ? '' : 'disabled'} onclick="window.adjustBackendConn('${escapeHTML(b.url)}', 1)" title="Increase active connections by 1">+</button>
+                <button class="btn-stepper btn-stepper-reset" ${isOnline ? '' : 'disabled'} onclick="window.setBackendConn('${escapeHTML(b.url)}', 0)" title="Reset active connections to 0">0</button>
               </div>
             </div>
             <span class="stat-val ${b.active_connections > 0 ? 'highlight-conn' : ''}">${b.active_connections}</span>
@@ -271,13 +272,13 @@ function renderBackends(backends) {
           </div>
         </div>
 
-        <div class="backend-delay-bar">
+        <div class="backend-delay-bar ${isOnline ? '' : 'controls-disabled'}">
           <span class="delay-label">Latency Sim:</span>
           <div class="delay-buttons">
-            <button class="btn-delay-preset ${(!backendDelays[b.url] || backendDelays[b.url] === 0) ? 'active' : ''}" onclick="window.setBackendDelay('${escapeHTML(b.url)}', 0)">0ms</button>
-            <button class="btn-delay-preset ${backendDelays[b.url] === 100 ? 'active' : ''}" onclick="window.setBackendDelay('${escapeHTML(b.url)}', 100)">100ms</button>
-            <button class="btn-delay-preset ${backendDelays[b.url] === 300 ? 'active' : ''}" onclick="window.setBackendDelay('${escapeHTML(b.url)}', 300)">300ms</button>
-            <button class="btn-delay-preset ${backendDelays[b.url] === 600 ? 'active' : ''}" onclick="window.setBackendDelay('${escapeHTML(b.url)}', 600)">600ms</button>
+            <button class="btn-delay-preset ${(!backendDelays[b.url] || backendDelays[b.url] === 0) ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.setBackendDelay('${escapeHTML(b.url)}', 0)">0ms</button>
+            <button class="btn-delay-preset ${backendDelays[b.url] === 100 ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.setBackendDelay('${escapeHTML(b.url)}', 100)">100ms</button>
+            <button class="btn-delay-preset ${backendDelays[b.url] === 300 ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.setBackendDelay('${escapeHTML(b.url)}', 300)">300ms</button>
+            <button class="btn-delay-preset ${backendDelays[b.url] === 600 ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.setBackendDelay('${escapeHTML(b.url)}', 600)">600ms</button>
           </div>
         </div>
       </div>
@@ -320,11 +321,17 @@ function renderDistribution(backends, totalRequests) {
       barHtml += `<div class="dist-slice" style="width: ${pct}%; background: ${b.alive ? color : '#64748b'};" title="${b.url}: ${pct}% (${count})"></div>`;
     }
 
-    const canaryTag = b.is_canary ? `<span class="canary-tag">🐥 CANARY</span>` : '';
+    const canaryTag = b.is_canary ? `<span class="legend-canary-badge">🐥 CANARY</span>` : '';
+    const weightBadge = `<span class="legend-weight-badge" title="Dynamic weight multiplier">${b.weight || 1}x</span>`;
     legendHtml += `
       <div class="legend-item ${b.alive ? '' : 'legend-offline'}">
         <span class="legend-dot" style="background: ${b.alive ? (b.is_canary ? '#8b5cf6' : color) : '#64748b'}"></span>
-        <span>${escapeHTML(b.url)}: <strong>${pct}%</strong> (${count} reqs) [W: ${b.weight || 1}x] ${canaryTag} ${b.alive ? '' : '<small style="color:#fb7185">[OFFLINE]</small>'}</span>
+        <span class="legend-url">${escapeHTML(b.url)}</span>
+        <span class="legend-pct"><strong>${pct}%</strong></span>
+        <span class="legend-count">(${count} reqs)</span>
+        ${weightBadge}
+        ${canaryTag}
+        ${b.alive ? '' : '<span class="legend-offline-tag">OFFLINE</span>'}
       </div>
     `;
   });
