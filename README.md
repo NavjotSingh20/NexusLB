@@ -56,9 +56,14 @@ NexusLB resolves these challenges by serving as an intelligent, non-blocking Lay
 
 - 🎯 **Pluggable Multi-Strategy Routing Engine**:
   - **Round-Robin**: Monotonically advancing 64-bit atomic ring counter with zero memory allocations on the fast path.
+  - **Smooth Weighted Round-Robin (SWRR)**: Enterprise capacity-weighted scheduling (NGINX SWRR algorithm) that smoothly interleaves requests without burst-clustering on high-weight nodes.
   - **Least Connections**: Dynamically routes to the upstream node with lowest in-flight connections, utilizing an atomic rotating circular offset for fair tie-breaking under sub-millisecond workloads.
   - **Deterministic IP Hashing**: 32-bit FNV-1a hash algorithm featuring client IP normalization (`X-Forwarded-For`, `X-Real-IP`, ephemeral port stripping) and sequential ring walk failover.
   - **Zero-Downtime Hot-Swapping**: Switch algorithms on-the-fly via Web UI or REST API backed by `sync.RWMutex`.
+- 🐥 **Layer 7 Canary Deployments & Traffic Splitting**:
+  - Precision client targeting via `X-Canary: true` request header, `?canary=true` query parameter, or `canary=true` cookie.
+  - Automatically isolates and routes targeted users to designated Canary nodes (`v2.0`) with transparent self-healing fallback to stable nodes if the canary goes offline.
+  - Gradual percentage-based traffic rollouts (e.g., 90% Stable vs. 10% Canary) achieved seamlessly via SWRR weights.
 - 🛡️ **Edge Security & Anti-DDoS Rate Limiting (Token Bucket)**:
   - High-performance, lock-free per-IP token bucket rate limiting with automatic background bucket eviction.
   - Rejects abusive traffic at the ingress edge with **HTTP 429 Too Many Requests**, `Retry-After`, and standard RFC rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`).
@@ -427,13 +432,15 @@ As part of the UCS503P curriculum, each team member authored detailed engineerin
 | `GET` | `/api/stats` | Returns JSON snapshot of metrics, active strategy, backend states, and trace logs |
 | `GET` | `/api/stream` | Server-Sent Events (SSE) live telemetry feed (1 Hz) |
 | `GET` | `/api/strategy` | Returns active strategy key, display name, and list of available algorithms |
-| `POST` | `/api/strategy?name=STRAT` | Switches load balancing strategy (`round_robin`, `least_connections`, `ip_hash`) |
-| `POST` | `/api/test-request?count=N&delay=MS&client_ip=IP&sim_ips=[true\|false]` | Dispatches $N$ parallel requests held in-flight for $D$ ms with custom or randomized client IP simulation |
+| `POST` | `/api/strategy?name=STRAT` | Switches load balancing strategy (`round_robin`, `weighted_round_robin`, `least_connections`, `ip_hash`) |
+| `POST` | `/api/test-request?count=N&delay=MS&client_ip=IP&canary=[true\|false]&sim_ips=[true\|false]` | Dispatches $N$ parallel requests held in-flight for $D$ ms with custom IP and optional canary header steering |
 | `GET` | `/api/shield` | Returns current Edge Shield status (`enabled`, `rate`, `burst`, `total_throttled`) |
 | `POST` | `/api/shield/toggle?state=[on\|off]` | Dynamically activates or disables Edge Shield per-IP rate limiting |
 | `POST` | `/api/shield/config?rate=N&burst=N` | Reconfigures token bucket replenishment rate and burst ceiling |
 | `POST` | `/api/backend/toggle?url=URL&state=[up\|down]` | Toggles backend health state online or offline |
 | `POST` | `/api/backend/connections?url=URL&count=N&delta=N` | Directly overrides or adjusts active connections counter on target backend |
+| `POST` | `/api/backend/weight?url=URL&weight=N&delta=N` | Directly overrides or adjusts capacity weight on target backend (1x - 100x) |
+| `POST` | `/api/backend/canary?url=URL&enabled=[true\|false]&tag=TAG` | Designates or undiscloses target backend as a Canary release node |
 | `POST` | `/api/backend/delay?url=URL&ms=N` | Injects persistent artificial delay (latency) on target backend |
 | `POST` | `/api/stats/reset` | Resets all metric counters and request trace logs |
 

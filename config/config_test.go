@@ -8,6 +8,7 @@ import (
 func TestConfigValidation(t *testing.T) {
 	validStrategies := []string{
 		"round_robin", "roundrobin", "rr",
+		"weighted_round_robin", "weighted_rr", "wrr", "weighted",
 		"least_connections", "least_conn", "leastconn", "lc",
 		"ip_hash", "iphash", "hash",
 		"",
@@ -21,7 +22,7 @@ func TestConfigValidation(t *testing.T) {
 		}
 	}
 
-	invalidStrategies := []string{"random", "weighted", "magic", "123"}
+	invalidStrategies := []string{"random", "unknown_strat", "magic", "123"}
 	for _, strat := range invalidStrategies {
 		cfg := DefaultConfig()
 		cfg.Strategy = strat

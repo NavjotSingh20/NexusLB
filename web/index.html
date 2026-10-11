@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NexusLB - High Availability Load Balancer & Proxy</title>
+  <title>NexusLB - Enterprise Reverse Proxy & Observability Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,132 +16,188 @@
     <header class="app-header">
       <div class="header-branding">
         <div class="logo-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
             <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
             <line x1="6" y1="6" x2="6.01" y2="6"></line>
             <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            <path d="M12 10v4"></path>
           </svg>
         </div>
         <div class="branding-text">
           <div class="title-row">
             <h1>NexusLB</h1>
             <span class="version-badge">v0.1.0</span>
+            <span class="status-badge-online">
+              <span class="status-beacon"></span>
+              CLUSTER ACTIVE
+            </span>
           </div>
-          <p class="subtitle">Custom Reverse Proxy & Intelligent Traffic Balancer</p>
+          <p class="subtitle">High-Availability Reverse Proxy & Intelligent Traffic Balancer</p>
         </div>
       </div>
 
       <div class="header-controls">
-        <div class="uptime-pill" id="uptime-display">
+        <div class="ingress-chip" title="Client ingress gateway listening on port 8080">
+          <span class="ingress-chip-label">INGRESS</span>
+          <span class="ingress-chip-url" id="proxy-url-display">http://localhost:8080</span>
+        </div>
+        <div class="uptime-pill" id="uptime-display" title="System uptime duration">
           <span class="pill-label">UPTIME</span>
           <span class="pill-val" id="uptime-val">00:00:00</span>
         </div>
       </div>
     </header>
 
-    <!-- Top Banner with Quick Actions -->
-    <section class="action-banner">
-      <div class="banner-info">
-        <div class="ingress-indicator">
-          <span class="ingress-label">PROXY INGRESS</span>
-          <span class="ingress-url" id="proxy-url-display">http://localhost:8080</span>
+    <!-- Command Deck: Strategy Switcher & Ingress Routing -->
+    <section class="command-deck">
+      <div class="deck-label-wrap">
+        <div class="deck-title-group">
+          <span class="deck-indicator-dot"></span>
+          <span class="deck-label">ROUTING ENGINE STRATEGY</span>
         </div>
-        <div class="ingress-indicator">
-          <span class="ingress-label">LOAD BALANCING ALGORITHM</span>
-          <div class="strategy-selector" id="strategy-selector" role="group" aria-label="Strategy Selector">
-            <button type="button" class="strategy-pill active" data-strategy="round_robin" id="pill-round-robin" title="Even sequential distribution across healthy targets">
-              <span class="pill-dot"></span>
-              <span>Round Robin</span>
-            </button>
-            <button type="button" class="strategy-pill" data-strategy="least_connections" id="pill-least-conn" title="Route to healthy backend with fewest active connections">
-              <span class="pill-dot"></span>
-              <span>Least Connections</span>
-            </button>
-            <button type="button" class="strategy-pill" data-strategy="ip_hash" id="pill-ip-hash" title="Deterministic client IP hash with sticky sessions">
-              <span class="pill-dot"></span>
-              <span>IP Hash</span>
-            </button>
-          </div>
-        </div>
+        <span class="strategy-desc" id="strategy-desc">Monotonically advancing atomic ring counter with zero memory allocations</span>
       </div>
 
-      <div class="traffic-generator">
-        <span class="generator-label">Traffic Simulator:</span>
-        <button id="btn-test-single" class="btn btn-secondary" title="Dispatch 1 request to proxy">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-          </svg>
-          Send 1 Request
+      <div class="strategy-selector" id="strategy-selector" role="group" aria-label="Strategy Selector">
+        <button type="button" class="strategy-pill active" data-strategy="round_robin" id="pill-round-robin" title="Even sequential distribution across healthy targets">
+          <span class="pill-dot"></span>
+          <span class="pill-name">Round Robin</span>
         </button>
-        <div class="burst-input-group">
-          <input 
-            type="number" 
-            id="burst-count-input" 
-            class="burst-number-input" 
-            min="1" 
-            max="2000" 
-            value="10" 
-            title="Number of burst requests (1-2000)"
-          />
-          <button id="btn-test-burst" class="btn btn-primary" title="Send custom burst requests">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-            </svg>
-            Send Burst
-          </button>
-        </div>
-        <div class="hold-conns-group">
-          <input 
-            type="number" 
-            id="hold-conns-count" 
-            class="burst-number-input" 
-            min="1" 
-            max="150" 
-            value="15" 
-            title="Number of custom concurrent active connections to open (1-150)"
-          />
-          <span class="hold-separator">conns for</span>
-          <input 
-            type="number" 
-            id="hold-conns-sec" 
-            class="burst-number-input" 
-            min="1" 
-            max="30" 
-            value="4" 
-            title="Duration to hold active connections open in seconds (1-30s)"
-          />
-          <span class="hold-separator">sec</span>
-          <button id="btn-test-slow" class="btn btn-secondary" title="Dispatch custom concurrent requests to hold active connections">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            Hold Active
-          </button>
-        </div>
-        <label class="sim-ip-toggle" title="When active, burst requests simulate multiple client IPs (192.168.1.x) to demonstrate IP Hash load distribution">
-          <input type="checkbox" id="check-sim-ips" checked />
-          <span class="sim-ip-text">Diverse IPs</span>
-        </label>
-        <button id="btn-auto-traffic" class="btn btn-auto">
-          <span class="live-dot pulse"></span>
-          <span id="auto-traffic-label">Start Continuous Traffic</span>
+        <button type="button" class="strategy-pill" data-strategy="weighted_round_robin" id="pill-weighted-rr" title="Smooth interleaved distribution based on upstream capacity weights">
+          <span class="pill-dot"></span>
+          <span class="pill-name">Weighted RR</span>
         </button>
-        <button id="btn-reset-metrics" class="btn btn-secondary" title="Reset all counters to 0">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-            <path d="M21 3v5h-5"></path>
-            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-            <path d="M3 21v-5h5"></path>
-          </svg>
-          Reset
+        <button type="button" class="strategy-pill" data-strategy="least_connections" id="pill-least-conn" title="Route to healthy backend with fewest active connections">
+          <span class="pill-dot"></span>
+          <span class="pill-name">Least Connections</span>
+        </button>
+        <button type="button" class="strategy-pill" data-strategy="ip_hash" id="pill-ip-hash" title="Deterministic client IP hash with sticky sessions">
+          <span class="pill-dot"></span>
+          <span class="pill-name">IP Hash</span>
         </button>
       </div>
     </section>
 
+    <!-- Traffic Simulator & Concurrency Lab -->
+    <section class="traffic-lab-card">
+      <div class="lab-header">
+        <div class="lab-title-group">
+          <div class="lab-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
+          <div>
+            <h3>Traffic Simulator & Concurrency Lab</h3>
+            <p>Generate synthetic load, hold concurrent sockets, and verify routing behavior</p>
+          </div>
+        </div>
+        <div class="lab-actions-meta">
+          <span class="active-strat-chip">Engine: <strong id="active-strategy-display">Round Robin</strong></span>
+        </div>
+      </div>
 
-    <!-- Hero KPI Stats -->
+      <div class="lab-controls-grid">
+        <!-- Control Group 1: Fast Dispatches -->
+        <div class="control-panel-group">
+          <span class="panel-group-title">QUICK DISPATCH</span>
+          <div class="panel-btn-row">
+            <button id="btn-test-single" class="btn btn-secondary" title="Dispatch 1 request to proxy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+              Send 1 Req
+            </button>
+            <div class="burst-input-group">
+              <input 
+                type="number" 
+                id="burst-count-input" 
+                class="burst-number-input" 
+                min="1" 
+                max="2000" 
+                value="10" 
+                title="Number of burst requests (1-2000)"
+              />
+              <button id="btn-test-burst" class="btn btn-primary" title="Send custom burst requests">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                Send Burst
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Control Group 2: In-Flight Sockets Hold -->
+        <div class="control-panel-group">
+          <span class="panel-group-title">IN-FLIGHT CONCURRENCY (LEAST-CONN TEST)</span>
+          <div class="hold-conns-panel">
+            <div class="hold-fields">
+              <div class="stepper-field">
+                <input 
+                  type="number" 
+                  id="hold-conns-count" 
+                  class="hold-input" 
+                  min="1" 
+                  max="150" 
+                  value="15" 
+                  title="Concurrent active sockets (1-150)"
+                />
+                <span class="field-unit">conns</span>
+              </div>
+              <span class="hold-divider">&times;</span>
+              <div class="stepper-field">
+                <input 
+                  type="number" 
+                  id="hold-conns-sec" 
+                  class="hold-input" 
+                  min="1" 
+                  max="30" 
+                  value="4" 
+                  title="Hold duration in seconds (1-30s)"
+                />
+                <span class="field-unit">sec</span>
+              </div>
+            </div>
+            <button id="btn-test-slow" class="btn btn-secondary" title="Dispatch custom concurrent requests to hold active connections">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              Hold Active
+            </button>
+          </div>
+        </div>
+
+        <!-- Control Group 3: Continuous Stream & Global Actions -->
+        <div class="control-panel-group">
+          <span class="panel-group-title">STREAM & CLIENT OPTIONS</span>
+          <div class="panel-btn-row">
+            <label class="sim-ip-toggle" title="Simulates diverse client IPs to test IP Hash load distribution">
+              <input type="checkbox" id="check-sim-ips" checked />
+              <span class="custom-toggle-slider"></span>
+              <span class="sim-ip-text">Diverse IPs</span>
+            </label>
+            <button id="btn-auto-traffic" class="btn btn-auto" title="Continuously send 2 requests/second">
+              <span class="live-dot pulse"></span>
+              <span id="auto-traffic-label">Start Continuous Traffic</span>
+            </button>
+            <button id="btn-reset-metrics" class="btn btn-ghost" title="Reset all counters to zero">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                <path d="M3 21v-5h5"></path>
+              </svg>
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hero KPI Stats Deck -->
     <section class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-icon-wrap icon-requests">
@@ -209,7 +265,7 @@
           </svg>
         </div>
         <div class="kpi-body">
-          <span class="kpi-title">Queued Requests</span>
+          <span class="kpi-title">In-Flight / Queued</span>
           <span class="kpi-value" id="kpi-queued">0</span>
         </div>
       </div>
@@ -233,9 +289,9 @@
         <div class="section-title-wrap">
           <div class="title-with-badge">
             <h2>Real-World Simulation Studio</h2>
-            <span class="badge badge-accent">Live Scenarios</span>
+            <span class="badge badge-accent">Interactive Lab</span>
           </div>
-          <span class="section-subtitle">Demonstrate multi-layer edge protection, anti-DDoS mitigation, and client isolation in real-time</span>
+          <span class="section-subtitle">Validate multi-layer edge defense, anti-DDoS token buckets, and per-IP client isolation</span>
         </div>
         <div class="shield-toggle-wrap">
           <span class="shield-status-text" id="shield-status-label">Edge Shield: ACTIVE</span>
@@ -271,16 +327,16 @@
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
               </svg>
             </div>
-            <div>
-              <h3>Scenario 1: DDoS Attack vs. Legitimate Users</h3>
-              <p>Simulates a rogue botnet flooding the proxy while innocent users continue browsing normally</p>
+            <div class="scenario-info-text">
+              <h3>Scenario 1: DDoS Attack Mitigation vs. Legitimate Users</h3>
+              <p>Simulates an aggressive botnet spamming requests while innocent clients continue browsing uninterrupted with zero latency</p>
             </div>
           </div>
           <div class="scenario-card-body">
             <div class="scenario-stats-row">
               <span class="chip">Attacker IP: <code>203.0.113.42</code></span>
               <span class="chip">Normal Users: <code>198.51.100.x</code></span>
-              <span class="chip">Bucket: <code>10 req/s (Burst: 10)</code></span>
+              <span class="chip">Bucket Ceiling: <code>10 req/s (Burst: 10)</code></span>
             </div>
             <div class="scenario-actions">
               <button id="btn-run-ddos-scenario" class="btn btn-primary btn-scenario" title="Run 4-phase automated DDoS demonstration">
@@ -290,10 +346,58 @@
                 Run Guided DDoS Demo
               </button>
               <button id="btn-spam-attacker" class="btn btn-danger" title="Send 20 rapid requests from attacker IP 203.0.113.42">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
                 Spam Attacker IP (x20)
               </button>
               <button id="btn-send-normal-users" class="btn btn-secondary" title="Send 15 requests from 15 diverse client IPs">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
                 Send Legitimate Users (x15)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scenario 2: Canary Release & Traffic Weighting -->
+        <div class="scenario-card">
+          <div class="scenario-card-header">
+            <div class="scenario-icon canary-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            </div>
+            <div class="scenario-info-text">
+              <h3>Scenario 2: Canary Deployment & Traffic Weighting</h3>
+              <p>Gradual rollout of v2.0 feature to Node 3. Test sending standard requests vs. explicit targeting via <code>X-Canary: true</code></p>
+            </div>
+          </div>
+          <div class="scenario-card-body">
+            <div class="scenario-stats-row">
+              <span class="chip">Stable Nodes: <code>8001 & 8002 (v1.0)</code></span>
+              <span class="chip">Canary Node: <code>8003 (v2.0)</code></span>
+              <span class="chip">Header Steering: <code>X-Canary: true</code></span>
+            </div>
+            <div class="scenario-actions">
+              <button id="btn-send-canary-single" class="btn btn-canary" title="Send 1 request with X-Canary: true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12h14"></path>
+                  <path d="m12 5 7 7-7 7"></path>
+                </svg>
+                Send Canary Request (X-Canary)
+              </button>
+              <button id="btn-send-canary-burst" class="btn btn-secondary" title="Send 10 canary requests">
+                Send Canary Burst (x10)
+              </button>
+              <button id="btn-set-canary-weights" class="btn btn-ghost" title="Set weights to 5:5:1 (Canary gets ~9% of standard traffic)">
+                Preset Weights (5 : 5 : 1)
               </button>
             </div>
           </div>
@@ -301,35 +405,41 @@
       </div>
     </section>
 
-    <!-- Upstream Nodes Section -->
+    <!-- Upstream Backend Pool Section -->
     <section class="section-container">
       <div class="section-header">
         <div class="section-title-wrap">
-          <h2>Upstream Backend Pool</h2>
-          <span class="section-subtitle">Real-time health state and load distribution across targets</span>
-        </div>
-        <div class="pool-summary">
-          <span id="healthy-count-badge" class="badge badge-success">3 / 3 Healthy</span>
+          <div class="title-with-badge">
+            <h2>Upstream Backend Pool</h2>
+            <span id="healthy-count-badge" class="badge badge-success">3 / 3 Healthy</span>
+          </div>
+          <span class="section-subtitle">Real-time health state, in-flight sockets, and load distribution across upstream workers</span>
         </div>
       </div>
 
-      <!-- Traffic Distribution Bar -->
+      <!-- Traffic Distribution Share Bar -->
       <div class="distribution-card">
         <div class="distribution-header">
-          <span>Traffic Distribution Share</span>
-          <span id="distribution-total-label">0 total proxied</span>
+          <div class="dist-title-group">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+              <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+            </svg>
+            <span>Traffic Distribution Share</span>
+          </div>
+          <span id="distribution-total-label" class="dist-total-badge">0 total proxied</span>
         </div>
         <div class="distribution-bar" id="distribution-bar">
-          <!-- Filled dynamically -->
+          <!-- Filled dynamically via app.js -->
         </div>
         <div class="distribution-legend" id="distribution-legend">
-          <!-- Filled dynamically -->
+          <!-- Filled dynamically via app.js -->
         </div>
       </div>
 
       <!-- Backend Cards Grid -->
       <div class="backend-grid" id="backend-cards-container">
-        <!-- Rendered via app.js -->
+        <!-- Rendered dynamically via app.js -->
       </div>
     </section>
 
@@ -337,11 +447,11 @@
     <section class="section-container">
       <div class="section-header">
         <div class="section-title-wrap">
-          <h2>Live Request Stream</h2>
-          <span class="section-subtitle">Real-time trace logs of incoming client requests and routing decisions</span>
-        </div>
-        <div class="stream-actions">
-          <span class="badge badge-subtle" id="log-count-badge">0 requests</span>
+          <div class="title-with-badge">
+            <h2>Live Request Stream</h2>
+            <span class="badge badge-subtle" id="log-count-badge">0 logged</span>
+          </div>
+          <span class="section-subtitle">Real-time trace logs of incoming client requests, routing decisions, and latency</span>
         </div>
       </div>
 
@@ -349,17 +459,17 @@
         <table class="request-table">
           <thead>
             <tr>
-              <th>Time</th>
+              <th>Timestamp</th>
               <th>Method</th>
               <th>Client IP</th>
               <th>Target Backend</th>
-              <th>Status</th>
-              <th>Duration</th>
+              <th>Response Status</th>
+              <th>Latency</th>
             </tr>
           </thead>
           <tbody id="logs-table-body">
             <tr class="empty-row">
-              <td colspan="6">Waiting for requests... Click "Send 1 Request" or "Send Burst" above to begin.</td>
+              <td colspan="6">Waiting for requests... Start Continuous Traffic or click "Send 1 Req" above to observe routing.</td>
             </tr>
           </tbody>
         </table>
@@ -368,7 +478,17 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <p>NexusLB Infrastructure Proxy &bull; Course UCS503P &bull; Thapar Institute of Engineering & Technology</p>
+      <div class="footer-content">
+        <div class="footer-left">
+          <strong>NexusLB High-Availability Proxy</strong> &bull; UCS503P Software Engineering
+        </div>
+        <div class="footer-center">
+          Thapar Institute of Engineering & Technology (TIET), Patiala
+        </div>
+        <div class="footer-right">
+          Group 3C23: Navjot Singh &bull; Shaina Gera &bull; Prabhgun Kaur
+        </div>
+      </div>
     </footer>
   </div>
 

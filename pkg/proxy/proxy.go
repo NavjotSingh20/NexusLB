@@ -98,6 +98,11 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	target.IncConn()
 	defer target.DecConn()
 
+	isCanary := balancer.IsCanaryRequest(r) || target.IsCanaryNode()
+	if target.IsCanaryNode() {
+		w.Header().Set("X-Nexus-Canary", target.GetCanaryTag())
+	}
+
 	rec := &responseRecorder{
 		ResponseWriter: w,
 		statusCode:     http.StatusOK,
@@ -131,5 +136,5 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	elapsed := time.Since(start)
 	isErr := rec.statusCode >= 500
 	target.RecordRequest(elapsed, isErr)
-	p.collector.Record(r.Method, r.URL.Path, clientIP, target.URL.String(), rec.statusCode, elapsed)
+	p.collector.Record(r.Method, r.URL.Path, clientIP, target.URL.String(), rec.statusCode, elapsed, isCanary)
 }

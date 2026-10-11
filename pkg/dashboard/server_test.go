@@ -57,8 +57,8 @@ func TestServer_StrategyAPI(t *testing.T) {
 	if getResp.Key != "round_robin" {
 		t.Errorf("expected initial key round_robin, got %s", getResp.Key)
 	}
-	if len(getResp.Available) != 3 {
-		t.Errorf("expected 3 available strategies, got %d", len(getResp.Available))
+	if len(getResp.Available) != 4 {
+		t.Errorf("expected 4 available strategies, got %d", len(getResp.Available))
 	}
 
 	// 2. Test POST /api/strategy to switch to least_connections
@@ -73,7 +73,19 @@ func TestServer_StrategyAPI(t *testing.T) {
 		t.Errorf("expected strategy manager to be least_connections, got %s", sm.CurrentKey())
 	}
 
-	// 3. Test POST /api/strategy to switch to ip_hash
+	// 3. Test POST /api/strategy to switch to weighted_round_robin
+	postReqWRR := httptest.NewRequest(http.MethodPost, "/api/strategy?name=weighted_round_robin", nil)
+	postRecWRR := httptest.NewRecorder()
+	srv.handleStrategy(postRecWRR, postReqWRR)
+
+	if postRecWRR.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", postRecWRR.Code)
+	}
+	if sm.CurrentKey() != "weighted_round_robin" {
+		t.Errorf("expected strategy manager to be weighted_round_robin, got %s", sm.CurrentKey())
+	}
+
+	// 4. Test POST /api/strategy to switch to ip_hash
 	postReq2 := httptest.NewRequest(http.MethodPost, "/api/strategy?name=ip_hash", nil)
 	postRec2 := httptest.NewRecorder()
 	srv.handleStrategy(postRec2, postReq2)
@@ -85,7 +97,7 @@ func TestServer_StrategyAPI(t *testing.T) {
 		t.Errorf("expected strategy manager to be ip_hash, got %s", sm.CurrentKey())
 	}
 
-	// 4. Test POST with invalid strategy
+	// 5. Test POST with invalid strategy
 	postReqInv := httptest.NewRequest(http.MethodPost, "/api/strategy?name=random_invalid", nil)
 	postRecInv := httptest.NewRecorder()
 	srv.handleStrategy(postRecInv, postReqInv)
@@ -151,6 +163,69 @@ func TestServer_ConnectionsAPI(t *testing.T) {
 	backends := srv.balancer.GetBackends()
 	if backends[0].GetStats().ActiveConnections != 10 {
 		t.Errorf("expected 10 active connections, got %d", backends[0].GetStats().ActiveConnections)
+	}
+}
+
+func TestServer_WeightAPI(t *testing.T) {
+	srv, _ := setupTestServer(t)
+
+	// 1. Set weight to 5
+	req := httptest.NewRequest(http.MethodPost, "/api/backend/weight?url=http://localhost:8001&weight=5", nil)
+	rec := httptest.NewRecorder()
+	srv.handleBackendWeight(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	backends := srv.balancer.GetBackends()
+	if backends[0].GetWeight() != 5 {
+		t.Errorf("expected weight 5, got %d", backends[0].GetWeight())
+	}
+
+	// 2. Add delta +3
+	req2 := httptest.NewRequest(http.MethodPost, "/api/backend/weight?url=http://localhost:8001&delta=3", nil)
+	rec2 := httptest.NewRecorder()
+	srv.handleBackendWeight(rec2, req2)
+
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec2.Code)
+	}
+	if backends[0].GetWeight() != 8 {
+		t.Errorf("expected weight 8, got %d", backends[0].GetWeight())
+	}
+}
+
+func TestServer_CanaryAPI(t *testing.T) {
+	srv, _ := setupTestServer(t)
+
+	// Enable canary on backend 2
+	req := httptest.NewRequest(http.MethodPost, "/api/backend/canary?url=http://localhost:8002&enabled=true&tag=v2.5-canary", nil)
+	rec := httptest.NewRecorder()
+	srv.handleBackendCanary(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	backends := srv.balancer.GetBackends()
+	if !backends[1].IsCanaryNode() {
+		t.Errorf("expected backend 2 to be marked as canary")
+	}
+	if backends[1].GetCanaryTag() != "v2.5-canary" {
+		t.Errorf("expected tag v2.5-canary, got %s", backends[1].GetCanaryTag())
+	}
+
+	// Disable canary
+	reqOff := httptest.NewRequest(http.MethodPost, "/api/backend/canary?url=http://localhost:8002&enabled=false", nil)
+	recOff := httptest.NewRecorder()
+	srv.handleBackendCanary(recOff, reqOff)
+
+	if recOff.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recOff.Code)
+	}
+	if backends[1].IsCanaryNode() {
+		t.Errorf("expected backend 2 to not be canary")
 	}
 }
 

@@ -5,21 +5,26 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"nexuslb/pkg/backend"
 )
 
 const (
-	StrategyRoundRobin       = "round_robin"
-	StrategyLeastConnections = "least_connections"
-	StrategyIPHash           = "ip_hash"
+	StrategyRoundRobin          = "round_robin"
+	StrategyWeightedRoundRobin  = "weighted_round_robin"
+	StrategyLeastConnections    = "least_connections"
+	StrategyIPHash              = "ip_hash"
 )
 
 type StrategyManager struct {
-	backends         []*backend.Backend
-	roundRobin       *RoundRobin
-	leastConnections *LeastConnections
-	ipHash           *IPHash
+	backends           []*backend.Backend
+	roundRobin         *RoundRobin
+	weightedRoundRobin *WeightedRoundRobin
+	leastConnections   *LeastConnections
+	ipHash             *IPHash
+
+	canaryCounter uint64
 
 	active    Balancer
 	activeKey string
@@ -28,14 +33,16 @@ type StrategyManager struct {
 
 func NewStrategyManager(initialStrategy string, backends []*backend.Backend) (*StrategyManager, error) {
 	rr := NewRoundRobin(backends)
+	wrr := NewWeightedRoundRobin(backends)
 	lc := NewLeastConnections(backends)
 	ih := NewIPHash(backends)
 
 	sm := &StrategyManager{
-		backends:         backends,
-		roundRobin:       rr,
-		leastConnections: lc,
-		ipHash:           ih,
+		backends:           backends,
+		roundRobin:         rr,
+		weightedRoundRobin: wrr,
+		leastConnections:   lc,
+		ipHash:             ih,
 	}
 
 	if initialStrategy == "" {
@@ -49,12 +56,59 @@ func NewStrategyManager(initialStrategy string, backends []*backend.Backend) (*S
 	return sm, nil
 }
 
+// NextBackend applies Layer 7 Canary Traffic Steering first.
+// If the incoming request carries canary indicators (X-Canary header, query param, or cookie),
+// it routes to an active canary node. Otherwise, it delegates to the active strategy.
 func (sm *StrategyManager) NextBackend(r *http.Request) (*backend.Backend, error) {
 	sm.mux.RLock()
-	active := sm.active
-	sm.mux.RUnlock()
+	defer sm.mux.RUnlock()
 
-	return active.NextBackend(r)
+	// 1. Layer 7 Canary Steering
+	if IsCanaryRequest(r) {
+		if canaryTarget := sm.selectHealthyCanary(); canaryTarget != nil {
+			return canaryTarget, nil
+		}
+		// Graceful fallback to active strategy if canary node is offline or unassigned
+	}
+
+	// 2. Active load balancing strategy
+	return sm.active.NextBackend(r)
+}
+
+func (sm *StrategyManager) selectHealthyCanary() *backend.Backend {
+	var candidates []*backend.Backend
+	for _, b := range sm.backends {
+		if b.IsCanaryNode() && b.IsAlive() {
+			candidates = append(candidates, b)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+	if len(candidates) == 1 {
+		return candidates[0]
+	}
+
+	idx := atomic.AddUint64(&sm.canaryCounter, 1) - 1
+	return candidates[int(idx)%len(candidates)]
+}
+
+// IsCanaryRequest checks if an HTTP request explicitly targets the canary release
+func IsCanaryRequest(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	if r.Header.Get("X-Canary") != "" {
+		return true
+	}
+	if r.URL != nil && r.URL.Query().Get("canary") == "true" {
+		return true
+	}
+	if cookie, err := r.Cookie("canary"); err == nil && cookie.Value == "true" {
+		return true
+	}
+	return false
 }
 
 func (sm *StrategyManager) GetBackends() []*backend.Backend {
@@ -86,6 +140,9 @@ func (sm *StrategyManager) SetStrategy(name string) error {
 	case StrategyRoundRobin:
 		sm.active = sm.roundRobin
 		sm.activeKey = StrategyRoundRobin
+	case StrategyWeightedRoundRobin:
+		sm.active = sm.weightedRoundRobin
+		sm.activeKey = StrategyWeightedRoundRobin
 	case StrategyLeastConnections:
 		sm.active = sm.leastConnections
 		sm.activeKey = StrategyLeastConnections
@@ -93,19 +150,22 @@ func (sm *StrategyManager) SetStrategy(name string) error {
 		sm.active = sm.ipHash
 		sm.activeKey = StrategyIPHash
 	default:
-		return fmt.Errorf("unsupported balancing strategy '%s', available: round_robin, least_connections, ip_hash", name)
+		return fmt.Errorf("unsupported balancing strategy '%s', available: round_robin, weighted_round_robin, least_connections, ip_hash", name)
 	}
 
 	return nil
 }
 
 func (sm *StrategyManager) AvailableStrategies() []string {
-	return []string{StrategyRoundRobin, StrategyLeastConnections, StrategyIPHash}
+	return []string{StrategyRoundRobin, StrategyWeightedRoundRobin, StrategyLeastConnections, StrategyIPHash}
 }
 
 func normalizeStrategyName(s string) string {
 	lower := strings.ToLower(strings.TrimSpace(s))
 	lower = strings.ReplaceAll(lower, "-", "_")
+	if lower == "weighted_round_robin" || lower == "weighted_rr" || lower == "wrr" || lower == "weighted" {
+		return StrategyWeightedRoundRobin
+	}
 	if lower == "least_conn" || lower == "leastconn" {
 		return StrategyLeastConnections
 	}

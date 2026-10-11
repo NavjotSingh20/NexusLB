@@ -17,23 +17,25 @@ type RequestLog struct {
 	Status    int    `json:"status"`
 	LatencyMs int64  `json:"latency_ms"`
 	ClientIP  string `json:"client_ip"`
+	IsCanary  bool   `json:"is_canary,omitempty"`
 }
 
 type DashboardStats struct {
-	TotalRequests      int64                  `json:"total_requests"`
-	TotalSuccess       int64                  `json:"total_success"`
-	TotalClientErrors  int64                  `json:"total_client_errors"`
-	TotalServerErrors  int64                  `json:"total_server_errors"`
-	ActiveConnections  int64                  `json:"active_connections"`
-	QueuedRequests     int64                  `json:"queued_requests"`
-	RequestsPerSecond  float64                `json:"rps"`
-	AverageLatencyMs   float64                `json:"avg_latency_ms"`
-	Backends           []backend.BackendStats `json:"backends"`
-	RecentLogs         []RequestLog           `json:"recent_logs"`
+	TotalRequests       int64                  `json:"total_requests"`
+	TotalSuccess        int64                  `json:"total_success"`
+	TotalClientErrors   int64                  `json:"total_client_errors"`
+	TotalServerErrors   int64                  `json:"total_server_errors"`
+	ActiveConnections   int64                  `json:"active_connections"`
+	QueuedRequests      int64                  `json:"queued_requests"`
+	RequestsPerSecond   float64                `json:"rps"`
+	AverageLatencyMs    float64                `json:"avg_latency_ms"`
+	Backends            []backend.BackendStats `json:"backends"`
+	RecentLogs          []RequestLog           `json:"recent_logs"`
 	Strategy            string                 `json:"strategy"`
 	StrategyKey         string                 `json:"strategy_key,omitempty"`
 	AvailableStrategies []string               `json:"available_strategies,omitempty"`
 	TotalThrottled      int64                  `json:"total_throttled"`
+	TotalCanaryRequests int64                  `json:"total_canary_requests"`
 	ShieldEnabled       bool                   `json:"shield_enabled"`
 	ShieldRate          float64                `json:"shield_rate"`
 	ShieldBurst         int                    `json:"shield_burst"`
@@ -41,13 +43,14 @@ type DashboardStats struct {
 }
 
 type Collector struct {
-	totalRequests     int64
-	totalSuccess      int64
-	totalClientErrors int64
-	totalServerErrors int64
-	totalThrottled    int64
-	totalLatencyMs    int64
-	queuedRequests    int64
+	totalRequests       int64
+	totalSuccess        int64
+	totalClientErrors   int64
+	totalServerErrors   int64
+	totalThrottled      int64
+	totalCanaryRequests int64
+	totalLatencyMs      int64
+	queuedRequests      int64
 
 	startTime         time.Time
 	lastRPSCheckTime  time.Time
@@ -77,6 +80,7 @@ func (c *Collector) Reset(backends []*backend.Backend) {
 	atomic.StoreInt64(&c.totalClientErrors, 0)
 	atomic.StoreInt64(&c.totalServerErrors, 0)
 	atomic.StoreInt64(&c.totalThrottled, 0)
+	atomic.StoreInt64(&c.totalCanaryRequests, 0)
 	atomic.StoreInt64(&c.totalLatencyMs, 0)
 	atomic.StoreInt64(&c.queuedRequests, 0)
 	c.recentLogs = make([]RequestLog, 0, 50)
@@ -107,10 +111,15 @@ func (c *Collector) GetQueue() int64 {
 	return q
 }
 
-func (c *Collector) Record(method, path, clientIP, targetBackend string, status int, latency time.Duration) {
+func (c *Collector) Record(method, path, clientIP, targetBackend string, status int, latency time.Duration, isCanary ...bool) {
 	atomic.AddInt64(&c.totalRequests, 1)
 	latencyMs := latency.Milliseconds()
 	atomic.AddInt64(&c.totalLatencyMs, latencyMs)
+
+	canary := len(isCanary) > 0 && isCanary[0]
+	if canary {
+		atomic.AddInt64(&c.totalCanaryRequests, 1)
+	}
 
 	if status == 429 {
 		atomic.AddInt64(&c.totalThrottled, 1)
@@ -131,6 +140,7 @@ func (c *Collector) Record(method, path, clientIP, targetBackend string, status 
 		Status:    status,
 		LatencyMs: latencyMs,
 		ClientIP:  clientIP,
+		IsCanary:  canary,
 	}
 
 	c.mux.Lock()
@@ -178,27 +188,30 @@ func (c *Collector) Snapshot(strategyName string, backends []*backend.Backend) D
 		logsCopy[i], logsCopy[j] = logsCopy[j], logsCopy[i]
 	}
 
+	backendStats := make([]backend.BackendStats, 0, len(backends))
 	var activeConns int64
-	backendStats := make([]backend.BackendStats, len(backends))
-	for i, b := range backends {
-		bs := b.GetStats()
-		backendStats[i] = bs
-		activeConns += bs.ActiveConnections
+	for _, b := range backends {
+		s := b.GetStats()
+		backendStats = append(backendStats, s)
+		activeConns += s.ActiveConnections
 	}
 
+	uptimeSec := int64(time.Since(c.startTime).Seconds())
+
 	return DashboardStats{
-		TotalRequests:     totalReqs,
-		TotalSuccess:      atomic.LoadInt64(&c.totalSuccess),
-		TotalClientErrors: atomic.LoadInt64(&c.totalClientErrors),
-		TotalServerErrors: atomic.LoadInt64(&c.totalServerErrors),
-		TotalThrottled:    atomic.LoadInt64(&c.totalThrottled),
-		ActiveConnections: activeConns,
-		QueuedRequests:    c.GetQueue(),
-		RequestsPerSecond: rps,
-		AverageLatencyMs:  avgLatency,
-		Backends:          backendStats,
-		RecentLogs:        logsCopy,
-		Strategy:          strategyName,
-		UptimeSeconds:     int64(time.Since(c.startTime).Seconds()),
+		TotalRequests:       totalReqs,
+		TotalSuccess:        atomic.LoadInt64(&c.totalSuccess),
+		TotalClientErrors:   atomic.LoadInt64(&c.totalClientErrors),
+		TotalServerErrors:   atomic.LoadInt64(&c.totalServerErrors),
+		TotalThrottled:      atomic.LoadInt64(&c.totalThrottled),
+		TotalCanaryRequests: atomic.LoadInt64(&c.totalCanaryRequests),
+		ActiveConnections:   activeConns,
+		QueuedRequests:      c.GetQueue(),
+		RequestsPerSecond:   rps,
+		AverageLatencyMs:    avgLatency,
+		Backends:            backendStats,
+		RecentLogs:          logsCopy,
+		Strategy:            strategyName,
+		UptimeSeconds:       uptimeSec,
 	}
 }

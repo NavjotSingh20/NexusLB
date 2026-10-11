@@ -53,7 +53,16 @@ const btnRunDDoSScenario = document.getElementById('btn-run-ddos-scenario');
 const btnSpamAttacker = document.getElementById('btn-spam-attacker');
 const btnSendNormalUsers = document.getElementById('btn-send-normal-users');
 
-// Update active strategy pill styling
+// Strategy Descriptions
+const STRATEGY_DESCRIPTIONS = {
+  round_robin: 'Monotonically advancing atomic ring counter with zero memory allocations',
+  weighted_round_robin: 'Smoothly interleaves traffic according to node weights without burst clustering',
+  least_connections: 'Dynamically routes to healthy backend with lowest active in-flight sockets',
+  ip_hash: 'Deterministic 32-bit FNV-1a hash over client IP for sticky session persistence'
+};
+const strategyDescEl = document.getElementById('strategy-desc');
+
+// Update active strategy pill styling and description
 function updateStrategyPills(key) {
   if (!key) return;
   const pills = document.querySelectorAll('.strategy-pill');
@@ -64,6 +73,9 @@ function updateStrategyPills(key) {
       pill.classList.remove('active');
     }
   });
+  if (strategyDescEl && STRATEGY_DESCRIPTIONS[key]) {
+    strategyDescEl.textContent = STRATEGY_DESCRIPTIONS[key];
+  }
 }
 
 // Hook strategy switcher buttons
@@ -172,28 +184,41 @@ function renderBackends(backends) {
   let healthyCount = 0;
   let html = '';
 
-  const onlineNodes = backends.filter(b => b.alive);
-  const targetPct = onlineNodes.length > 0 ? (100 / onlineNodes.length).toFixed(1) : '0';
+  let totalAliveWeight = 0;
+  backends.forEach(b => {
+    if (b.alive) totalAliveWeight += (b.weight || 1);
+  });
 
   backends.forEach((b, idx) => {
     if (b.alive) healthyCount++;
     const color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
     const isOnline = b.alive;
-    const cardClass = isOnline ? 'backend-card' : 'backend-card offline';
+    const isCanary = b.is_canary || false;
+    const weight = b.weight || 1;
+    const cardClass = `backend-card ${isOnline ? '' : 'offline'} ${isCanary ? 'canary-node' : ''}`.trim();
 
-    const statusBadge = isOnline
-      ? `<span class="badge badge-success">HEALTHY</span>`
-      : `<span class="badge badge-danger">OFFLINE (BYPASSED)</span>`;
+    const targetPct = (isOnline && totalAliveWeight > 0)
+      ? ((weight / totalAliveWeight) * 100).toFixed(1)
+      : '0';
+
+    let statusBadge;
+    if (!isOnline) {
+      statusBadge = `<span class="badge badge-danger">OFFLINE (BYPASSED)</span>`;
+    } else if (isCanary) {
+      statusBadge = `<span class="badge badge-canary">🐥 CANARY (${escapeHTML(b.canary_tag || 'v2.0')})</span>`;
+    } else {
+      statusBadge = `<span class="badge badge-success">HEALTHY</span>`;
+    }
 
     const shareBadge = isOnline
-      ? `<span class="target-share-badge active" title="Active share target">Target: ${targetPct}% share</span>`
+      ? `<span class="target-share-badge active" title="Active share target">Target: ${targetPct}% share (W: ${weight}x)</span>`
       : `<span class="target-share-badge inactive">0% (Bypassed)</span>`;
 
     html += `
-      <div class="${cardClass}" style="border-left: 4px solid ${isOnline ? color : '#f43f5e'}">
+      <div class="${cardClass}" style="border-left: 4px solid ${isOnline ? (isCanary ? '#8b5cf6' : color) : '#f43f5e'}">
         <div class="backend-card-header">
           <div class="backend-title-wrap">
-            <span class="node-color-tag" style="background: ${isOnline ? color : '#f43f5e'}"></span>
+            <span class="node-color-tag" style="background: ${isOnline ? (isCanary ? '#8b5cf6' : color) : '#f43f5e'}"></span>
             <span class="backend-url">${escapeHTML(b.url)}</span>
           </div>
           ${statusBadge}
@@ -210,6 +235,18 @@ function renderBackends(backends) {
             </span>
           </div>
           ${shareBadge}
+        </div>
+
+        <div class="node-weight-bar">
+          <div class="weight-stepper-wrap">
+            <span class="weight-label">Weight:</span>
+            <button class="btn-stepper" onclick="window.adjustBackendWeight('${escapeHTML(b.url)}', -1)" title="Decrease weight">-</button>
+            <span class="weight-val-badge">${weight}x</span>
+            <button class="btn-stepper" onclick="window.adjustBackendWeight('${escapeHTML(b.url)}', 1)" title="Increase weight">+</button>
+          </div>
+          <button class="canary-toggle-btn ${isCanary ? 'active' : ''}" onclick="window.toggleCanary('${escapeHTML(b.url)}', ${!isCanary})" title="Designate as Canary Release target">
+            <span>🐥 ${isCanary ? 'Canary Active' : 'Make Canary'}</span>
+          </button>
         </div>
 
         <div class="backend-stats-grid">
@@ -283,10 +320,11 @@ function renderDistribution(backends, totalRequests) {
       barHtml += `<div class="dist-slice" style="width: ${pct}%; background: ${b.alive ? color : '#64748b'};" title="${b.url}: ${pct}% (${count})"></div>`;
     }
 
+    const canaryTag = b.is_canary ? `<span class="canary-tag">🐥 CANARY</span>` : '';
     legendHtml += `
       <div class="legend-item ${b.alive ? '' : 'legend-offline'}">
-        <span class="legend-dot" style="background: ${b.alive ? color : '#64748b'}"></span>
-        <span>${escapeHTML(b.url)}: <strong>${pct}%</strong> (${count} reqs) ${b.alive ? '' : '<small style="color:#fb7185">[OFFLINE]</small>'}</span>
+        <span class="legend-dot" style="background: ${b.alive ? (b.is_canary ? '#8b5cf6' : color) : '#64748b'}"></span>
+        <span>${escapeHTML(b.url)}: <strong>${pct}%</strong> (${count} reqs) [W: ${b.weight || 1}x] ${canaryTag} ${b.alive ? '' : '<small style="color:#fb7185">[OFFLINE]</small>'}</span>
       </div>
     `;
   });
@@ -321,9 +359,14 @@ function renderLogs(logs) {
       statusClass = 'status-5xx';
     }
 
-    const backendDisplay = log.backend === 'Edge Shield'
-      ? `<span class="badge badge-accent" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">🛡️ Edge Shield</span>`
-      : escapeHTML(log.backend);
+    let backendDisplay;
+    if (log.backend === 'Edge Shield') {
+      backendDisplay = `<span class="badge badge-accent" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">🛡️ Edge Shield</span>`;
+    } else if (log.is_canary) {
+      backendDisplay = `<span class="canary-tag">🐥 CANARY</span> ${escapeHTML(log.backend)}`;
+    } else {
+      backendDisplay = escapeHTML(log.backend);
+    }
 
     html += `
       <tr>
@@ -653,6 +696,77 @@ if (btnSendNormalUsers) {
       await triggerTestRequestWithIP(15, '');
     } finally {
       setTimeout(() => btnSendNormalUsers.disabled = false, 500);
+    }
+  });
+}
+
+// Adjust weight on backend
+window.adjustBackendWeight = async function(url, delta) {
+  try {
+    await fetch(`/api/backend/weight?url=${encodeURIComponent(url)}&delta=${delta}`, { method: 'POST' });
+  } catch (err) {
+    console.error(`Failed to adjust weight for ${url}:`, err);
+  }
+};
+
+window.setBackendWeight = async function(url, weight) {
+  try {
+    await fetch(`/api/backend/weight?url=${encodeURIComponent(url)}&weight=${weight}`, { method: 'POST' });
+  } catch (err) {
+    console.error(`Failed to set weight for ${url}:`, err);
+  }
+};
+
+window.toggleCanary = async function(url, enabled) {
+  try {
+    await fetch(`/api/backend/canary?url=${encodeURIComponent(url)}&enabled=${enabled}&tag=v2.0-canary`, { method: 'POST' });
+  } catch (err) {
+    console.error(`Failed to toggle canary for ${url}:`, err);
+  }
+};
+
+// Scenario 2: Canary Deployment Controls
+const btnSendCanarySingle = document.getElementById('btn-send-canary-single');
+const btnSendCanaryBurst = document.getElementById('btn-send-canary-burst');
+const btnSetCanaryWeights = document.getElementById('btn-set-canary-weights');
+
+if (btnSendCanarySingle) {
+  btnSendCanarySingle.addEventListener('click', async () => {
+    btnSendCanarySingle.disabled = true;
+    try {
+      await fetch('/api/test-request?count=1&canary=true', { method: 'POST' });
+    } finally {
+      setTimeout(() => btnSendCanarySingle.disabled = false, 400);
+    }
+  });
+}
+
+if (btnSendCanaryBurst) {
+  btnSendCanaryBurst.addEventListener('click', async () => {
+    btnSendCanaryBurst.disabled = true;
+    try {
+      await fetch('/api/test-request?count=10&canary=true', { method: 'POST' });
+    } finally {
+      setTimeout(() => btnSendCanaryBurst.disabled = false, 500);
+    }
+  });
+}
+
+if (btnSetCanaryWeights) {
+  btnSetCanaryWeights.addEventListener('click', async () => {
+    btnSetCanaryWeights.disabled = true;
+    try {
+      // 1. Set weights 5 : 5 : 1
+      await fetch('/api/backend/weight?url=http://localhost:8001&weight=5', { method: 'POST' });
+      await fetch('/api/backend/weight?url=http://localhost:8002&weight=5', { method: 'POST' });
+      await fetch('/api/backend/weight?url=http://localhost:8003&weight=1', { method: 'POST' });
+      // 2. Set Node 3 as Canary
+      await fetch('/api/backend/canary?url=http://localhost:8003&enabled=true&tag=v2.0-canary', { method: 'POST' });
+      // 3. Switch strategy to Weighted Round Robin
+      await fetch('/api/strategy?name=weighted_round_robin', { method: 'POST' });
+      updateStrategyPills('weighted_round_robin');
+    } finally {
+      setTimeout(() => btnSetCanaryWeights.disabled = false, 600);
     }
   });
 }

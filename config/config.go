@@ -67,6 +67,7 @@ func LoadConfig(path string) (*Config, error) {
 func (c *Config) Validate() error {
 	switch c.Strategy {
 	case "round_robin", "roundrobin", "rr",
+		"weighted_round_robin", "weighted_rr", "wrr", "weighted",
 		"least_connections", "least_conn", "leastconn", "lc",
 		"ip_hash", "iphash", "hash":
 		return nil
@@ -74,6 +75,6 @@ func (c *Config) Validate() error {
 		c.Strategy = "round_robin"
 		return nil
 	default:
-		return fmt.Errorf("invalid strategy %q: supported strategies are round_robin, least_connections, ip_hash", c.Strategy)
+		return fmt.Errorf("invalid strategy %q: supported strategies are round_robin, weighted_round_robin, least_connections, ip_hash", c.Strategy)
 	}
 }

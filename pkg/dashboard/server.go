@@ -61,6 +61,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/backend/toggle", s.handleToggleBackend)
 	mux.HandleFunc("/api/backend/delay", s.handleBackendDelay)
 	mux.HandleFunc("/api/backend/connections", s.handleBackendConnections)
+	mux.HandleFunc("/api/backend/weight", s.handleBackendWeight)
+	mux.HandleFunc("/api/backend/canary", s.handleBackendCanary)
 	mux.HandleFunc("/api/strategy", s.handleStrategy)
 	mux.HandleFunc("/api/shield", s.handleShield)
 	mux.HandleFunc("/api/shield/toggle", s.handleToggleShield)
@@ -169,6 +171,7 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	simIPs := r.URL.Query().Get("sim_ips") == "true" || r.URL.Query().Get("sim_ips") == "1"
 	customClientIP := r.URL.Query().Get("client_ip")
+	isCanary := r.URL.Query().Get("canary") == "true" || r.URL.Query().Get("canary") == "1"
 
 	tr := &http.Transport{
 		MaxIdleConns:        150,
@@ -213,6 +216,9 @@ func (s *Server) handleTestRequest(w http.ResponseWriter, r *http.Request) {
 			for reqIndex := range jobs {
 				req, err := http.NewRequest("GET", targetURL, nil)
 				if err == nil {
+					if isCanary {
+						req.Header.Set("X-Canary", "true")
+					}
 					if customClientIP != "" {
 						req.Header.Set("X-Forwarded-For", customClientIP)
 					} else if simIPs {
@@ -533,6 +539,102 @@ func (s *Server) handleResetStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"status":  "ok",
 		"message": "Metrics reset successfully",
+	})
+}
+
+func (s *Server) handleBackendWeight(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	targetURL := r.URL.Query().Get("url")
+	weightStr := r.URL.Query().Get("weight")
+	deltaStr := r.URL.Query().Get("delta")
+
+	var targetBackend *backend.Backend
+	for _, b := range s.balancer.GetBackends() {
+		if b.URL.String() == targetURL {
+			targetBackend = b
+			break
+		}
+	}
+
+	if targetBackend == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "backend not found"})
+		return
+	}
+
+	if weightStr != "" {
+		if wVal, err := strconv.ParseInt(weightStr, 10, 64); err == nil && wVal >= 1 {
+			targetBackend.SetWeight(wVal)
+		}
+	} else if deltaStr != "" {
+		if dVal, err := strconv.ParseInt(deltaStr, 10, 64); err == nil {
+			newW := targetBackend.GetWeight() + dVal
+			if newW < 1 {
+				newW = 1
+			}
+			targetBackend.SetWeight(newW)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok",
+		"url":    targetBackend.URL.String(),
+		"weight": targetBackend.GetWeight(),
+	})
+}
+
+func (s *Server) handleBackendCanary(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	targetURL := r.URL.Query().Get("url")
+	enabledStr := r.URL.Query().Get("enabled")
+	tag := r.URL.Query().Get("tag")
+
+	var targetBackend *backend.Backend
+	for _, b := range s.balancer.GetBackends() {
+		if b.URL.String() == targetURL {
+			targetBackend = b
+			break
+		}
+	}
+
+	if targetBackend == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "backend not found"})
+		return
+	}
+
+	isCanary := enabledStr == "true" || enabledStr == "1"
+	targetBackend.SetCanary(isCanary, tag)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":     "ok",
+		"url":        targetBackend.URL.String(),
+		"is_canary":  targetBackend.IsCanaryNode(),
+		"canary_tag": targetBackend.GetCanaryTag(),
 	})
 }
 
