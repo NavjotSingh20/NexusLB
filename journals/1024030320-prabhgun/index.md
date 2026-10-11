@@ -5,4 +5,4 @@ Name: Prabhgun Kaur
 
 +  [01 : Compile-Time Encapsulation Failure in Multi-Package go:embed Asset Bundling](./01-asset-embedding-boundary-violation.md)
 +  [02 : Goroutine Leakage and Premature Stream Severing in Real-Time SSE Telemetry](./02-sse-stream-goroutine-leak-timeout-conflict.md)
-+  […]
++  [03 : Memory Exhaustion Under High IP Churn in Distributed Edge Shield Rate Limiting](./03-token-bucket-ip-churn-memory-leak.md)
