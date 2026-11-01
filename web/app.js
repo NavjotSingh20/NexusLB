@@ -202,7 +202,11 @@ function renderBackends(backends) {
       : '0';
 
     let statusBadge;
-    if (!isOnline) {
+    if (b.circuit_state === 'open') {
+      statusBadge = `<span class="badge badge-danger" title="${b.consecutive_failures || 5} consecutive errors">⚡ CIRCUIT OPEN</span>`;
+    } else if (b.circuit_state === 'half_open') {
+      statusBadge = `<span class="badge badge-accent" title="Probing recovery">⚡ HALF-OPEN (PROBE)</span>`;
+    } else if (!isOnline) {
       statusBadge = `<span class="badge badge-danger">OFFLINE (BYPASSED)</span>`;
     } else if (isCanary) {
       statusBadge = `<span class="badge badge-canary">🐥 CANARY (${escapeHTML(b.canary_tag || 'v2.0')})</span>`;

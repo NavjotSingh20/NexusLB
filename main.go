@@ -70,7 +70,7 @@ func main() {
 	log.Printf("[INIT] Health checker active (probing every %v on %s)", cfg.HealthCheckInterval, cfg.HealthCheckPath)
 
 	// 7. Start Reverse Proxy Server
-	proxyHandler := proxy.NewProxyHandler(sm, collector, limiter)
+	proxyHandler := proxy.NewProxyHandler(sm, collector, limiter, cfg.MaxRetries)
 	proxyServer := &http.Server{
 		Addr:         cfg.ProxyPort,
 		Handler:      proxyHandler,

@@ -12,15 +12,17 @@ import (
 )
 
 type BackendStats struct {
-	URL               string `json:"url"`
-	Alive             bool   `json:"alive"`
-	ActiveConnections int64  `json:"active_connections"`
-	TotalRequests     int64  `json:"total_requests"`
-	TotalErrors       int64  `json:"total_errors"`
-	LastLatencyMs     int64  `json:"last_latency_ms"`
-	Weight            int64  `json:"weight"`
-	IsCanary          bool   `json:"is_canary"`
-	CanaryTag         string `json:"canary_tag"`
+	URL                 string `json:"url"`
+	Alive               bool   `json:"alive"`
+	ActiveConnections   int64  `json:"active_connections"`
+	TotalRequests       int64  `json:"total_requests"`
+	TotalErrors         int64  `json:"total_errors"`
+	LastLatencyMs       int64  `json:"last_latency_ms"`
+	Weight              int64  `json:"weight"`
+	IsCanary            bool   `json:"is_canary"`
+	CanaryTag           string `json:"canary_tag"`
+	CircuitState        string `json:"circuit_state"`
+	ConsecutiveFailures int64  `json:"consecutive_failures"`
 }
 
 type Backend struct {
@@ -36,6 +38,7 @@ type Backend struct {
 	CurrentWeight     int64
 	IsCanary          bool
 	CanaryTag         string
+	CircuitBreaker    *CircuitBreaker
 }
 
 func NewBackend(rawURL string) (*Backend, error) {
@@ -45,10 +48,11 @@ func NewBackend(rawURL string) (*Backend, error) {
 	}
 
 	b := &Backend{
-		URL:       parsedURL,
-		Alive:     true,
-		Weight:    1,
-		CanaryTag: "v2.0-canary",
+		URL:            parsedURL,
+		Alive:          true,
+		Weight:         1,
+		CanaryTag:      "v2.0-canary",
+		CircuitBreaker: NewCircuitBreaker(5, 10*time.Second),
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(parsedURL)
@@ -56,6 +60,14 @@ func NewBackend(rawURL string) (*Backend, error) {
 	// Static error handler: thread-safe, configured once at initialization
 	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, proxyErr error) {
 		b.SetAlive(false)
+		b.RecordRequest(0, true)
+
+		// Check if the response writer is a transparent retry buffer
+		if retrier, ok := rw.(interface{ SetFailed(error) }); ok {
+			retrier.SetFailed(proxyErr)
+			return
+		}
+
 		if setter, ok := rw.(interface{ SetStatusCode(int) }); ok {
 			setter.SetStatusCode(http.StatusBadGateway)
 		}
@@ -95,6 +107,19 @@ func (b *Backend) SetAlive(alive bool) {
 }
 
 func (b *Backend) IsAlive() bool {
+	b.mux.RLock()
+	alive := b.Alive
+	b.mux.RUnlock()
+	if !alive {
+		return false
+	}
+	if b.CircuitBreaker != nil {
+		return b.CircuitBreaker.Allow()
+	}
+	return true
+}
+
+func (b *Backend) IsUp() bool {
 	b.mux.RLock()
 	defer b.mux.RUnlock()
 	return b.Alive
@@ -156,6 +181,13 @@ func (b *Backend) RecordRequest(latency time.Duration, isErr bool) {
 	atomic.AddInt64(&b.TotalRequests, 1)
 	if isErr {
 		atomic.AddInt64(&b.TotalErrors, 1)
+		if b.CircuitBreaker != nil {
+			b.CircuitBreaker.RecordFailure()
+		}
+	} else {
+		if b.CircuitBreaker != nil {
+			b.CircuitBreaker.RecordSuccess()
+		}
 	}
 	atomic.StoreInt64(&b.LastLatencyMs, latency.Milliseconds())
 }
@@ -167,15 +199,24 @@ func (b *Backend) GetStats() BackendStats {
 	canaryTag := b.CanaryTag
 	b.mux.RUnlock()
 
+	circuitState := "closed"
+	var failures int64
+	if b.CircuitBreaker != nil {
+		circuitState = string(b.CircuitBreaker.State())
+		failures = b.CircuitBreaker.Failures()
+	}
+
 	return BackendStats{
-		URL:               b.URL.String(),
-		Alive:             alive,
-		ActiveConnections: atomic.LoadInt64(&b.ActiveConnections),
-		TotalRequests:     atomic.LoadInt64(&b.TotalRequests),
-		TotalErrors:       atomic.LoadInt64(&b.TotalErrors),
-		LastLatencyMs:     atomic.LoadInt64(&b.LastLatencyMs),
-		Weight:            b.GetWeight(),
-		IsCanary:          isCanary,
-		CanaryTag:         canaryTag,
+		URL:                 b.URL.String(),
+		Alive:               alive && (circuitState != "open"),
+		ActiveConnections:   atomic.LoadInt64(&b.ActiveConnections),
+		TotalRequests:       atomic.LoadInt64(&b.TotalRequests),
+		TotalErrors:         atomic.LoadInt64(&b.TotalErrors),
+		LastLatencyMs:       atomic.LoadInt64(&b.LastLatencyMs),
+		Weight:              b.GetWeight(),
+		IsCanary:            isCanary,
+		CanaryTag:           canaryTag,
+		CircuitState:        circuitState,
+		ConsecutiveFailures: failures,
 	}
 }

@@ -143,3 +143,109 @@ func TestBackend_ConcurrentAccess(t *testing.T) {
 	}
 }
 
+func TestCircuitBreaker_StateTransitions(t *testing.T) {
+	// 3 consecutive failures to trip, 50ms cooldown
+	cb := NewCircuitBreaker(3, 50*time.Millisecond)
+
+	if cb.State() != StateClosed {
+		t.Errorf("expected initial state StateClosed, got %s", cb.State())
+	}
+	if !cb.Allow() {
+		t.Errorf("expected Allow() to be true when closed")
+	}
+
+	// 1 failure: stays closed
+	cb.RecordFailure()
+	if cb.State() != StateClosed || cb.Failures() != 1 {
+		t.Errorf("expected 1 failure and StateClosed, got %d and %s", cb.Failures(), cb.State())
+	}
+
+	// 2 failures: stays closed
+	cb.RecordFailure()
+	if cb.State() != StateClosed || cb.Failures() != 2 {
+		t.Errorf("expected 2 failures and StateClosed, got %d and %s", cb.Failures(), cb.State())
+	}
+
+	// 3rd failure: trips to StateOpen
+	cb.RecordFailure()
+	if cb.State() != StateOpen {
+		t.Errorf("expected StateOpen after 3 failures, got %s", cb.State())
+	}
+	if cb.Allow() {
+		t.Errorf("expected Allow() to be false when open")
+	}
+
+	// Wait for cooldown to expire
+	time.Sleep(60 * time.Millisecond)
+
+	// State should transition to StateHalfOpen
+	if cb.State() != StateHalfOpen {
+		t.Errorf("expected StateHalfOpen after cooldown, got %s", cb.State())
+	}
+
+	// First probe request allowed in half-open
+	if !cb.Allow() {
+		t.Errorf("expected 1st probe to be allowed in StateHalfOpen")
+	}
+	// Second concurrent probe rejected
+	if cb.Allow() {
+		t.Errorf("expected 2nd probe to be rejected while probing in StateHalfOpen")
+	}
+
+	// Probe succeeds: transitions back to StateClosed
+	cb.RecordSuccess()
+	if cb.State() != StateClosed {
+		t.Errorf("expected StateClosed after probe success, got %s", cb.State())
+	}
+	if cb.Failures() != 0 {
+		t.Errorf("expected 0 failures after probe success, got %d", cb.Failures())
+	}
+
+	// Now test probe failure: trip to open again
+	cb.RecordFailure()
+	cb.RecordFailure()
+	cb.RecordFailure()
+	if cb.State() != StateOpen {
+		t.Errorf("expected StateOpen, got %s", cb.State())
+	}
+	time.Sleep(60 * time.Millisecond)
+	_ = cb.Allow() // probe allowed
+	cb.RecordFailure() // probe failed!
+	if cb.State() != StateOpen {
+		t.Errorf("expected StateOpen immediately after probe failure in half-open, got %s", cb.State())
+	}
+
+	// Reset
+	cb.Reset()
+	if cb.State() != StateClosed || cb.Failures() != 0 {
+		t.Errorf("expected clean reset, got %s", cb.State())
+	}
+}
+
+func TestBackend_CircuitBreakerIntegration(t *testing.T) {
+	b, _ := NewBackend("http://127.0.0.1:8001")
+	// Use 3 failures, 50ms cooldown for fast test
+	b.CircuitBreaker = NewCircuitBreaker(3, 50*time.Millisecond)
+
+	if !b.IsAlive() {
+		t.Errorf("expected backend to be alive initially")
+	}
+
+	// Record 3 error requests
+	b.RecordRequest(10*time.Millisecond, true)
+	b.RecordRequest(10*time.Millisecond, true)
+	b.RecordRequest(10*time.Millisecond, true)
+
+	// Circuit breaker should now be OPEN, so IsAlive() returns false
+	if b.IsAlive() {
+		t.Errorf("expected b.IsAlive() to return false when circuit breaker is open")
+	}
+	stats := b.GetStats()
+	if stats.CircuitState != "open" {
+		t.Errorf("expected CircuitState 'open', got %s", stats.CircuitState)
+	}
+	if stats.Alive {
+		t.Errorf("expected stats.Alive to be false when circuit breaker is open")
+	}
+}
+

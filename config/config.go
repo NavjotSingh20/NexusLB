@@ -15,6 +15,7 @@ type Config struct {
 	HealthCheckIntervalStr string        `json:"health_check_interval"`
 	HealthCheckPath        string        `json:"health_check_path"`
 	Strategy               string        `json:"strategy"`
+	MaxRetries             int           `json:"max_retries"`
 }
 
 func DefaultConfig() *Config {
@@ -30,6 +31,7 @@ func DefaultConfig() *Config {
 		HealthCheckIntervalStr: "3s",
 		HealthCheckPath:        "/health",
 		Strategy:               "round_robin",
+		MaxRetries:             2,
 	}
 }
 

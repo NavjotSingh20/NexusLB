@@ -8,5 +8,6 @@
   ],
   "health_check_interval": "3s",
   "health_check_path": "/health",
-  "strategy": "round_robin"
+  "strategy": "round_robin",
+  "max_retries": 2
 }

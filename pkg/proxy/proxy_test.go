@@ -202,10 +202,7 @@ func (m *mockHijackableRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 func TestResponseRecorder_FlusherAndHijacker(t *testing.T) {
 	mock := &mockHijackableRecorder{ResponseRecorder: httptest.NewRecorder()}
-	rec := &responseRecorder{
-		ResponseWriter: mock,
-		statusCode:     http.StatusOK,
-	}
+	rec := newRetryRecorder(mock)
 
 	// Test Flush
 	rec.Flush()
@@ -262,6 +259,87 @@ func TestProxyHandler_ConcurrentRequests(t *testing.T) {
 	snap := collector.Snapshot("Round Robin", []*backend.Backend{b})
 	if snap.TotalRequests != int64(workers) {
 		t.Errorf("expected %d total requests, got %d", workers, snap.TotalRequests)
+	}
+}
+
+func TestProxyHandler_TransparentFailover(t *testing.T) {
+	// Backend 1: offline / dead port
+	deadBackend, _ := backend.NewBackend("http://127.0.0.1:59998")
+
+	// Backend 2: healthy live server
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "failover-success")
+	}))
+	defer liveServer.Close()
+
+	liveBackend, _ := backend.NewBackend(liveServer.URL)
+
+	// Balancer with dead backend first, live backend second
+	sm, err := balancer.NewStrategyManager("round_robin", []*backend.Backend{deadBackend, liveBackend})
+	if err != nil {
+		t.Fatalf("failed to create strategy manager: %v", err)
+	}
+
+	collector := metrics.NewCollector()
+	limiter := ratelimit.NewLimiter(10.0, 10, false)
+	defer limiter.Close()
+
+	// MaxRetries = 2
+	handler := NewProxyHandler(sm, collector, limiter, 2)
+
+	req := httptest.NewRequest("GET", "http://nexuslb.local/api/resource", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	body, _ := io.ReadAll(resp.Body)
+
+	// Transparent retry should have intercepted deadBackend failure and routed to liveBackend!
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK after transparent failover, got %d. Body: %s", resp.StatusCode, string(body))
+	}
+	if string(body) != "failover-success" {
+		t.Errorf("expected 'failover-success', got '%s'", string(body))
+	}
+	if deadBackend.IsAlive() {
+		t.Errorf("expected dead backend to be marked offline after failover")
+	}
+}
+
+func TestProxyHandler_RequestBodyRetry(t *testing.T) {
+	deadBackend, _ := backend.NewBackend("http://127.0.0.1:59997")
+
+	var receivedBody string
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		receivedBody = string(b)
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, "created")
+	}))
+	defer liveServer.Close()
+
+	liveBackend, _ := backend.NewBackend(liveServer.URL)
+
+	sm, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{deadBackend, liveBackend})
+	collector := metrics.NewCollector()
+	limiter := ratelimit.NewLimiter(10.0, 10, false)
+	defer limiter.Close()
+
+	handler := NewProxyHandler(sm, collector, limiter, 2)
+
+	postPayload := `{"item":"test-order","qty":42}`
+	req := httptest.NewRequest("POST", "http://nexuslb.local/orders", strings.NewReader(postPayload))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Errorf("expected 201 Created after retry, got %d", rec.Code)
+	}
+	if receivedBody != postPayload {
+		t.Errorf("expected live server to receive full request body %s, got %s", postPayload, receivedBody)
 	}
 }
 
