@@ -164,9 +164,12 @@ func (l *Limiter) ActiveIPCount() int {
 	return count
 }
 
-// Reset clears tracked buckets and reset counters.
+// Reset clears tracked buckets and resets counters safely without copying sync.Map.
 func (l *Limiter) Reset() {
-	l.buckets = sync.Map{}
+	l.buckets.Range(func(key, _ interface{}) bool {
+		l.buckets.Delete(key)
+		return true
+	})
 	atomic.StoreInt64(&l.totalBlocked, 0)
 	atomic.StoreInt64(&l.totalAllowed, 0)
 }

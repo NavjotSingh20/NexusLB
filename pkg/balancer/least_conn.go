@@ -65,6 +65,12 @@ func (lc *LeastConnections) GetBackends() []*backend.Backend {
 	return copied
 }
 
+func (lc *LeastConnections) UpdateBackends(backends []*backend.Backend) {
+	lc.mux.Lock()
+	defer lc.mux.Unlock()
+	lc.backends = backends
+}
+
 func (lc *LeastConnections) Name() string {
 	return "Least Connections"
 }

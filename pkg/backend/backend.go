@@ -1,6 +1,9 @@
 package backend
 
 import (
+	"encoding/json"
+	"net"
+	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"sync"
@@ -41,15 +44,46 @@ func NewBackend(rawURL string) (*Backend, error) {
 		return nil, err
 	}
 
+	b := &Backend{
+		URL:       parsedURL,
+		Alive:     true,
+		Weight:    1,
+		CanaryTag: "v2.0-canary",
+	}
+
 	proxy := httputil.NewSingleHostReverseProxy(parsedURL)
 
-	b := &Backend{
-		URL:          parsedURL,
-		Alive:        true,
-		ReverseProxy: proxy,
-		Weight:       1,
-		CanaryTag:    "v2.0-canary",
+	// Static error handler: thread-safe, configured once at initialization
+	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, proxyErr error) {
+		b.SetAlive(false)
+		if setter, ok := rw.(interface{ SetStatusCode(int) }); ok {
+			setter.SetStatusCode(http.StatusBadGateway)
+		}
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusBadGateway)
+		json.NewEncoder(rw).Encode(map[string]string{
+			"error":   "Bad Gateway",
+			"message": "NexusLB: Backend connection failed",
+			"backend": b.URL.String(),
+		})
 	}
+
+	// High-performance connection pool transport
+	proxy.Transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   5 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          200,
+		MaxIdleConnsPerHost:   100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+	}
+
+	b.ReverseProxy = proxy
 
 	return b, nil
 }

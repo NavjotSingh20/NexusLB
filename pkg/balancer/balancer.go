@@ -14,6 +14,7 @@ var ErrNoHealthyBackends = errors.New("no healthy backends available")
 type Balancer interface {
 	NextBackend(r *http.Request) (*backend.Backend, error)
 	GetBackends() []*backend.Backend
+	UpdateBackends(backends []*backend.Backend)
 	Name() string
 }
 
@@ -58,6 +59,12 @@ func (rr *RoundRobin) GetBackends() []*backend.Backend {
 	copied := make([]*backend.Backend, len(rr.backends))
 	copy(copied, rr.backends)
 	return copied
+}
+
+func (rr *RoundRobin) UpdateBackends(backends []*backend.Backend) {
+	rr.mux.Lock()
+	defer rr.mux.Unlock()
+	rr.backends = backends
 }
 
 func (rr *RoundRobin) Name() string {

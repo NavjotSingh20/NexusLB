@@ -1,7 +1,10 @@
 package proxy
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -31,6 +34,31 @@ func (rec *responseRecorder) Write(b []byte) (int, error) {
 		rec.written = true
 	}
 	return rec.ResponseWriter.Write(b)
+}
+
+func (rec *responseRecorder) SetStatusCode(code int) {
+	rec.statusCode = code
+	rec.written = true
+}
+
+// Hijack implements http.Hijacker for WebSocket and connection hijacking support
+func (rec *responseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := rec.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, errors.New("underlying ResponseWriter does not implement http.Hijacker")
+}
+
+// Flush implements http.Flusher for streaming responses and SSE support
+func (rec *responseRecorder) Flush() {
+	if fl, ok := rec.ResponseWriter.(http.Flusher); ok {
+		fl.Flush()
+	}
+}
+
+// Unwrap allows http.ResponseController to access the underlying ResponseWriter
+func (rec *responseRecorder) Unwrap() http.ResponseWriter {
+	return rec.ResponseWriter
 }
 
 type ProxyHandler struct {
@@ -109,25 +137,17 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add reverse proxy tracing headers
-	r.Header.Set("X-Forwarded-For", clientIP)
+	if prior := r.Header.Get("X-Forwarded-For"); prior != "" {
+		r.Header.Set("X-Forwarded-For", prior+", "+clientIP)
+	} else {
+		r.Header.Set("X-Forwarded-For", clientIP)
+	}
+	r.Header.Set("X-Real-IP", clientIP)
 	r.Header.Set("X-Forwarded-Host", r.Host)
 	if r.TLS != nil {
 		r.Header.Set("X-Forwarded-Proto", "https")
 	} else {
 		r.Header.Set("X-Forwarded-Proto", "http")
-	}
-
-	// Custom error handler for connection drops
-	target.ReverseProxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, proxyErr error) {
-		target.SetAlive(false)
-		rec.statusCode = http.StatusBadGateway
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusBadGateway)
-		json.NewEncoder(rw).Encode(map[string]string{
-			"error":   "Bad Gateway",
-			"message": "NexusLB: Backend connection failed",
-			"backend": target.URL.String(),
-		})
 	}
 
 	// Execute proxy forwarding

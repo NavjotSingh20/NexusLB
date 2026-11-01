@@ -16,6 +16,7 @@ type Checker struct {
 	interval time.Duration
 	path     string
 	client   *http.Client
+	mux      sync.RWMutex
 }
 
 func NewChecker(backends []*backend.Backend, interval time.Duration, path string) *Checker {
@@ -55,8 +56,13 @@ func (c *Checker) Start(ctx context.Context) {
 }
 
 func (c *Checker) CheckAll() {
+	c.mux.RLock()
+	backendsCopy := make([]*backend.Backend, len(c.backends))
+	copy(backendsCopy, c.backends)
+	c.mux.RUnlock()
+
 	var wg sync.WaitGroup
-	for _, b := range c.backends {
+	for _, b := range backendsCopy {
 		wg.Add(1)
 		go func(target *backend.Backend) {
 			defer wg.Done()
@@ -95,5 +101,15 @@ func (c *Checker) check(b *backend.Backend) {
 }
 
 func (c *Checker) AddBackend(b *backend.Backend) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 	c.backends = append(c.backends, b)
+}
+
+func (c *Checker) GetBackends() []*backend.Backend {
+	c.mux.RLock()
+	defer c.mux.RUnlock()
+	copied := make([]*backend.Backend, len(c.backends))
+	copy(copied, c.backends)
+	return copied
 }

@@ -75,3 +75,9 @@ func (wrr *WeightedRoundRobin) GetBackends() []*backend.Backend {
 	copy(copied, wrr.backends)
 	return copied
 }
+
+func (wrr *WeightedRoundRobin) UpdateBackends(backends []*backend.Backend) {
+	wrr.mux.Lock()
+	defer wrr.mux.Unlock()
+	wrr.backends = backends
+}

@@ -119,6 +119,16 @@ func (sm *StrategyManager) GetBackends() []*backend.Backend {
 	return copied
 }
 
+func (sm *StrategyManager) UpdateBackends(backends []*backend.Backend) {
+	sm.mux.Lock()
+	defer sm.mux.Unlock()
+	sm.backends = backends
+	sm.roundRobin.UpdateBackends(backends)
+	sm.weightedRoundRobin.UpdateBackends(backends)
+	sm.leastConnections.UpdateBackends(backends)
+	sm.ipHash.UpdateBackends(backends)
+}
+
 func (sm *StrategyManager) Name() string {
 	sm.mux.RLock()
 	defer sm.mux.RUnlock()

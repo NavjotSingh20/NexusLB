@@ -1,2 +1,22 @@
+# Compiled binaries & archives
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Agents & Lock files
+# Compiled binaries & archives
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Agents & Lock files
 .agents/
 skills-lock.json

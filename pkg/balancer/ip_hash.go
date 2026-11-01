@@ -60,6 +60,12 @@ func (ih *IPHash) GetBackends() []*backend.Backend {
 	return copied
 }
 
+func (ih *IPHash) UpdateBackends(backends []*backend.Backend) {
+	ih.mux.Lock()
+	defer ih.mux.Unlock()
+	ih.backends = backends
+}
+
 func (ih *IPHash) Name() string {
 	return "IP Hash"
 }
