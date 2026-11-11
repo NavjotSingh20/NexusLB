@@ -83,9 +83,9 @@
 
         <div class="title-controls">
           <button type="button" id="btn-test-single" class="btn">Send 1 req</button>
-          <button type="button" id="btn-auto-traffic" class="btn">
+          <button type="button" id="btn-auto-traffic" class="btn" title="Toggle real-life traffic simulation">
             <span class="status-dot muted" id="auto-traffic-dot"></span>
-            <span id="auto-traffic-label">Continuous off</span>
+            <span id="auto-traffic-label">Sim paused</span>
           </button>
           <button type="button" id="btn-reset-metrics" class="btn ghost" title="Reset metrics and logs">Reset</button>
           <div class="burst-group">
@@ -136,6 +136,31 @@
           <span class="kpi-label">In-flight / shield</span>
           <span class="kpi-value" id="kpi-queued">0 <span class="kpi-unit">queued</span></span>
           <span class="kpi-sub" id="kpi-card-shield">Blocked <span id="kpi-throttled">0</span> (429)</span>
+        </div>
+      </section>
+
+      <section class="panel sim-bar" id="sim-overview-bar" data-views="overview" aria-label="Real-life traffic simulator bar">
+        <div class="sim-bar-info">
+          <div class="sim-bar-title">
+            <span class="status-dot muted" id="sim-bar-dot"></span>
+            <strong>Real-life traffic simulator</strong>
+            <span class="pill neutral" id="sim-wave-pill">Idle</span>
+          </div>
+          <p class="sim-bar-summary" id="sim-bar-summary">Standby. Start to stream random unique IPs, sticky clients, canary requests, DDoS waves, and reversible chaos.</p>
+        </div>
+
+        <div class="sim-bar-controls">
+          <div class="segmented" role="group" aria-label="Simulation intensity">
+            <button type="button" class="seg-btn" data-sim-intensity="low">Low</button>
+            <button type="button" class="seg-btn is-active" data-sim-intensity="normal">Normal</button>
+            <button type="button" class="seg-btn" data-sim-intensity="heavy">Heavy</button>
+          </div>
+          <label class="inline-switch" title="Include reversible latency, canary weights, and outage failover drills">
+            <input type="checkbox" id="sim-bar-chaos" checked />
+            <span>Chaos</span>
+          </label>
+          <button type="button" id="btn-sim-bar-toggle" class="btn small primary">Start</button>
+          <button type="button" class="link-btn" data-jump-view="lab">Studio &rarr;</button>
         </div>
       </section>
 
@@ -282,10 +307,10 @@
         <div class="cards-grid" id="backend-cards-container"></div>
       </section>
 
-      <section class="lab-section" data-views="lab" aria-label="Defense and canary lab">
+      <section class="lab-section" data-views="lab" aria-label="Simulator studio, defense, and canary lab">
         <div class="storyline-banner hidden" id="storyline-banner">
           <div class="storyline-head">
-            <span class="pill accent" id="storyline-phase-badge">Phase 1 / 3</span>
+            <span class="pill accent" id="storyline-phase-badge">Stage 1 of 3</span>
             <strong id="storyline-title">Running automated mitigation sequence</strong>
           </div>
           <p id="storyline-message">Preparing traffic simulation...</p>
@@ -294,12 +319,96 @@
           </div>
         </div>
 
+        <div class="sim-studio-grid">
+          <article class="panel sim-studio-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Traffic simulator studio</h2>
+                <p class="panel-sub">Generates mixed random IPs, sticky sessions, slow queries, canary headers, DDoS waves, and reversible chaos faults.</p>
+              </div>
+              <div class="lab-head-controls">
+                <span class="pill neutral" id="sim-studio-pill">Idle</span>
+                <button type="button" id="btn-sim-studio-toggle" class="btn small primary">Start sim</button>
+              </div>
+            </div>
+
+            <div class="sim-config-strip">
+              <div class="sim-config-group">
+                <span class="control-label">Intensity</span>
+                <div class="segmented" role="group" aria-label="Studio simulation intensity">
+                  <button type="button" class="seg-btn" data-sim-intensity="low">Low</button>
+                  <button type="button" class="seg-btn is-active" data-sim-intensity="normal">Normal</button>
+                  <button type="button" class="seg-btn" data-sim-intensity="heavy">Heavy</button>
+                </div>
+              </div>
+              <label class="inline-switch">
+                <input type="checkbox" id="sim-studio-chaos" checked />
+                <span>Reversible chaos drills</span>
+              </label>
+              <label class="inline-switch">
+                <input type="checkbox" id="sim-studio-ddos" checked />
+                <span>Periodic DDoS waves</span>
+              </label>
+            </div>
+
+            <div class="sim-counters" aria-label="Simulated workload totals">
+              <div class="sim-counter">
+                <span class="sim-counter-label">Unique IPs</span>
+                <strong class="sim-counter-value" id="sim-cnt-unique">0</strong>
+              </div>
+              <div class="sim-counter">
+                <span class="sim-counter-label">Repeat IPs</span>
+                <strong class="sim-counter-value" id="sim-cnt-repeat">0</strong>
+              </div>
+              <div class="sim-counter">
+                <span class="sim-counter-label">Attack / 429</span>
+                <strong class="sim-counter-value" id="sim-cnt-ddos">0 / 0</strong>
+              </div>
+              <div class="sim-counter">
+                <span class="sim-counter-label">Canary / Chaos</span>
+                <strong class="sim-counter-value" id="sim-cnt-canary">0 / 0</strong>
+              </div>
+            </div>
+
+            <div class="sim-triggers-wrap">
+              <div class="explainer-subhead">
+                <span>On-demand scenario waves (auto-restores on completion or Stop)</span>
+                <span id="sim-attacker-count">0 attackers</span>
+              </div>
+              <div class="lab-actions">
+                <button type="button" class="btn small" data-sim-wave="single_ip_dos">Single-IP DoS</button>
+                <button type="button" class="btn small" data-sim-wave="botnet_ddos">Botnet DDoS</button>
+                <button type="button" class="btn small" data-sim-wave="sticky_affinity">Sticky clients</button>
+                <button type="button" class="btn small" data-sim-wave="latency_spike">Latency spike</button>
+                <button type="button" class="btn small" data-sim-wave="canary_weighted_rollout">Canary + WRR</button>
+                <button type="button" class="btn small" data-sim-wave="node_outage_failover">Node outage drill</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel sim-timeline-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Simulation timeline</h2>
+                <p class="panel-sub" id="sim-timeline-detail">Paused. Start simulation or trigger any wave on the left.</p>
+              </div>
+              <span class="muted" id="sim-target-rps">0.0 req/s target</span>
+            </div>
+
+            <div class="transition-feed" id="sim-events-list">
+              <div class="transition-empty">
+                No simulation events recorded yet. Start the real-life simulator to stream dynamic traffic waves and chaos drills.
+              </div>
+            </div>
+          </article>
+        </div>
+
         <div class="lab-grid">
           <article class="panel">
             <div class="panel-head">
               <div>
                 <h2>DDoS rate-limiter lab</h2>
-                <p class="panel-sub">Verify HTTP <code>429 Too Many Requests</code> throttling under single-IP floods while legitimate traffic stays unaffected.</p>
+                <p class="panel-sub">Tune per-IP token buckets or verify HTTP <code>429 Too Many Requests</code> isolation under flood bursts.</p>
               </div>
               <div class="lab-head-controls">
                 <span class="pill ok" id="lab-shield-pill">Shield active</span>
@@ -308,9 +417,16 @@
             </div>
 
             <div class="lab-body">
-              <div class="lab-callout">
-                <strong>Automated 3-stage mitigation proof</strong>
-                <span>Runs normal baseline traffic, toggles Edge Shield off under a bot flood from <code>203.0.113.66</code>, then restores isolation.</span>
+              <div class="shield-tune-row">
+                <label class="inline-field">
+                  <span>Refill req/s</span>
+                  <input type="number" id="shield-rate-input" value="10" min="1" max="500" step="1" />
+                </label>
+                <label class="inline-field">
+                  <span>Burst limit</span>
+                  <input type="number" id="shield-burst-input" value="10" min="1" max="500" step="1" />
+                </label>
+                <button type="button" id="btn-apply-shield-cfg" class="btn small">Apply limits</button>
               </div>
               <div class="lab-actions">
                 <button type="button" id="btn-run-ddos-scenario" class="btn primary">Run DDoS scenario</button>

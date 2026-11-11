@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -24,6 +25,10 @@ type Config struct {
 	CircuitBreakerMaxFailures int64         `json:"circuit_breaker_max_failures"`
 	CircuitBreakerCooldown    time.Duration `json:"-"`
 	CircuitBreakerCooldownStr string        `json:"circuit_breaker_cooldown"`
+	SimEnabled                bool          `json:"sim_enabled"`
+	SimIntensity              string        `json:"sim_intensity"`
+	SimChaos                  bool          `json:"sim_chaos"`
+	SimDDoS                   bool          `json:"sim_ddos"`
 }
 
 func DefaultConfig() *Config {
@@ -48,6 +53,10 @@ func DefaultConfig() *Config {
 		CircuitBreakerMaxFailures: 5,
 		CircuitBreakerCooldown:    10 * time.Second,
 		CircuitBreakerCooldownStr: "10s",
+		SimEnabled:                false,
+		SimIntensity:              "normal",
+		SimChaos:                  true,
+		SimDDoS:                   true,
 	}
 }
 
@@ -121,6 +130,12 @@ func (c *Config) Validate() error {
 	}
 	if c.CircuitBreakerCooldown <= 0 {
 		return fmt.Errorf("invalid circuit_breaker_cooldown %v: must be > 0", c.CircuitBreakerCooldown)
+	}
+
+	switch strings.ToLower(strings.TrimSpace(c.SimIntensity)) {
+	case "", "low", "light", "normal", "medium", "heavy", "high":
+	default:
+		return fmt.Errorf("invalid sim_intensity %q: supported values are low, normal, heavy", c.SimIntensity)
 	}
 
 	return nil

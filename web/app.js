@@ -25,9 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let logFilter = "all";
   let logSearchQuery = "";
   let shieldState = true;
-  let autoTrafficTimer = null;
   let isScenarioRunning = false;
   let lastSampleTimestamp = 0;
+  let simSnapshot = null;
   const backendDelays = {};
 
   const history = seedInitialHistory();
@@ -80,6 +80,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnLabToggleShield = document.getElementById("btn-lab-toggle-shield");
   const shieldBtnText = document.getElementById("shield-btn-text");
   const labShieldPill = document.getElementById("lab-shield-pill");
+  const shieldRateInput = document.getElementById("shield-rate-input");
+  const shieldBurstInput = document.getElementById("shield-burst-input");
+  const btnApplyShieldCfg = document.getElementById("btn-apply-shield-cfg");
+
+  const simOverviewBar = document.getElementById("sim-overview-bar");
+  const simBarDot = document.getElementById("sim-bar-dot");
+  const simWavePill = document.getElementById("sim-wave-pill");
+  const simBarSummary = document.getElementById("sim-bar-summary");
+  const simBarChaos = document.getElementById("sim-bar-chaos");
+  const btnSimBarToggle = document.getElementById("btn-sim-bar-toggle");
+
+  const simStudioPill = document.getElementById("sim-studio-pill");
+  const btnSimStudioToggle = document.getElementById("btn-sim-studio-toggle");
+  const simStudioChaos = document.getElementById("sim-studio-chaos");
+  const simStudioDdos = document.getElementById("sim-studio-ddos");
+  const simCntUnique = document.getElementById("sim-cnt-unique");
+  const simCntRepeat = document.getElementById("sim-cnt-repeat");
+  const simCntDdos = document.getElementById("sim-cnt-ddos");
+  const simCntCanary = document.getElementById("sim-cnt-canary");
+  const simAttackerCount = document.getElementById("sim-attacker-count");
+  const simTimelineDetail = document.getElementById("sim-timeline-detail");
+  const simTargetRps = document.getElementById("sim-target-rps");
+  const simEventsList = document.getElementById("sim-events-list");
+  const simIntensityBtns = document.querySelectorAll("[data-sim-intensity]");
+  const simWaveBtns = document.querySelectorAll("[data-sim-wave]");
 
   const btnQuickCanary = document.getElementById("btn-quick-canary");
   const btnQuickFlood = document.getElementById("btn-quick-flood");
@@ -383,6 +408,12 @@ document.addEventListener("DOMContentLoaded", () => {
       labShieldPill.textContent = shieldState ? "Shield active" : "Shield bypassed";
       labShieldPill.className = shieldState ? "pill ok" : "pill warn";
     }
+    if (shieldRateInput && document.activeElement !== shieldRateInput && data.shield_rate != null) {
+      shieldRateInput.value = String(data.shield_rate);
+    }
+    if (shieldBurstInput && document.activeElement !== shieldBurstInput && data.shield_burst != null) {
+      shieldBurstInput.value = String(data.shield_burst);
+    }
 
     // KPIs
     const total = Number(data.total_requests || 0);
@@ -426,6 +457,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     sampleTelemetry(data);
+    renderSimulation(data.simulation || null);
     renderAdaptiveExplainer(currentStrategyKey === "adaptive" ? data.adaptive : null);
     renderTelemetryChart();
     renderDistribution(backends);
@@ -589,6 +621,149 @@ document.addEventListener("DOMContentLoaded", () => {
       .join("");
   }
 
+  function simBadgeStyle(sim) {
+    if (!sim || !sim.running) {
+      return { pill: "neutral", dot: "muted", label: "Idle" };
+    }
+    const wave = sim.active_wave || "organic_baseline";
+    if (wave === "single_ip_dos" || wave === "botnet_ddos") {
+      return { pill: "bad", dot: "down", label: sim.wave_label || "DDoS attack" };
+    }
+    if (wave === "latency_spike" || wave === "node_outage_failover") {
+      return { pill: "warn", dot: "warn", label: sim.wave_label || "Chaos drill" };
+    }
+    if (wave === "canary_weighted_rollout") {
+      return { pill: "accent", dot: "accent", label: sim.wave_label || "Canary split" };
+    }
+    return { pill: "ok", dot: "", label: sim.wave_label || "Live stream" };
+  }
+
+  function renderSimulation(sim) {
+    simSnapshot = sim || null;
+    const running = Boolean(sim && sim.running);
+    const intensity = (sim && sim.intensity) || "normal";
+    const allowChaos = sim ? Boolean(sim.allow_chaos) : true;
+    const allowDdos = sim ? Boolean(sim.allow_ddos) : true;
+    const counters = (sim && sim.counters) || {};
+    const style = simBadgeStyle(sim);
+
+    if (btnAutoTraffic) {
+      btnAutoTraffic.classList.toggle("is-active", running);
+    }
+    if (autoTrafficDot) {
+      autoTrafficDot.className = style.dot ? `status-dot ${style.dot}` : "status-dot";
+    }
+    if (autoTrafficLabel) {
+      autoTrafficLabel.textContent = running ? `Sim: ${style.label}` : "Sim paused";
+    }
+
+    if (simOverviewBar) simOverviewBar.classList.toggle("is-running", running);
+    if (simBarDot) simBarDot.className = style.dot ? `status-dot ${style.dot}` : "status-dot";
+    if (simWavePill) {
+      simWavePill.className = `pill ${style.pill}`;
+      simWavePill.textContent = style.label;
+    }
+
+    if (simBarSummary) {
+      if (running) {
+        const detail = sim.wave_detail || "Streaming mixed real-life client traffic.";
+        const rps = Number(sim.target_rps || 0).toFixed(1);
+        simBarSummary.textContent = `${detail} (${rps} req/s target)`;
+      } else if (Number(counters.total_sent || 0) > 0) {
+        const total = Number(counters.total_sent || 0).toLocaleString();
+        const unique = Number(counters.unique_ip_reqs || 0).toLocaleString();
+        const blocked = Number(counters.blocked_429 || 0).toLocaleString();
+        simBarSummary.textContent = `Paused after ${total} simulated reqs (${unique} unique IPs, ${blocked} blocked 429). Start to resume.`;
+      } else {
+        simBarSummary.textContent = "Standby. Start to stream random unique IPs, sticky clients, canary requests, DDoS waves, and reversible chaos.";
+      }
+    }
+
+    if (btnSimBarToggle) {
+      btnSimBarToggle.textContent = running ? "Stop" : "Start";
+      btnSimBarToggle.className = running ? "btn small danger" : "btn small primary";
+    }
+
+    if (simStudioPill) {
+      simStudioPill.className = `pill ${style.pill}`;
+      simStudioPill.textContent = style.label;
+    }
+    if (btnSimStudioToggle) {
+      btnSimStudioToggle.textContent = running ? "Stop sim" : "Start sim";
+      btnSimStudioToggle.className = running ? "btn small danger" : "btn small primary";
+    }
+
+    simIntensityBtns.forEach((btn) => {
+      btn.classList.toggle("is-active", btn.getAttribute("data-sim-intensity") === intensity);
+    });
+
+    if (simBarChaos) simBarChaos.checked = allowChaos;
+    if (simStudioChaos) simStudioChaos.checked = allowChaos;
+    if (simStudioDdos) simStudioDdos.checked = allowDdos;
+
+    if (simCntUnique) simCntUnique.textContent = Number(counters.unique_ip_reqs || 0).toLocaleString();
+    if (simCntRepeat) simCntRepeat.textContent = Number(counters.repeat_ip_reqs || 0).toLocaleString();
+    if (simCntDdos) {
+      const atk = Number(counters.attack_reqs || 0).toLocaleString();
+      const blk = Number(counters.blocked_429 || 0).toLocaleString();
+      simCntDdos.textContent = `${atk} / ${blk}`;
+    }
+    if (simCntCanary) {
+      const can = Number(counters.canary_reqs || 0).toLocaleString();
+      const chs = Number(counters.chaos_events || 0).toLocaleString();
+      simCntCanary.textContent = `${can} / ${chs}`;
+    }
+
+    const attackers = Number((sim && sim.active_attacker_ips) || 0);
+    if (simAttackerCount) {
+      simAttackerCount.textContent = `${attackers} ${attackers === 1 ? "attacker" : "attackers"}`;
+    }
+    if (simTimelineDetail) {
+      simTimelineDetail.textContent = running
+        ? sim.wave_detail || "Active simulation wave running."
+        : "Paused. Start simulation or trigger any wave on the left.";
+    }
+    if (simTargetRps) {
+      simTargetRps.textContent = `${Number((sim && sim.target_rps) || 0).toFixed(1)} req/s target`;
+    }
+
+    simWaveBtns.forEach((btn) => {
+      const w = btn.getAttribute("data-sim-wave");
+      btn.classList.toggle("is-active", running && sim && sim.active_wave === w);
+    });
+
+    if (simEventsList) {
+      const events = Array.isArray(sim && sim.events) ? sim.events : [];
+      if (events.length === 0) {
+        simEventsList.innerHTML = `
+          <div class="transition-empty">
+            No simulation events recorded yet. Start the real-life simulator to stream dynamic traffic waves and chaos drills.
+          </div>
+        `;
+      } else {
+        simEventsList.innerHTML = events
+          .slice(0, 8)
+          .map((ev) => {
+            const sev = ev.severity || "info";
+            const dotClass = sev === "bad" ? "down" : sev === "warn" ? "warn" : sev === "ok" ? "" : "accent";
+            return `
+              <div class="transition-item">
+                <div class="transition-top">
+                  <span class="sim-event-title">
+                    <span class="status-dot ${dotClass}"></span>
+                    <span class="transition-route">${escapeHTML(ev.title || "Simulation event")}</span>
+                  </span>
+                  <span class="transition-time">${escapeHTML(ev.timestamp || "")}</span>
+                </div>
+                <div class="transition-why">${escapeHTML(ev.detail || "")}</div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+    }
+  }
+
   function renderBackends(backends) {
     if (!backendsContainer) return;
 
@@ -596,7 +771,9 @@ document.addEventListener("DOMContentLoaded", () => {
       .map((b, idx) => {
         const host = b.url.replace("http://", "");
         const isUp = Boolean(b.alive);
-        const delayMs = Number(backendDelays[b.url] ?? b.simulated_delay_ms ?? 0);
+        const delayMs = Number(b.simulated_delay_ms ?? backendDelays[b.url] ?? 0);
+        backendDelays[b.url] = delayMs;
+        const isPresetDelay = [0, 100, 300, 600].includes(delayMs);
         const errs = Number(b.total_errors || 0);
         const circuit = (b.circuit_state || "closed").toLowerCase();
         const isCanary = Boolean(b.is_canary);
@@ -655,7 +832,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             <div class="backend-controls">
               <div class="control-line">
-                <span class="control-label">Simulated lag</span>
+                <span class="control-label">Simulated lag${!isPresetDelay && delayMs > 0 ? ` (${delayMs} ms)` : ""}</span>
                 <div class="latency-tabs">${latPresets}</div>
               </div>
 
@@ -833,9 +1010,101 @@ document.addEventListener("DOMContentLoaded", () => {
     const res = await fetch(url, { method: "POST" });
     if (res.ok) {
       const data = await res.json();
-      shieldState = Boolean(data.shield_enabled);
+      shieldState = Boolean(data.enabled ?? data.shield_enabled);
       await fetchStats();
       showToast(shieldState ? "Edge Shield rate limiter enabled" : "Edge Shield bypassed");
+    }
+  }
+
+  async function applyShieldConfig() {
+    const rate = Number(shieldRateInput ? shieldRateInput.value : 10);
+    const burst = Number(shieldBurstInput ? shieldBurstInput.value : 10);
+    if (!Number.isFinite(rate) || rate < 1 || !Number.isFinite(burst) || burst < 1) {
+      showToast("Shield refill rate and burst must be 1 or greater");
+      return;
+    }
+    const res = await fetch(
+      `/api/shield/config?rate=${encodeURIComponent(rate)}&burst=${encodeURIComponent(Math.round(burst))}`,
+      { method: "POST" }
+    );
+    if (res.ok) {
+      await fetchStats();
+      showToast(`Updated Edge Shield: ${rate} req/s, burst ${Math.round(burst)}`);
+    } else {
+      showToast("Failed to update Edge Shield limits");
+    }
+  }
+
+  function currentSimPreferences() {
+    const activeIntensityBtn = document.querySelector("[data-sim-intensity].is-active");
+    const intensity = activeIntensityBtn ? activeIntensityBtn.getAttribute("data-sim-intensity") : "normal";
+    const allowChaos = simStudioChaos ? simStudioChaos.checked : simBarChaos ? simBarChaos.checked : true;
+    const allowDdos = simStudioDdos ? simStudioDdos.checked : true;
+    return { intensity, allow_chaos: allowChaos, allow_ddos: allowDdos };
+  }
+
+  async function startSimulator(overrides = {}) {
+    const payload = { ...currentSimPreferences(), ...overrides };
+    const res = await fetch("/api/sim/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const snap = await res.json();
+      renderSimulation(snap);
+      await fetchStats();
+      showToast(`Traffic simulator active (${snap.intensity || payload.intensity})`);
+    } else {
+      showToast("Failed to start traffic simulator");
+    }
+  }
+
+  async function stopSimulator() {
+    const res = await fetch("/api/sim/stop", { method: "POST" });
+    if (res.ok) {
+      const snap = await res.json();
+      renderSimulation(snap);
+      await fetchStats();
+      showToast("Traffic simulator stopped and cluster state restored");
+    }
+  }
+
+  async function toggleSimulator() {
+    if (simSnapshot && simSnapshot.running) {
+      await stopSimulator();
+    } else {
+      await startSimulator();
+    }
+  }
+
+  async function configureSimulator(patch) {
+    const res = await fetch("/api/sim/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (res.ok) {
+      const snap = await res.json();
+      renderSimulation(snap);
+      await fetchStats();
+    }
+  }
+
+  async function triggerSimWave(wave) {
+    const res = await fetch(`/api/sim/trigger?wave=${encodeURIComponent(wave)}`, { method: "POST" });
+    if (res.ok) {
+      const snap = await res.json();
+      renderSimulation(snap);
+      await fetchStats();
+      showToast(`Triggered wave: ${snap.wave_label || wave}`);
+    } else {
+      let msg = "Unable to trigger simulation wave";
+      try {
+        const err = await res.json();
+        if (err && err.error) msg = err.error;
+      } catch (_) {}
+      showToast(msg);
     }
   }
 
@@ -969,23 +1238,61 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (btnAutoTraffic) {
-    btnAutoTraffic.addEventListener("click", () => {
-      if (autoTrafficTimer) {
-        clearInterval(autoTrafficTimer);
-        autoTrafficTimer = null;
-        btnAutoTraffic.classList.remove("is-active");
-        if (autoTrafficDot) autoTrafficDot.className = "status-dot muted";
-        if (autoTrafficLabel) autoTrafficLabel.textContent = "Continuous off";
-      } else {
-        autoTrafficTimer = setInterval(() => {
-          fireTraffic({ count: 2 }).catch(() => {});
-        }, 1000);
-        btnAutoTraffic.classList.add("is-active");
-        if (autoTrafficDot) autoTrafficDot.className = "status-dot accent";
-        if (autoTrafficLabel) autoTrafficLabel.textContent = "Continuous on";
-        showToast("Continuous stream active (2 req/s)");
+    btnAutoTraffic.addEventListener("click", () => toggleSimulator());
+  }
+  if (btnSimBarToggle) {
+    btnSimBarToggle.addEventListener("click", () => toggleSimulator());
+  }
+  if (btnSimStudioToggle) {
+    btnSimStudioToggle.addEventListener("click", () => toggleSimulator());
+  }
+
+  simIntensityBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const level = btn.getAttribute("data-sim-intensity");
+      if (level) {
+        configureSimulator({ intensity: level }).then(() => {
+          showToast(`Simulation intensity set to ${level}`);
+        });
       }
     });
+  });
+
+  if (simBarChaos) {
+    simBarChaos.addEventListener("change", () => {
+      if (simStudioChaos) simStudioChaos.checked = simBarChaos.checked;
+      configureSimulator({ allow_chaos: simBarChaos.checked }).then(() => {
+        showToast(simBarChaos.checked ? "Reversible chaos drills enabled" : "Reversible chaos drills muted");
+      });
+    });
+  }
+
+  if (simStudioChaos) {
+    simStudioChaos.addEventListener("change", () => {
+      if (simBarChaos) simBarChaos.checked = simStudioChaos.checked;
+      configureSimulator({ allow_chaos: simStudioChaos.checked }).then(() => {
+        showToast(simStudioChaos.checked ? "Reversible chaos drills enabled" : "Reversible chaos drills muted");
+      });
+    });
+  }
+
+  if (simStudioDdos) {
+    simStudioDdos.addEventListener("change", () => {
+      configureSimulator({ allow_ddos: simStudioDdos.checked }).then(() => {
+        showToast(simStudioDdos.checked ? "Periodic DDoS waves enabled" : "Periodic DDoS waves muted");
+      });
+    });
+  }
+
+  simWaveBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const wave = btn.getAttribute("data-sim-wave");
+      if (wave) triggerSimWave(wave);
+    });
+  });
+
+  if (btnApplyShieldCfg) {
+    btnApplyShieldCfg.addEventListener("click", () => applyShieldConfig());
   }
 
   if (btnResetMetrics) {

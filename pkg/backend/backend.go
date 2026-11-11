@@ -18,6 +18,7 @@ type BackendStats struct {
 	TotalRequests       int64  `json:"total_requests"`
 	TotalErrors         int64  `json:"total_errors"`
 	LastLatencyMs       int64  `json:"last_latency_ms"`
+	SimulatedDelayMs    int64  `json:"simulated_delay_ms"`
 	Weight              int64  `json:"weight"`
 	IsCanary            bool   `json:"is_canary"`
 	CanaryTag           string `json:"canary_tag"`
@@ -34,6 +35,7 @@ type Backend struct {
 	TotalRequests     int64
 	TotalErrors       int64
 	LastLatencyMs     int64
+	SimulatedDelayMs  int64
 	Weight            int64
 	CurrentWeight     int64
 	IsCanary          bool
@@ -166,6 +168,19 @@ func (b *Backend) GetWeight() int64 {
 	return w
 }
 
+// SetSimulatedDelay stores the currently injected upstream chaos delay in milliseconds.
+func (b *Backend) SetSimulatedDelay(ms int64) {
+	if ms < 0 {
+		ms = 0
+	}
+	atomic.StoreInt64(&b.SimulatedDelayMs, ms)
+}
+
+// GetSimulatedDelay returns the currently injected upstream chaos delay in milliseconds.
+func (b *Backend) GetSimulatedDelay() int64 {
+	return atomic.LoadInt64(&b.SimulatedDelayMs)
+}
+
 func (b *Backend) SetCanary(isCanary bool, tag string) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
@@ -224,6 +239,7 @@ func (b *Backend) GetStats() BackendStats {
 		TotalRequests:       atomic.LoadInt64(&b.TotalRequests),
 		TotalErrors:         atomic.LoadInt64(&b.TotalErrors),
 		LastLatencyMs:       atomic.LoadInt64(&b.LastLatencyMs),
+		SimulatedDelayMs:    atomic.LoadInt64(&b.SimulatedDelayMs),
 		Weight:              b.GetWeight(),
 		IsCanary:            isCanary,
 		CanaryTag:           canaryTag,

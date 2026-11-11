@@ -17,6 +17,7 @@ import (
 	"nexuslb/pkg/health"
 	"nexuslb/pkg/metrics"
 	"nexuslb/pkg/ratelimit"
+	"nexuslb/pkg/simulator"
 	"nexuslb/web"
 )
 
@@ -28,7 +29,13 @@ type Server struct {
 	strategyMgr *balancer.StrategyManager
 	checker     *health.Checker
 	limiter     *ratelimit.Limiter
+	sim         *simulator.Simulator
 	httpServer  *http.Server
+}
+
+// SetSimulator attaches the real-life traffic simulator to the dashboard API and telemetry stream.
+func (s *Server) SetSimulator(sim *simulator.Simulator) {
+	s.sim = sim
 }
 
 func NewServer(addr, proxyAddr string, collector *metrics.Collector, b balancer.Balancer, checker *health.Checker, limiter *ratelimit.Limiter) *Server {
@@ -68,6 +75,11 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/shield/toggle", s.handleToggleShield)
 	mux.HandleFunc("/api/shield/config", s.handleConfigShield)
 	mux.HandleFunc("/api/stats/reset", s.handleResetStats)
+	mux.HandleFunc("/api/sim/status", s.handleSimStatus)
+	mux.HandleFunc("/api/sim/start", s.handleSimStart)
+	mux.HandleFunc("/api/sim/stop", s.handleSimStop)
+	mux.HandleFunc("/api/sim/config", s.handleSimConfig)
+	mux.HandleFunc("/api/sim/trigger", s.handleSimTrigger)
 
 	s.httpServer = &http.Server{
 		Addr:         s.addr,
@@ -109,6 +121,10 @@ func (s *Server) getStats() metrics.DashboardStats {
 		stats.ShieldRate = s.limiter.Rate()
 		stats.ShieldBurst = s.limiter.Burst()
 		stats.TotalThrottled = s.limiter.TotalBlocked()
+	}
+	if s.sim != nil {
+		simSnap := s.sim.Snapshot()
+		stats.Simulation = &simSnap
 	}
 	return stats
 }
@@ -398,6 +414,14 @@ func (s *Server) handleBackendDelay(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	if msVal, parseErr := strconv.ParseInt(msParam, 10, 64); parseErr == nil {
+		for _, b := range s.balancer.GetBackends() {
+			if b.URL.String() == targetURL {
+				b.SetSimulatedDelay(msVal)
+			}
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	io.Copy(w, resp.Body)
@@ -549,6 +573,9 @@ func (s *Server) handleResetStats(w http.ResponseWriter, r *http.Request) {
 	if s.strategyMgr != nil {
 		s.strategyMgr.ResetAdaptive()
 	}
+	if s.sim != nil {
+		s.sim.Reset()
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(map[string]string{
@@ -651,5 +678,201 @@ func (s *Server) handleBackendCanary(w http.ResponseWriter, r *http.Request) {
 		"is_canary":  targetBackend.IsCanaryNode(),
 		"canary_tag": targetBackend.GetCanaryTag(),
 	})
+}
+
+func (s *Server) setSimCORSHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
+}
+
+func (s *Server) ensureSimulator(w http.ResponseWriter) bool {
+	if s.sim == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "traffic simulator not initialized",
+		})
+		return false
+	}
+	return true
+}
+
+func (s *Server) applySimParams(r *http.Request) error {
+	q := r.URL.Query()
+	var intensityPtr *simulator.Intensity
+	var chaosPtr *bool
+	var ddosPtr *bool
+
+	if rawInt := q.Get("intensity"); rawInt != "" {
+		parsed, ok := simulator.ParseIntensity(rawInt)
+		if !ok {
+			return fmt.Errorf("invalid intensity %q: must be low, normal, or heavy", rawInt)
+		}
+		intensityPtr = &parsed
+	}
+	if rawChaos := firstNonEmpty(q.Get("allow_chaos"), q.Get("chaos")); rawChaos != "" {
+		v := rawChaos == "true" || rawChaos == "1" || rawChaos == "on"
+		chaosPtr = &v
+	}
+	if rawDDoS := firstNonEmpty(q.Get("allow_ddos"), q.Get("ddos")); rawDDoS != "" {
+		v := rawDDoS == "true" || rawDDoS == "1" || rawDDoS == "on"
+		ddosPtr = &v
+	}
+
+	if r.Body != nil && r.Body != http.NoBody && (intensityPtr == nil || chaosPtr == nil || ddosPtr == nil) {
+		var body struct {
+			Intensity  string `json:"intensity"`
+			AllowChaos *bool  `json:"allow_chaos"`
+			Chaos      *bool  `json:"chaos"`
+			AllowDDoS  *bool  `json:"allow_ddos"`
+			DDoS       *bool  `json:"ddos"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			if intensityPtr == nil && body.Intensity != "" {
+				parsed, ok := simulator.ParseIntensity(body.Intensity)
+				if !ok {
+					return fmt.Errorf("invalid intensity %q: must be low, normal, or heavy", body.Intensity)
+				}
+				intensityPtr = &parsed
+			}
+			if chaosPtr == nil {
+				if body.AllowChaos != nil {
+					chaosPtr = body.AllowChaos
+				} else if body.Chaos != nil {
+					chaosPtr = body.Chaos
+				}
+			}
+			if ddosPtr == nil {
+				if body.AllowDDoS != nil {
+					ddosPtr = body.AllowDDoS
+				} else if body.DDoS != nil {
+					ddosPtr = body.DDoS
+				}
+			}
+		}
+	}
+
+	if intensityPtr != nil || chaosPtr != nil || ddosPtr != nil {
+		s.sim.Configure(intensityPtr, chaosPtr, ddosPtr)
+	}
+	return nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func (s *Server) handleSimStatus(w http.ResponseWriter, r *http.Request) {
+	s.setSimCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if !s.ensureSimulator(w) {
+		return
+	}
+	json.NewEncoder(w).Encode(s.sim.Snapshot())
+}
+
+func (s *Server) handleSimStart(w http.ResponseWriter, r *http.Request) {
+	s.setSimCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.ensureSimulator(w) {
+		return
+	}
+	if err := s.applySimParams(r); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	s.sim.Start()
+	json.NewEncoder(w).Encode(s.sim.Snapshot())
+}
+
+func (s *Server) handleSimStop(w http.ResponseWriter, r *http.Request) {
+	s.setSimCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.ensureSimulator(w) {
+		return
+	}
+	s.sim.Stop()
+	json.NewEncoder(w).Encode(s.sim.Snapshot())
+}
+
+func (s *Server) handleSimConfig(w http.ResponseWriter, r *http.Request) {
+	s.setSimCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.ensureSimulator(w) {
+		return
+	}
+	if err := s.applySimParams(r); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(s.sim.Snapshot())
+}
+
+func (s *Server) handleSimTrigger(w http.ResponseWriter, r *http.Request) {
+	s.setSimCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.ensureSimulator(w) {
+		return
+	}
+	rawWave := r.URL.Query().Get("wave")
+	if rawWave == "" && r.Body != nil && r.Body != http.NoBody {
+		var body struct {
+			Wave string `json:"wave"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			rawWave = body.Wave
+		}
+	}
+	wave, ok := simulator.ParseWave(rawWave)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("unsupported simulation wave %q", rawWave)})
+		return
+	}
+	if err := s.sim.TriggerWave(wave); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(s.sim.Snapshot())
 }
 

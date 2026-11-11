@@ -120,6 +120,7 @@ func TestConfigValidation_ExternalizedBounds(t *testing.T) {
 		{"zero rate_limit_burst", func(c *Config) { c.RateLimitBurst = 0 }},
 		{"zero circuit_breaker_max_failures", func(c *Config) { c.CircuitBreakerMaxFailures = 0 }},
 		{"non-positive circuit_breaker_cooldown", func(c *Config) { c.CircuitBreakerCooldown = 0 }},
+		{"invalid sim_intensity", func(c *Config) { c.SimIntensity = "extreme" }},
 	}
 
 	for _, tc := range cases {

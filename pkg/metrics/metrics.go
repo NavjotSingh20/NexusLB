@@ -42,6 +42,7 @@ type DashboardStats struct {
 	StrategyKey         string                 `json:"strategy_key,omitempty"`
 	AvailableStrategies []string               `json:"available_strategies,omitempty"`
 	Adaptive            interface{}            `json:"adaptive,omitempty"`
+	Simulation          interface{}            `json:"simulation,omitempty"`
 	TotalThrottled      int64                  `json:"total_throttled"`
 	TotalCanaryRequests int64                  `json:"total_canary_requests"`
 	ShieldEnabled       bool                   `json:"shield_enabled"`

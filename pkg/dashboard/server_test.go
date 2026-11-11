@@ -11,6 +11,7 @@ import (
 	"nexuslb/pkg/balancer"
 	"nexuslb/pkg/metrics"
 	"nexuslb/pkg/ratelimit"
+	"nexuslb/pkg/simulator"
 )
 
 func setupTestServer(t *testing.T) (*Server, *balancer.StrategyManager) {
@@ -288,6 +289,87 @@ func TestServer_ShieldAPI(t *testing.T) {
 	}
 	if srv.limiter.Rate() != 25.0 || srv.limiter.Burst() != 50 {
 		t.Errorf("expected rate 25, burst 50; got rate %f, burst %d", srv.limiter.Rate(), srv.limiter.Burst())
+	}
+}
+
+func TestServer_SimulatorAPI(t *testing.T) {
+	srv, sm := setupTestServer(t)
+	sim := simulator.New(simulator.SimConfig{
+		Intensity:  simulator.IntensityNormal,
+		AllowChaos: true,
+		AllowDDoS:  true,
+	}, simulator.ClusterHooks{
+		ProxyURL:        "http://127.0.0.1:65535",
+		GetBackends:     sm.GetBackends,
+		TickInterval:    100 * time.Millisecond,
+		BaselineHoldMin: 5 * time.Second,
+		BaselineHoldMax: 6 * time.Second,
+	})
+	defer sim.Stop()
+	srv.SetSimulator(sim)
+
+	// 1. Initial status
+	statusReq := httptest.NewRequest(http.MethodGet, "/api/sim/status", nil)
+	statusRec := httptest.NewRecorder()
+	srv.handleSimStatus(statusRec, statusReq)
+	if statusRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on status, got %d", statusRec.Code)
+	}
+
+	// 2. Start with intensity=heavy&chaos=false
+	startReq := httptest.NewRequest(http.MethodPost, "/api/sim/start?intensity=heavy&chaos=false", nil)
+	startRec := httptest.NewRecorder()
+	srv.handleSimStart(startRec, startReq)
+	if startRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on start, got %d", startRec.Code)
+	}
+	var started simulator.Snapshot
+	if err := json.NewDecoder(startRec.Body).Decode(&started); err != nil {
+		t.Fatalf("decode start failed: %v", err)
+	}
+	if !started.Running || started.Intensity != simulator.IntensityHeavy || started.AllowChaos {
+		t.Errorf("unexpected start snapshot: %+v", started)
+	}
+
+	// 3. Invalid config intensity must return 400
+	badCfg := httptest.NewRequest(http.MethodPost, "/api/sim/config?intensity=ludicrous", nil)
+	badCfgRec := httptest.NewRecorder()
+	srv.handleSimConfig(badCfgRec, badCfg)
+	if badCfgRec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 on invalid intensity, got %d", badCfgRec.Code)
+	}
+
+	// 4. Trigger specific wave
+	trigReq := httptest.NewRequest(http.MethodPost, "/api/sim/trigger?wave=single_ip_dos", nil)
+	trigRec := httptest.NewRecorder()
+	srv.handleSimTrigger(trigRec, trigReq)
+	if trigRec.Code != http.StatusOK {
+		t.Errorf("expected 200 on wave trigger, got %d", trigRec.Code)
+	}
+
+	// 5. Invalid wave returns 400
+	badTrig := httptest.NewRequest(http.MethodPost, "/api/sim/trigger?wave=bogus", nil)
+	badTrigRec := httptest.NewRecorder()
+	srv.handleSimTrigger(badTrigRec, badTrig)
+	if badTrigRec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 on invalid wave, got %d", badTrigRec.Code)
+	}
+
+	// 6. Stop cleanly
+	stopReq := httptest.NewRequest(http.MethodPost, "/api/sim/stop", nil)
+	stopRec := httptest.NewRecorder()
+	srv.handleSimStop(stopRec, stopReq)
+	if stopRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on stop, got %d", stopRec.Code)
+	}
+	if sim.IsRunning() {
+		t.Error("expected simulator to be stopped after /api/sim/stop")
+	}
+
+	// 7. Stats snapshot includes simulation telemetry
+	stats := srv.getStats()
+	if stats.Simulation == nil {
+		t.Error("expected DashboardStats.Simulation to be populated when simulator is attached")
 	}
 }
 

@@ -264,5 +264,14 @@ func TestNewBackendWithConfig(t *testing.T) {
 	if b.IsAlive() {
 		t.Error("expected circuit to open after 2 failures")
 	}
+
+	b.SetSimulatedDelay(250)
+	if got := b.GetStats().SimulatedDelayMs; got != 250 {
+		t.Errorf("expected SimulatedDelayMs 250, got %d", got)
+	}
+	b.SetSimulatedDelay(-10)
+	if got := b.GetSimulatedDelay(); got != 0 {
+		t.Errorf("expected clamped delay 0, got %d", got)
+	}
 }
 
