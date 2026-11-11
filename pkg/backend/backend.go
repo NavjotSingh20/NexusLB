@@ -42,9 +42,20 @@ type Backend struct {
 }
 
 func NewBackend(rawURL string) (*Backend, error) {
+	return NewBackendWithConfig(rawURL, 5, 10*time.Second)
+}
+
+// NewBackendWithConfig initializes a Backend with explicit circuit breaker parameters.
+func NewBackendWithConfig(rawURL string, maxFailures int64, cooldown time.Duration) (*Backend, error) {
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, err
+	}
+	if maxFailures < 1 {
+		maxFailures = 5
+	}
+	if cooldown <= 0 {
+		cooldown = 10 * time.Second
 	}
 
 	b := &Backend{
@@ -52,7 +63,7 @@ func NewBackend(rawURL string) (*Backend, error) {
 		Alive:          true,
 		Weight:         1,
 		CanaryTag:      "v2.0-canary",
-		CircuitBreaker: NewCircuitBreaker(5, 10*time.Second),
+		CircuitBreaker: NewCircuitBreaker(maxFailures, cooldown),
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(parsedURL)

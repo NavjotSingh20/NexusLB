@@ -1,12 +1,16 @@
 package metrics
 
 import (
+	"math"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"nexuslb/pkg/backend"
 )
+
+const defaultLatencySampleWindow = 1024
 
 type RequestLog struct {
 	ID        string `json:"id"`
@@ -29,6 +33,9 @@ type DashboardStats struct {
 	QueuedRequests      int64                  `json:"queued_requests"`
 	RequestsPerSecond   float64                `json:"rps"`
 	AverageLatencyMs    float64                `json:"avg_latency_ms"`
+	P50LatencyMs        float64                `json:"p50_latency_ms"`
+	P95LatencyMs        float64                `json:"p95_latency_ms"`
+	P99LatencyMs        float64                `json:"p99_latency_ms"`
 	Backends            []backend.BackendStats `json:"backends"`
 	RecentLogs          []RequestLog           `json:"recent_logs"`
 	Strategy            string                 `json:"strategy"`
@@ -57,8 +64,10 @@ type Collector struct {
 	lastRPSReqCount   int64
 	currentRPS        float64
 
-	recentLogs []RequestLog
-	maxLogs    int
+	recentLogs     []RequestLog
+	maxLogs        int
+	latencySamples []float64
+	latencyHead    int
 
 	mux sync.RWMutex
 }
@@ -70,6 +79,7 @@ func NewCollector() *Collector {
 		lastRPSCheckTime: now,
 		maxLogs:          50,
 		recentLogs:       make([]RequestLog, 0, 50),
+		latencySamples:   make([]float64, 0, defaultLatencySampleWindow),
 	}
 }
 
@@ -84,6 +94,8 @@ func (c *Collector) Reset(backends []*backend.Backend) {
 	atomic.StoreInt64(&c.totalLatencyMs, 0)
 	atomic.StoreInt64(&c.queuedRequests, 0)
 	c.recentLogs = make([]RequestLog, 0, 50)
+	c.latencySamples = make([]float64, 0, defaultLatencySampleWindow)
+	c.latencyHead = 0
 	c.lastRPSReqCount = 0
 	c.currentRPS = 0
 	c.mux.Unlock()
@@ -112,8 +124,14 @@ func (c *Collector) GetQueue() int64 {
 }
 
 func (c *Collector) Record(method, path, clientIP, targetBackend string, status int, latency time.Duration, isCanary ...bool) {
+	c.RecordWithID("", method, path, clientIP, targetBackend, status, latency, isCanary...)
+}
+
+// RecordWithID records request telemetry along with an end-to-end correlation request ID.
+func (c *Collector) RecordWithID(id, method, path, clientIP, targetBackend string, status int, latency time.Duration, isCanary ...bool) {
 	atomic.AddInt64(&c.totalRequests, 1)
 	latencyMs := latency.Milliseconds()
+	sampleMs := float64(latency) / float64(time.Millisecond)
 	atomic.AddInt64(&c.totalLatencyMs, latencyMs)
 
 	canary := len(isCanary) > 0 && isCanary[0]
@@ -133,6 +151,7 @@ func (c *Collector) Record(method, path, clientIP, targetBackend string, status 
 	}
 
 	logEntry := RequestLog{
+		ID:        id,
 		Timestamp: time.Now().Format("15:04:05.000"),
 		Method:    method,
 		Path:      path,
@@ -148,6 +167,15 @@ func (c *Collector) Record(method, path, clientIP, targetBackend string, status 
 		c.recentLogs = c.recentLogs[1:]
 	}
 	c.recentLogs = append(c.recentLogs, logEntry)
+
+	if cap(c.latencySamples) > 0 {
+		if len(c.latencySamples) < cap(c.latencySamples) {
+			c.latencySamples = append(c.latencySamples, sampleMs)
+		} else {
+			c.latencySamples[c.latencyHead] = sampleMs
+			c.latencyHead = (c.latencyHead + 1) % cap(c.latencySamples)
+		}
+	}
 	c.mux.Unlock()
 }
 
@@ -181,7 +209,14 @@ func (c *Collector) Snapshot(strategyName string, backends []*backend.Backend) D
 	c.mux.RLock()
 	logsCopy := make([]RequestLog, len(c.recentLogs))
 	copy(logsCopy, c.recentLogs)
+	samplesCopy := make([]float64, len(c.latencySamples))
+	copy(samplesCopy, c.latencySamples)
 	c.mux.RUnlock()
+
+	sort.Float64s(samplesCopy)
+	p50 := percentile(samplesCopy, 0.50)
+	p95 := percentile(samplesCopy, 0.95)
+	p99 := percentile(samplesCopy, 0.99)
 
 	// Reverse logs for UI so newest appears first
 	for i, j := 0, len(logsCopy)-1; i < j; i, j = i+1, j-1 {
@@ -209,9 +244,27 @@ func (c *Collector) Snapshot(strategyName string, backends []*backend.Backend) D
 		QueuedRequests:      c.GetQueue(),
 		RequestsPerSecond:   rps,
 		AverageLatencyMs:    avgLatency,
+		P50LatencyMs:        p50,
+		P95LatencyMs:        p95,
+		P99LatencyMs:        p99,
 		Backends:            backendStats,
 		RecentLogs:          logsCopy,
 		Strategy:            strategyName,
 		UptimeSeconds:       uptimeSec,
 	}
+}
+
+func percentile(sorted []float64, p float64) float64 {
+	n := len(sorted)
+	if n == 0 {
+		return 0
+	}
+	idx := int(math.Ceil(p*float64(n))) - 1
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= n {
+		idx = n - 1
+	}
+	return sorted[idx]
 }

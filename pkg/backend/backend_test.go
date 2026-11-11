@@ -249,3 +249,20 @@ func TestBackend_CircuitBreakerIntegration(t *testing.T) {
 	}
 }
 
+func TestNewBackendWithConfig(t *testing.T) {
+	b, err := NewBackendWithConfig("http://127.0.0.1:8001", 2, 40*time.Millisecond)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	b.RecordRequest(5*time.Millisecond, true)
+	if !b.IsAlive() {
+		t.Error("expected backend to stay alive after 1 failure (threshold=2)")
+	}
+
+	b.RecordRequest(5*time.Millisecond, true)
+	if b.IsAlive() {
+		t.Error("expected circuit to open after 2 failures")
+	}
+}
+

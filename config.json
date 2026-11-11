@@ -9,5 +9,12 @@
   "health_check_interval": "3s",
   "health_check_path": "/health",
   "strategy": "round_robin",
-  "max_retries": 2
+  "max_retries": 2,
+  "max_retry_body_bytes": 1048576,
+  "retry_non_idempotent": false,
+  "rate_limit_enabled": true,
+  "rate_limit_rate": 10.0,
+  "rate_limit_burst": 10,
+  "circuit_breaker_max_failures": 5,
+  "circuit_breaker_cooldown": "10s"
 }

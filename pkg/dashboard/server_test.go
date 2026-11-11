@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"nexuslb/pkg/backend"
 	"nexuslb/pkg/balancer"
@@ -110,6 +111,9 @@ func TestServer_StrategyAPI(t *testing.T) {
 func TestServer_StatsAPI(t *testing.T) {
 	srv, _ := setupTestServer(t)
 
+	srv.collector.RecordWithID("req-stats-1", "GET", "/health", "127.0.0.1", "http://localhost:8001", 200, 10*time.Millisecond)
+	srv.collector.RecordWithID("req-stats-2", "GET", "/slow", "127.0.0.1", "http://localhost:8002", 200, 90*time.Millisecond)
+
 	req := httptest.NewRequest(http.MethodGet, "/api/stats", nil)
 	rec := httptest.NewRecorder()
 	srv.handleStats(rec, req)
@@ -124,6 +128,12 @@ func TestServer_StatsAPI(t *testing.T) {
 	}
 	if stats.StrategyKey != "round_robin" {
 		t.Errorf("expected strategy key round_robin, got %s", stats.StrategyKey)
+	}
+	if stats.P50LatencyMs != 10 || stats.P95LatencyMs != 90 || stats.P99LatencyMs != 90 {
+		t.Errorf("unexpected latency percentiles in /api/stats: p50=%v p95=%v p99=%v", stats.P50LatencyMs, stats.P95LatencyMs, stats.P99LatencyMs)
+	}
+	if len(stats.RecentLogs) != 2 || stats.RecentLogs[0].ID != "req-stats-2" {
+		t.Errorf("expected recent log request ID 'req-stats-2', got %+v", stats.RecentLogs)
 	}
 }
 

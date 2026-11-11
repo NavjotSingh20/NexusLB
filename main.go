@@ -38,12 +38,12 @@ func main() {
 	// 2. Initialize Upstream Backends
 	var backends []*backend.Backend
 	for _, rawURL := range cfg.Backends {
-		b, err := backend.NewBackend(rawURL)
+		b, err := backend.NewBackendWithConfig(rawURL, cfg.CircuitBreakerMaxFailures, cfg.CircuitBreakerCooldown)
 		if err != nil {
 			log.Fatalf("Invalid backend URL %s: %v", rawURL, err)
 		}
 		backends = append(backends, b)
-		log.Printf("[INIT] Registered upstream backend: %s", rawURL)
+		log.Printf("[INIT] Registered upstream backend: %s (CB threshold=%d, cooldown=%v)", rawURL, cfg.CircuitBreakerMaxFailures, cfg.CircuitBreakerCooldown)
 	}
 
 	// 3. Initialize Balancer Strategy
@@ -56,10 +56,10 @@ func main() {
 	// 4. Initialize Metrics Collector
 	collector := metrics.NewCollector()
 
-	// 5. Initialize Edge Security & Rate Limiting Shield (10 req/s, burst 10)
-	limiter := ratelimit.NewLimiter(10.0, 10, true)
+	// 5. Initialize Edge Security & Rate Limiting Shield
+	limiter := ratelimit.NewLimiter(cfg.RateLimitRate, cfg.RateLimitBurst, cfg.RateLimitEnabled)
 	defer limiter.Close()
-	log.Printf("[INIT] Edge Shield rate limiter active (10.0 req/s, burst capacity 10)")
+	log.Printf("[INIT] Edge Shield rate limiter active=%v (%.1f req/s, burst capacity %d)", cfg.RateLimitEnabled, cfg.RateLimitRate, cfg.RateLimitBurst)
 
 	// 6. Initialize & Start Active Health Checker
 	ctx, cancel := context.WithCancel(context.Background())
@@ -70,7 +70,11 @@ func main() {
 	log.Printf("[INIT] Health checker active (probing every %v on %s)", cfg.HealthCheckInterval, cfg.HealthCheckPath)
 
 	// 7. Start Reverse Proxy Server
-	proxyHandler := proxy.NewProxyHandler(sm, collector, limiter, cfg.MaxRetries)
+	proxyHandler := proxy.NewProxyHandlerWithOptions(sm, collector, limiter, proxy.ProxyOptions{
+		MaxRetries:         cfg.MaxRetries,
+		MaxRetryBodyBytes:  cfg.MaxRetryBodyBytes,
+		RetryNonIdempotent: cfg.RetryNonIdempotent,
+	})
 	proxyServer := &http.Server{
 		Addr:         cfg.ProxyPort,
 		Handler:      proxyHandler,

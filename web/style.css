@@ -780,6 +780,12 @@ body {
 /* ==========================================================================
    Hero KPI Stats Grid
    ========================================================================== */
+.kpi-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -882,6 +888,65 @@ body {
   font-size: 0.75rem;
   color: var(--text-muted);
   font-weight: 400;
+}
+
+/* Tail Latency Divided Strip */
+.kpi-tail-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #0c1220;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.kpi-tail-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.72rem 1.25rem;
+}
+
+.kpi-tail-cell:not(:last-child) {
+  border-right: 1px solid var(--border-subtle);
+}
+
+.kpi-tail-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.kpi-tail-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.kpi-tail-empty {
+  color: var(--text-muted);
+}
+
+.kpi-tail-value.kpi-tail-warn {
+  color: #fbbf24;
+}
+
+.kpi-tail-value.kpi-tail-danger {
+  color: #fb7185;
+}
+
+@media (max-width: 640px) {
+  .kpi-tail-strip {
+    grid-template-columns: 1fr;
+  }
+  .kpi-tail-cell:not(:last-child) {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
 }
 
 /* Active Highlight States for KPIs */
@@ -1905,27 +1970,66 @@ input:checked + .slider:before {
 }
 
 .request-table th {
-  background: rgba(10, 15, 28, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: var(--text-muted);
-  font-weight: 600;
-  padding: 0.85rem 1.15rem;
-  border-bottom: 1px solid var(--border-subtle);
+  background: #0b101d;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 0.75rem 1.15rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   position: sticky;
   top: 0;
   z-index: 2;
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
+  font-size: 0.75rem;
 }
 
 .request-table td {
   padding: 0.7rem 1.15rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
+}
+
+.request-table th.num-col,
+.request-table td.num-col {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-unit {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.req-id-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.18rem 0.48rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.req-id-btn:hover {
+  border-color: var(--border-subtle-hover);
+  color: #ffffff;
+}
+
+.req-id-btn.copied {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+
+.req-id-missing {
+  color: var(--text-muted);
 }
 
 .request-table tr {
@@ -1939,15 +2043,18 @@ input:checked + .slider:before {
 
 .method-tag {
   display: inline-block;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 700;
   padding: 0.16rem 0.45rem;
   border-radius: 4px;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .method-GET { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
 .method-POST { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+.method-PUT { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
+.method-PATCH { background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.25); }
 .method-DELETE { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.25); }
 
 .status-tag {

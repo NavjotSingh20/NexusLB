@@ -22,6 +22,9 @@ const proxyUrlDisplay = document.getElementById('proxy-url-display');
 const kpiTotalRequests = document.getElementById('kpi-total-requests');
 const kpiRps = document.getElementById('kpi-rps');
 const kpiLatency = document.getElementById('kpi-latency');
+const kpiP50 = document.getElementById('kpi-p50');
+const kpiP95 = document.getElementById('kpi-p95');
+const kpiP99 = document.getElementById('kpi-p99');
 const kpiSuccessRate = document.getElementById('kpi-success-rate');
 const kpiQueued = document.getElementById('kpi-queued');
 const kpiCardQueue = document.getElementById('kpi-card-queue');
@@ -104,6 +107,22 @@ function formatUptime(seconds) {
   return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
 }
 
+function formatTailLatency(el, valueMs, hasSamples) {
+  if (!el) return;
+  el.classList.remove('kpi-tail-warn', 'kpi-tail-danger');
+  if (!hasSamples) {
+    el.innerHTML = '<span class="kpi-tail-empty">&mdash;</span>';
+    return;
+  }
+  const num = Number(valueMs || 0);
+  if (num >= 500) {
+    el.classList.add('kpi-tail-danger');
+  } else if (num >= 150) {
+    el.classList.add('kpi-tail-warn');
+  }
+  el.innerHTML = `${num.toFixed(1)} <span class="kpi-unit">ms</span>`;
+}
+
 // Update the entire UI state from stats payload
 function updateUI(stats) {
   lastStats = stats;
@@ -118,11 +137,16 @@ function updateUI(stats) {
   }
 
   // KPIs
-  kpiTotalRequests.textContent = (stats.total_requests || 0).toLocaleString();
+  const total = stats.total_requests || 0;
+  kpiTotalRequests.textContent = total.toLocaleString();
   kpiRps.innerHTML = `${(stats.rps || 0).toFixed(1)} <span class="kpi-unit">req/s</span>`;
   kpiLatency.innerHTML = `${(stats.avg_latency_ms || 0).toFixed(1)} <span class="kpi-unit">ms</span>`;
 
-  const total = stats.total_requests || 0;
+  const hasSamples = total > 0;
+  formatTailLatency(kpiP50, stats.p50_latency_ms, hasSamples);
+  formatTailLatency(kpiP95, stats.p95_latency_ms, hasSamples);
+  formatTailLatency(kpiP99, stats.p99_latency_ms, hasSamples);
+
   const success = stats.total_success || 0;
   const successRate = total > 0 ? ((success / total) * 100).toFixed(1) : '100.0';
   kpiSuccessRate.innerHTML = `${successRate}<span class="kpi-unit">%</span>`;
@@ -350,7 +374,7 @@ function renderLogs(logs) {
   if (!logs || logs.length === 0) {
     logsTableBody.innerHTML = `
       <tr class="empty-row">
-        <td colspan="6">Waiting for requests... Start Continuous Traffic or click "Send Burst" above.</td>
+        <td colspan="7">Waiting for requests... Start Continuous Traffic or click "Send Burst" above.</td>
       </tr>
     `;
     return;
@@ -372,26 +396,48 @@ function renderLogs(logs) {
 
     let backendDisplay;
     if (log.backend === 'Edge Shield') {
-      backendDisplay = `<span class="badge badge-accent" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">🛡️ Edge Shield</span>`;
+      backendDisplay = `<span class="badge badge-accent" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">Edge Shield</span>`;
     } else if (log.is_canary) {
-      backendDisplay = `<span class="canary-tag">🐥 CANARY</span> ${escapeHTML(log.backend)}`;
+      backendDisplay = `<span class="canary-tag">CANARY</span> ${escapeHTML(log.backend)}`;
     } else {
       backendDisplay = escapeHTML(log.backend);
     }
 
+    const fullId = escapeHTML(log.id || '');
+    const idCell = fullId
+      ? `<button type="button" class="req-id-btn" data-request-id="${fullId}" title="Click to copy X-Request-ID: ${fullId}"><span>${fullId.length > 8 ? `${fullId.slice(0, 8)}&hellip;` : fullId}</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>`
+      : '<span class="req-id-missing">&mdash;</span>';
+
     html += `
       <tr>
         <td>${escapeHTML(log.timestamp)}</td>
+        <td>${idCell}</td>
         <td><span class="method-tag method-${escapeHTML(log.method)}">${escapeHTML(log.method)}</span></td>
         <td><code>${escapeHTML(log.client_ip || '127.0.0.1')}</code></td>
         <td>${backendDisplay}</td>
         <td><span class="status-tag ${statusClass}">${statusDisplay}</span></td>
-        <td>${log.latency_ms} ms</td>
+        <td class="num-col">${Number(log.latency_ms || 0).toLocaleString()} <span class="cell-unit">ms</span></td>
       </tr>
     `;
   });
 
   logsTableBody.innerHTML = html;
+}
+
+if (logsTableBody) {
+  logsTableBody.addEventListener('click', async (event) => {
+    const btn = event.target.closest('.req-id-btn');
+    if (!btn) return;
+    const reqId = btn.dataset.requestId;
+    if (!reqId) return;
+    try {
+      await navigator.clipboard?.writeText(reqId);
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 900);
+    } catch (_) {
+      // Clipboard API unavailable in non-secure context; ignore gracefully
+    }
+  });
 }
 
 function escapeHTML(str) {

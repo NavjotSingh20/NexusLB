@@ -133,3 +133,53 @@ func TestCollector_Concurrency(t *testing.T) {
 	}
 }
 
+func TestCollector_LatencyPercentilesAndRequestID(t *testing.T) {
+	c := NewCollector()
+
+	empty := c.Snapshot("Round Robin", nil)
+	if empty.P50LatencyMs != 0 || empty.P95LatencyMs != 0 || empty.P99LatencyMs != 0 {
+		t.Fatalf("expected 0 percentiles on empty collector, got %+v", empty)
+	}
+
+	for i := 1; i <= 100; i++ {
+		c.RecordWithID("req-test-id", "GET", "/items", "127.0.0.1", "http://localhost:8001", 200, time.Duration(i)*time.Millisecond)
+	}
+
+	snap := c.Snapshot("Round Robin", nil)
+	if snap.P50LatencyMs != 50 {
+		t.Errorf("expected P50 50.0ms, got %.2fms", snap.P50LatencyMs)
+	}
+	if snap.P95LatencyMs != 95 {
+		t.Errorf("expected P95 95.0ms, got %.2fms", snap.P95LatencyMs)
+	}
+	if snap.P99LatencyMs != 99 {
+		t.Errorf("expected P99 99.0ms, got %.2fms", snap.P99LatencyMs)
+	}
+	if len(snap.RecentLogs) == 0 || snap.RecentLogs[0].ID != "req-test-id" {
+		t.Errorf("expected recorded request ID 'req-test-id', got %+v", snap.RecentLogs)
+	}
+
+	c.Reset(nil)
+	resetSnap := c.Snapshot("Round Robin", nil)
+	if resetSnap.P50LatencyMs != 0 || resetSnap.P95LatencyMs != 0 || resetSnap.P99LatencyMs != 0 {
+		t.Errorf("expected percentiles reset to 0, got %+v", resetSnap)
+	}
+}
+
+func TestCollector_LatencyWindowWraparound(t *testing.T) {
+	c := NewCollector()
+
+	// Fill window with slow 100ms samples, then overwrite completely with 5ms samples
+	for i := 0; i < defaultLatencySampleWindow; i++ {
+		c.Record("GET", "/slow", "127.0.0.1", "http://localhost:8001", 200, 100*time.Millisecond)
+	}
+	for i := 0; i < defaultLatencySampleWindow; i++ {
+		c.Record("GET", "/fast", "127.0.0.1", "http://localhost:8001", 200, 5*time.Millisecond)
+	}
+
+	snap := c.Snapshot("Round Robin", nil)
+	if snap.P99LatencyMs != 5 {
+		t.Errorf("expected P99 to reflect overwritten window (5ms), got %.2fms", snap.P99LatencyMs)
+	}
+}
+

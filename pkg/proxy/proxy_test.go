@@ -327,7 +327,11 @@ func TestProxyHandler_RequestBodyRetry(t *testing.T) {
 	limiter := ratelimit.NewLimiter(10.0, 10, false)
 	defer limiter.Close()
 
-	handler := NewProxyHandler(sm, collector, limiter, 2)
+	handler := NewProxyHandlerWithOptions(sm, collector, limiter, ProxyOptions{
+		MaxRetries:         2,
+		MaxRetryBodyBytes:  1024,
+		RetryNonIdempotent: true,
+	})
 
 	postPayload := `{"item":"test-order","qty":42}`
 	req := httptest.NewRequest("POST", "http://nexuslb.local/orders", strings.NewReader(postPayload))
@@ -340,6 +344,213 @@ func TestProxyHandler_RequestBodyRetry(t *testing.T) {
 	}
 	if receivedBody != postPayload {
 		t.Errorf("expected live server to receive full request body %s, got %s", postPayload, receivedBody)
+	}
+}
+
+func TestProxyHandler_IdempotencyRetryPolicy(t *testing.T) {
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, string(b))
+	}))
+	defer liveServer.Close()
+
+	// 1. Plain POST without Idempotency-Key must NOT retry when RetryNonIdempotent is false
+	dead1, _ := backend.NewBackend("http://127.0.0.1:59996")
+	live1, _ := backend.NewBackend(liveServer.URL)
+	sm1, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{dead1, live1})
+	collector1 := metrics.NewCollector()
+	limiter1 := ratelimit.NewLimiter(10.0, 10, false)
+	defer limiter1.Close()
+
+	hDefault := NewProxyHandler(sm1, collector1, limiter1, 2)
+	reqPost := httptest.NewRequest("POST", "http://nexuslb.local/orders", strings.NewReader(`{"op":"charge"}`))
+	recPost := httptest.NewRecorder()
+	hDefault.ServeHTTP(recPost, reqPost)
+	if recPost.Code != http.StatusBadGateway {
+		t.Fatalf("expected non-idempotent POST without key to stop after 1 failed attempt with 502, got %d", recPost.Code)
+	}
+
+	// 2. POST WITH Idempotency-Key MUST retry cleanly onto live backend
+	dead2, _ := backend.NewBackend("http://127.0.0.1:59995")
+	live2, _ := backend.NewBackend(liveServer.URL)
+	sm2, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{dead2, live2})
+	hIdem := NewProxyHandler(sm2, collector1, limiter1, 2)
+
+	reqKey := httptest.NewRequest("POST", "http://nexuslb.local/orders", strings.NewReader(`{"op":"charge-safe"}`))
+	reqKey.Header.Set("Idempotency-Key", "idem-123")
+	recKey := httptest.NewRecorder()
+	hIdem.ServeHTTP(recKey, reqKey)
+	if recKey.Code != http.StatusOK || recKey.Body.String() != `{"op":"charge-safe"}` {
+		t.Fatalf("expected idempotent POST to retry cleanly and return payload, got %d %q", recKey.Code, recKey.Body.String())
+	}
+
+	// 3. PUT is idempotent by default and MUST retry cleanly
+	dead3, _ := backend.NewBackend("http://127.0.0.1:59994")
+	live3, _ := backend.NewBackend(liveServer.URL)
+	sm3, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{dead3, live3})
+	hPut := NewProxyHandler(sm3, collector1, limiter1, 2)
+
+	reqPut := httptest.NewRequest("PUT", "http://nexuslb.local/orders/1", strings.NewReader(`{"state":"paid"}`))
+	recPut := httptest.NewRecorder()
+	hPut.ServeHTTP(recPut, reqPut)
+	if recPut.Code != http.StatusOK || recPut.Body.String() != `{"state":"paid"}` {
+		t.Fatalf("expected PUT to retry cleanly, got %d %q", recPut.Code, recPut.Body.String())
+	}
+}
+
+func TestProxyHandler_MaxRetryBodyBytes(t *testing.T) {
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "%d:%s", len(b), string(b[:5]))
+	}))
+	defer liveServer.Close()
+
+	// Payload larger than cap (32 bytes limit vs 100 bytes body) must NOT retry
+	// when first backend fails, and must still stream intact when first backend is live.
+	dead, _ := backend.NewBackend("http://127.0.0.1:59993")
+	live, _ := backend.NewBackend(liveServer.URL)
+	smDeadFirst, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{dead, live})
+	collector := metrics.NewCollector()
+	limiter := ratelimit.NewLimiter(10.0, 10, false)
+	defer limiter.Close()
+
+	handler := NewProxyHandlerWithOptions(smDeadFirst, collector, limiter, ProxyOptions{
+		MaxRetries:        2,
+		MaxRetryBodyBytes: 32,
+	})
+
+	largePayload := strings.Repeat("abcde", 20) // 100 bytes
+	reqTooLarge := httptest.NewRequest("PUT", "http://nexuslb.local/upload", strings.NewReader(largePayload))
+	recTooLarge := httptest.NewRecorder()
+	handler.ServeHTTP(recTooLarge, reqTooLarge)
+	if recTooLarge.Code != http.StatusBadGateway {
+		t.Fatalf("expected oversized PUT body (>32 bytes) not to retry across dead backend, got %d", recTooLarge.Code)
+	}
+
+	// Unknown Content-Length (chunked stream) > 32 bytes hitting live backend must splice full intact stream
+	smLiveOnly, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{live})
+	hStream := NewProxyHandlerWithOptions(smLiveOnly, collector, limiter, ProxyOptions{
+		MaxRetries:        2,
+		MaxRetryBodyBytes: 32,
+	})
+	reqChunked := httptest.NewRequest("PUT", "http://nexuslb.local/upload", io.NopCloser(strings.NewReader(largePayload)))
+	reqChunked.ContentLength = -1 // simulate chunked unknown length
+	recStream := httptest.NewRecorder()
+	hStream.ServeHTTP(recStream, reqChunked)
+	if recStream.Code != http.StatusOK || recStream.Body.String() != "100:abcde" {
+		t.Fatalf("expected chunked oversized stream to splice full 100 bytes cleanly, got %d %q", recStream.Code, recStream.Body.String())
+	}
+}
+
+func TestProxyHandler_RequestID_GeneratedAndPreserved(t *testing.T) {
+	var upstreamSeenIDs []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get("X-Request-ID")
+		upstreamSeenIDs = append(upstreamSeenIDs, id)
+		// Deliberately echo X-Request-ID back from upstream to ensure no duplicate headers
+		w.Header().Set("X-Request-ID", id)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	b, _ := backend.NewBackend(upstream.URL)
+	sm, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{b})
+	collector := metrics.NewCollector()
+	limiter := ratelimit.NewLimiter(10.0, 10, false)
+	defer limiter.Close()
+
+	handler := NewProxyHandler(sm, collector, limiter)
+
+	// 1. Missing X-Request-ID -> auto-generated, propagated, single header value, recorded in log
+	reqGen := httptest.NewRequest("GET", "http://nexuslb.local/a", nil)
+	recGen := httptest.NewRecorder()
+	handler.ServeHTTP(recGen, reqGen)
+
+	genID := recGen.Header().Get("X-Request-ID")
+	if genID == "" || len(recGen.Header().Values("X-Request-ID")) != 1 {
+		t.Fatalf("expected single generated X-Request-ID header, got %v", recGen.Header().Values("X-Request-ID"))
+	}
+	if len(upstreamSeenIDs) != 1 || upstreamSeenIDs[0] != genID {
+		t.Fatalf("expected upstream to receive %q, got %v", genID, upstreamSeenIDs)
+	}
+
+	// 2. Caller-provided X-Request-ID -> preserved end-to-end
+	reqKeep := httptest.NewRequest("GET", "http://nexuslb.local/b", nil)
+	reqKeep.Header.Set("X-Request-ID", "trace-client-999")
+	recKeep := httptest.NewRecorder()
+	handler.ServeHTTP(recKeep, reqKeep)
+
+	if recKeep.Header().Get("X-Request-ID") != "trace-client-999" {
+		t.Fatalf("expected preserved X-Request-ID trace-client-999, got %q", recKeep.Header().Get("X-Request-ID"))
+	}
+	snap := collector.Snapshot("Round Robin", []*backend.Backend{b})
+	if len(snap.RecentLogs) < 2 || snap.RecentLogs[0].ID != "trace-client-999" {
+		t.Fatalf("expected newest metric log to carry trace-client-999, got %+v", snap.RecentLogs)
+	}
+}
+
+func TestProxyHandler_NoDuplicateXFFOnRetry(t *testing.T) {
+	deadBackend, _ := backend.NewBackend("http://127.0.0.1:59992")
+
+	var gotXFF string
+	liveServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotXFF = r.Header.Get("X-Forwarded-For")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer liveServer.Close()
+
+	liveBackend, _ := backend.NewBackend(liveServer.URL)
+	sm, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{deadBackend, liveBackend})
+	collector := metrics.NewCollector()
+	limiter := ratelimit.NewLimiter(10.0, 10, false)
+	defer limiter.Close()
+
+	handler := NewProxyHandler(sm, collector, limiter, 2)
+	req := httptest.NewRequest("GET", "http://nexuslb.local/retry-xff", nil)
+	req.RemoteAddr = "203.0.113.45:5555"
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK after retry, got %d", rec.Code)
+	}
+	if gotXFF != "203.0.113.45" {
+		t.Fatalf("expected single non-duplicated X-Forwarded-For '203.0.113.45' on retried backend, got %q", gotXFF)
+	}
+}
+
+func TestProxyHandler_CanaryFallbackNoHeaderLeak(t *testing.T) {
+	// Dead canary node is tried first on canary request, then fails over to healthy stable node.
+	deadCanary, _ := backend.NewBackend("http://127.0.0.1:59991")
+	deadCanary.SetCanary(true, "v2.0-canary")
+
+	stableServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "stable-ok")
+	}))
+	defer stableServer.Close()
+
+	stableBackend, _ := backend.NewBackend(stableServer.URL)
+	sm, _ := balancer.NewStrategyManager("round_robin", []*backend.Backend{deadCanary, stableBackend})
+	collector := metrics.NewCollector()
+	limiter := ratelimit.NewLimiter(10.0, 10, false)
+	defer limiter.Close()
+
+	handler := NewProxyHandler(sm, collector, limiter, 2)
+	req := httptest.NewRequest("GET", "http://nexuslb.local/canary-fallback", nil)
+	req.Header.Set("X-Canary", "true")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "stable-ok" {
+		t.Fatalf("expected fallback to stable backend 200 stable-ok, got %d %q", rec.Code, rec.Body.String())
+	}
+	if tag := rec.Header().Get("X-Nexus-Canary"); tag != "" {
+		t.Fatalf("expected no X-Nexus-Canary header leak when fallback hit stable node, got %q", tag)
 	}
 }
 

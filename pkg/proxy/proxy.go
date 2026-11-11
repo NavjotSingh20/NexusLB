@@ -3,6 +3,8 @@ package proxy
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,8 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"nexuslb/pkg/backend"
@@ -75,6 +79,9 @@ func (rec *retryRecorder) Commit() {
 	rec.committed = true
 	// Copy headers to underlying ResponseWriter
 	for k, vv := range rec.header {
+		if strings.EqualFold(k, "X-Request-ID") && rec.underlying.Header().Get("X-Request-ID") != "" {
+			continue
+		}
 		for _, v := range vv {
 			rec.underlying.Header().Add(k, v)
 		}
@@ -107,11 +114,24 @@ func (rec *retryRecorder) Unwrap() http.ResponseWriter {
 	return rec.underlying
 }
 
+const defaultMaxRetryBodyBytes int64 = 1 << 20 // 1 MiB
+
+var requestSeq uint64
+
+// ProxyOptions configures failover, retry safety, and buffering behavior.
+type ProxyOptions struct {
+	MaxRetries         int
+	MaxRetryBodyBytes  int64
+	RetryNonIdempotent bool
+}
+
 type ProxyHandler struct {
-	balancer   balancer.Balancer
-	collector  *metrics.Collector
-	limiter    *ratelimit.Limiter
-	maxRetries int
+	balancer           balancer.Balancer
+	collector          *metrics.Collector
+	limiter            *ratelimit.Limiter
+	maxRetries         int
+	maxRetryBodyBytes  int64
+	retryNonIdempotent bool
 }
 
 func NewProxyHandler(b balancer.Balancer, c *metrics.Collector, l *ratelimit.Limiter, maxRetries ...int) *ProxyHandler {
@@ -119,11 +139,52 @@ func NewProxyHandler(b balancer.Balancer, c *metrics.Collector, l *ratelimit.Lim
 	if len(maxRetries) > 0 && maxRetries[0] >= 0 {
 		retries = maxRetries[0]
 	}
+	return NewProxyHandlerWithOptions(b, c, l, ProxyOptions{
+		MaxRetries:         retries,
+		MaxRetryBodyBytes:  defaultMaxRetryBodyBytes,
+		RetryNonIdempotent: false,
+	})
+}
+
+// NewProxyHandlerWithOptions constructs a ProxyHandler with explicit retry guardrails.
+func NewProxyHandlerWithOptions(b balancer.Balancer, c *metrics.Collector, l *ratelimit.Limiter, opts ProxyOptions) *ProxyHandler {
+	retries := opts.MaxRetries
+	if retries < 0 {
+		retries = 0
+	}
+	maxBody := opts.MaxRetryBodyBytes
+	if maxBody < 0 {
+		maxBody = defaultMaxRetryBodyBytes
+	}
 	return &ProxyHandler{
-		balancer:   b,
-		collector:  c,
-		limiter:    l,
-		maxRetries: retries,
+		balancer:           b,
+		collector:          c,
+		limiter:            l,
+		maxRetries:         retries,
+		maxRetryBodyBytes:  maxBody,
+		retryNonIdempotent: opts.RetryNonIdempotent,
+	}
+}
+
+func generateRequestID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err == nil {
+		return hex.EncodeToString(b[:])
+	}
+	seq := atomic.AddUint64(&requestSeq, 1)
+	return fmt.Sprintf("req-%d-%d", time.Now().UnixNano(), seq)
+}
+
+func (p *ProxyHandler) isRetryableRequest(r *http.Request) bool {
+	if p.retryNonIdempotent {
+		return true
+	}
+	switch strings.ToUpper(r.Method) {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodDelete:
+		return true
+	default:
+		return strings.TrimSpace(r.Header.Get("Idempotency-Key")) != "" ||
+			strings.TrimSpace(r.Header.Get("X-Idempotency-Key")) != ""
 	}
 }
 
@@ -131,12 +192,19 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	clientIP := balancer.ExtractClientIP(r)
 
+	requestID := strings.TrimSpace(r.Header.Get("X-Request-ID"))
+	if requestID == "" {
+		requestID = generateRequestID()
+	}
+	r.Header.Set("X-Request-ID", requestID)
+	w.Header().Set("X-Request-ID", requestID)
+
 	// Layer 1: Edge Security & Rate Limiting Shield
 	if p.limiter != nil && p.limiter.IsEnabled() {
 		allowed, remaining, retryAfter := p.limiter.Allow(clientIP)
 		if !allowed {
 			duration := time.Since(start)
-			p.collector.Record(r.Method, r.URL.Path, clientIP, "Edge Shield", http.StatusTooManyRequests, duration)
+			p.collector.RecordWithID(requestID, r.Method, r.URL.Path, clientIP, "Edge Shield", http.StatusTooManyRequests, duration)
 
 			retrySec := int(retryAfter.Seconds())
 			if retrySec < 1 {
@@ -153,6 +221,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"message":             "NexusLB Edge Shield: Rate limit exceeded for IP " + clientIP,
 				"retry_after_seconds": retrySec,
 				"client_ip":           clientIP,
+				"request_id":          requestID,
 			})
 			return
 		}
@@ -161,15 +230,66 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
 	}
 
-	// Buffer request body if present to enable transparent retries on POST/PUT requests
-	var bodyBytes []byte
-	if r.Body != nil {
-		bodyBytes, _ = io.ReadAll(r.Body)
-		r.Body.Close()
+	// Compute reverse proxy forwarding headers once before the retry loop
+	// so failover retries never duplicate X-Forwarded-For hops.
+	if _, _, err := net.SplitHostPort(r.RemoteAddr); err != nil {
+		if r.Header.Get("X-Forwarded-For") == "" {
+			r.Header.Set("X-Forwarded-For", clientIP)
+		}
+	}
+	r.Header.Set("X-Real-IP", clientIP)
+	r.Header.Set("X-Forwarded-Host", r.Host)
+	if r.TLS != nil {
+		r.Header.Set("X-Forwarded-Proto", "https")
+	} else {
+		r.Header.Set("X-Forwarded-Proto", "http")
 	}
 
 	attempts := 0
 	maxAttempts := p.maxRetries + 1
+	if maxAttempts > 1 && !p.isRetryableRequest(r) {
+		maxAttempts = 1
+	}
+
+	// Buffer bounded request bodies only when retries are eligible and size fits MaxRetryBodyBytes.
+	var bodyBytes []byte
+	bodyBuffered := false
+	if maxAttempts > 1 && r.Body != nil && r.Body != http.NoBody && r.ContentLength != 0 {
+		if p.maxRetryBodyBytes == 0 || (r.ContentLength > 0 && r.ContentLength > p.maxRetryBodyBytes) {
+			maxAttempts = 1
+		} else {
+			buf, readErr := io.ReadAll(io.LimitReader(r.Body, p.maxRetryBodyBytes+1))
+			if readErr != nil {
+				r.Body.Close()
+				duration := time.Since(start)
+				p.collector.RecordWithID(requestID, r.Method, r.URL.Path, clientIP, "none", http.StatusBadRequest, duration)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"error":      "Bad Request",
+					"message":    "NexusLB: Failed to read client request body",
+					"request_id": requestID,
+				})
+				return
+			}
+			if int64(len(buf)) > p.maxRetryBodyBytes {
+				origBody := r.Body
+				r.Body = struct {
+					io.Reader
+					io.Closer
+				}{
+					Reader: io.MultiReader(bytes.NewReader(buf), origBody),
+					Closer: origBody,
+				}
+				maxAttempts = 1
+			} else {
+				r.Body.Close()
+				bodyBytes = buf
+				bodyBuffered = true
+			}
+		}
+	}
+
 	var lastErr error
 	var lastTarget *backend.Backend
 
@@ -177,9 +297,10 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for attempts < maxAttempts {
 		attempts++
 
-		// Reset request body for this attempt
-		if bodyBytes != nil {
+		// Reset request body for this attempt when buffered
+		if bodyBuffered {
 			r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			r.ContentLength = int64(len(bodyBytes))
 		}
 
 		target, err := p.balancer.NextBackend(r)
@@ -191,26 +312,12 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		target.IncConn()
 
+		rec := newRetryRecorder(w)
 		isCanary := balancer.IsCanaryRequest(r) || target.IsCanaryNode()
 		if target.IsCanaryNode() {
-			w.Header().Set("X-Nexus-Canary", target.GetCanaryTag())
+			rec.Header().Set("X-Nexus-Canary", target.GetCanaryTag())
 		}
 
-		// Reverse proxy tracing headers
-		if prior := r.Header.Get("X-Forwarded-For"); prior != "" {
-			r.Header.Set("X-Forwarded-For", prior+", "+clientIP)
-		} else {
-			r.Header.Set("X-Forwarded-For", clientIP)
-		}
-		r.Header.Set("X-Real-IP", clientIP)
-		r.Header.Set("X-Forwarded-Host", r.Host)
-		if r.TLS != nil {
-			r.Header.Set("X-Forwarded-Proto", "https")
-		} else {
-			r.Header.Set("X-Forwarded-Proto", "http")
-		}
-
-		rec := newRetryRecorder(w)
 		attemptStart := time.Now()
 
 		target.ReverseProxy.ServeHTTP(rec, r)
@@ -222,7 +329,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// Backend connection failed before response headers committed
 			lastErr = rec.failureErr
 			target.RecordRequest(attemptDuration, true)
-			p.collector.Record(r.Method, r.URL.Path, clientIP, target.URL.String(), http.StatusBadGateway, attemptDuration, isCanary)
+			p.collector.RecordWithID(requestID, r.Method, r.URL.Path, clientIP, target.URL.String(), http.StatusBadGateway, attemptDuration, isCanary)
 			continue // Retry on alternate backend
 		}
 
@@ -231,7 +338,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		elapsed := time.Since(start)
 		isErr := rec.statusCode >= 500
 		target.RecordRequest(elapsed, isErr)
-		p.collector.Record(r.Method, r.URL.Path, clientIP, target.URL.String(), rec.statusCode, elapsed, isCanary)
+		p.collector.RecordWithID(requestID, r.Method, r.URL.Path, clientIP, target.URL.String(), rec.statusCode, elapsed, isCanary)
 		return
 	}
 
@@ -242,14 +349,15 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		statusCode = http.StatusServiceUnavailable
 	}
 
-	p.collector.Record(r.Method, r.URL.Path, clientIP, "none", statusCode, duration)
+	p.collector.RecordWithID(requestID, r.Method, r.URL.Path, clientIP, "none", statusCode, duration)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if statusCode == http.StatusServiceUnavailable {
 		json.NewEncoder(w).Encode(map[string]string{
-			"error":   "Service Unavailable",
-			"message": "NexusLB: No healthy upstream backend servers available",
+			"error":      "Service Unavailable",
+			"message":    "NexusLB: No healthy upstream backend servers available",
+			"request_id": requestID,
 		})
 	} else {
 		targetName := "unknown"
@@ -262,6 +370,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"attempts":     attempts,
 			"last_backend": targetName,
 			"details":      fmt.Sprintf("%v", lastErr),
+			"request_id":   requestID,
 		})
 	}
 }

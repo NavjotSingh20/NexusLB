@@ -80,7 +80,7 @@ func (c *Checker) check(b *backend.Backend) {
 	checkURL.Path = c.path
 
 	resp, err := c.client.Get(checkURL.String())
-	wasAlive := b.IsAlive()
+	wasAlive := b.IsUp()
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		if wasAlive {

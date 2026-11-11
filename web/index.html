@@ -198,7 +198,8 @@
     </section>
 
     <!-- Hero KPI Stats Deck -->
-    <section class="kpi-grid">
+    <section class="kpi-section" aria-label="Cluster key performance indicators">
+      <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-icon-wrap icon-requests">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -279,6 +280,23 @@
         <div class="kpi-body">
           <span class="kpi-title">Blocked (429)</span>
           <span class="kpi-value" id="kpi-throttled">0</span>
+        </div>
+      </div>
+      </div>
+
+      <!-- Tail Latency Percentiles Strip -->
+      <div class="kpi-tail-strip" aria-label="Tail latency percentiles">
+        <div class="kpi-tail-cell">
+          <span class="kpi-tail-label">Median latency (p50)</span>
+          <span class="kpi-tail-value" id="kpi-p50"><span class="kpi-tail-empty">&mdash;</span></span>
+        </div>
+        <div class="kpi-tail-cell">
+          <span class="kpi-tail-label">Tail latency (p95)</span>
+          <span class="kpi-tail-value" id="kpi-p95"><span class="kpi-tail-empty">&mdash;</span></span>
+        </div>
+        <div class="kpi-tail-cell">
+          <span class="kpi-tail-label">Worst 1% tail (p99)</span>
+          <span class="kpi-tail-value" id="kpi-p99"><span class="kpi-tail-empty">&mdash;</span></span>
         </div>
       </div>
     </section>
@@ -474,16 +492,17 @@
           <thead>
             <tr>
               <th>Timestamp</th>
+              <th>Request ID</th>
               <th>Method</th>
               <th>Client IP</th>
               <th>Target Backend</th>
-              <th>Response Status</th>
-              <th>Latency</th>
+              <th>Status</th>
+              <th class="num-col">Latency</th>
             </tr>
           </thead>
           <tbody id="logs-table-body">
             <tr class="empty-row">
-              <td colspan="6">Waiting for requests... Start Continuous Traffic or click "Send 1 Req" above to observe routing.</td>
+              <td colspan="7">Waiting for requests... Start Continuous Traffic or click "Send 1 Req" above to observe routing.</td>
             </tr>
           </tbody>
         </table>
