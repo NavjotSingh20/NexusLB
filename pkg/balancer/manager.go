@@ -11,14 +11,16 @@ import (
 )
 
 const (
-	StrategyRoundRobin          = "round_robin"
-	StrategyWeightedRoundRobin  = "weighted_round_robin"
-	StrategyLeastConnections    = "least_connections"
-	StrategyIPHash              = "ip_hash"
+	StrategyAdaptive           = "adaptive"
+	StrategyRoundRobin         = "round_robin"
+	StrategyWeightedRoundRobin = "weighted_round_robin"
+	StrategyLeastConnections   = "least_connections"
+	StrategyIPHash             = "ip_hash"
 )
 
 type StrategyManager struct {
 	backends           []*backend.Backend
+	adaptive           *AdaptiveBalancer
 	roundRobin         *RoundRobin
 	weightedRoundRobin *WeightedRoundRobin
 	leastConnections   *LeastConnections
@@ -36,9 +38,11 @@ func NewStrategyManager(initialStrategy string, backends []*backend.Backend) (*S
 	wrr := NewWeightedRoundRobin(backends)
 	lc := NewLeastConnections(backends)
 	ih := NewIPHash(backends)
+	ad := NewAdaptiveBalancer(backends, rr, wrr, lc, ih)
 
 	sm := &StrategyManager{
 		backends:           backends,
+		adaptive:           ad,
 		roundRobin:         rr,
 		weightedRoundRobin: wrr,
 		leastConnections:   lc,
@@ -69,6 +73,12 @@ func (sm *StrategyManager) NextBackend(r *http.Request) (*backend.Backend, error
 			return canaryTarget, nil
 		}
 		// Graceful fallback to active strategy if canary node is offline or unassigned
+	}
+
+	// Passively track recent client IPs when manual strategies run so switching
+	// into Smart Auto can immediately reason about traffic locality.
+	if sm.activeKey != StrategyAdaptive && sm.adaptive != nil {
+		sm.adaptive.ObserveClientIP(r)
 	}
 
 	// 2. Active load balancing strategy
@@ -127,6 +137,9 @@ func (sm *StrategyManager) UpdateBackends(backends []*backend.Backend) {
 	sm.weightedRoundRobin.UpdateBackends(backends)
 	sm.leastConnections.UpdateBackends(backends)
 	sm.ipHash.UpdateBackends(backends)
+	if sm.adaptive != nil {
+		sm.adaptive.UpdateBackends(backends)
+	}
 }
 
 func (sm *StrategyManager) Name() string {
@@ -141,12 +154,42 @@ func (sm *StrategyManager) CurrentKey() string {
 	return sm.activeKey
 }
 
+// AdaptiveSnapshot refreshes and returns explainability telemetry when adaptive mode is active.
+func (sm *StrategyManager) AdaptiveSnapshot() *AdaptiveSnapshot {
+	sm.mux.RLock()
+	isAdaptive := sm.activeKey == StrategyAdaptive && sm.adaptive != nil
+	ad := sm.adaptive
+	sm.mux.RUnlock()
+
+	if !isAdaptive {
+		return nil
+	}
+	snap := ad.Snapshot()
+	return &snap
+}
+
+// ResetAdaptive clears adaptive switch history and recent client-IP observations.
+func (sm *StrategyManager) ResetAdaptive() {
+	sm.mux.RLock()
+	ad := sm.adaptive
+	sm.mux.RUnlock()
+	if ad != nil {
+		ad.Reset()
+	}
+}
+
 func (sm *StrategyManager) SetStrategy(name string) error {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 
 	norm := normalizeStrategyName(name)
 	switch norm {
+	case StrategyAdaptive:
+		sm.active = sm.adaptive
+		sm.activeKey = StrategyAdaptive
+		if sm.adaptive != nil {
+			sm.adaptive.Evaluate()
+		}
 	case StrategyRoundRobin:
 		sm.active = sm.roundRobin
 		sm.activeKey = StrategyRoundRobin
@@ -160,19 +203,22 @@ func (sm *StrategyManager) SetStrategy(name string) error {
 		sm.active = sm.ipHash
 		sm.activeKey = StrategyIPHash
 	default:
-		return fmt.Errorf("unsupported balancing strategy '%s', available: round_robin, weighted_round_robin, least_connections, ip_hash", name)
+		return fmt.Errorf("unsupported balancing strategy '%s', available: adaptive, round_robin, weighted_round_robin, least_connections, ip_hash", name)
 	}
 
 	return nil
 }
 
 func (sm *StrategyManager) AvailableStrategies() []string {
-	return []string{StrategyRoundRobin, StrategyWeightedRoundRobin, StrategyLeastConnections, StrategyIPHash}
+	return []string{StrategyAdaptive, StrategyRoundRobin, StrategyWeightedRoundRobin, StrategyLeastConnections, StrategyIPHash}
 }
 
 func normalizeStrategyName(s string) string {
 	lower := strings.ToLower(strings.TrimSpace(s))
 	lower = strings.ReplaceAll(lower, "-", "_")
+	if lower == "adaptive" || lower == "smart_auto" || lower == "smart" || lower == "auto" || lower == "dynamic" {
+		return StrategyAdaptive
+	}
 	if lower == "weighted_round_robin" || lower == "weighted_rr" || lower == "wrr" || lower == "weighted" {
 		return StrategyWeightedRoundRobin
 	}

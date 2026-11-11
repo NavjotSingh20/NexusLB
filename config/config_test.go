@@ -8,6 +8,7 @@ import (
 
 func TestConfigValidation(t *testing.T) {
 	validStrategies := []string{
+		"adaptive", "smart_auto", "smart", "auto", "dynamic",
 		"round_robin", "roundrobin", "rr",
 		"weighted_round_robin", "weighted_rr", "wrr", "weighted",
 		"least_connections", "least_conn", "leastconn", "lc",

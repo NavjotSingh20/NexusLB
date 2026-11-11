@@ -97,6 +97,7 @@
 
       <section class="strategy-strip" data-views="overview,backends,lab" aria-label="Load balancing strategy">
         <div class="tabs" id="strategy-pills" role="tablist">
+          <button type="button" class="tab strategy-pill strategy-smart" data-strategy="adaptive" role="tab" aria-selected="false">Smart Auto</button>
           <button type="button" class="tab strategy-pill is-active" data-strategy="round_robin" role="tab" aria-selected="true">Round Robin</button>
           <button type="button" class="tab strategy-pill" data-strategy="weighted_round_robin" role="tab" aria-selected="false">Weighted RR</button>
           <button type="button" class="tab strategy-pill" data-strategy="least_connections" role="tab" aria-selected="false">Least Connections</button>
@@ -135,6 +136,42 @@
           <span class="kpi-label">In-flight / shield</span>
           <span class="kpi-value" id="kpi-queued">0 <span class="kpi-unit">queued</span></span>
           <span class="kpi-sub" id="kpi-card-shield">Blocked <span id="kpi-throttled">0</span> (429)</span>
+        </div>
+      </section>
+
+      <section class="panel explainer-panel hidden" id="adaptive-explainer" data-views="overview,backends,lab" aria-label="Adaptive decision explainability">
+        <div class="explainer-head">
+          <div class="explainer-title-wrap">
+            <div class="explainer-title-line">
+              <h2>Adaptive decision engine</h2>
+              <span class="pill accent" id="adaptive-delegate-pill">Active: Round Robin</span>
+              <span class="pill neutral" id="adaptive-rule-pill">Uniform baseline</span>
+            </div>
+            <p class="explainer-reason" id="adaptive-reason-text">Evaluating live cluster telemetry...</p>
+          </div>
+          <div class="explainer-meta">
+            <span id="adaptive-switch-count">0 transitions</span>
+            <span class="sep">/</span>
+            <span id="adaptive-cooldown-label">Stable</span>
+          </div>
+        </div>
+
+        <div class="explainer-body">
+          <div class="explainer-rules">
+            <div class="explainer-subhead">
+              <span>Priority rules (evaluated top to bottom)</span>
+              <span>Live signal</span>
+            </div>
+            <div class="rule-list" id="adaptive-rules-list"></div>
+          </div>
+
+          <div class="explainer-history">
+            <div class="explainer-subhead">
+              <span>Decision timeline</span>
+              <span id="adaptive-eval-time">Live</span>
+            </div>
+            <div class="transition-feed" id="adaptive-history-list"></div>
+          </div>
         </div>
       </section>
 

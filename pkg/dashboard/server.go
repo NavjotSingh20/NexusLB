@@ -88,10 +88,18 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) getStats() metrics.DashboardStats {
+	var adaptiveSnap *balancer.AdaptiveSnapshot
+	if s.strategyMgr != nil {
+		adaptiveSnap = s.strategyMgr.AdaptiveSnapshot()
+	}
+
 	stats := s.collector.Snapshot(s.balancer.Name(), s.balancer.GetBackends())
 	if s.strategyMgr != nil {
 		stats.StrategyKey = s.strategyMgr.CurrentKey()
 		stats.AvailableStrategies = s.strategyMgr.AvailableStrategies()
+		if adaptiveSnap != nil {
+			stats.Adaptive = adaptiveSnap
+		}
 	} else {
 		stats.StrategyKey = "round_robin"
 		stats.AvailableStrategies = []string{"round_robin", "least_connections", "ip_hash"}
@@ -317,11 +325,15 @@ func (s *Server) handleStrategy(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		resp := map[string]interface{}{
 			"status":   "ok",
 			"strategy": s.strategyMgr.Name(),
 			"key":      s.strategyMgr.CurrentKey(),
-		})
+		}
+		if adaptiveSnap := s.strategyMgr.AdaptiveSnapshot(); adaptiveSnap != nil {
+			resp["adaptive"] = adaptiveSnap
+		}
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
@@ -533,6 +545,9 @@ func (s *Server) handleResetStats(w http.ResponseWriter, r *http.Request) {
 	s.collector.Reset(s.balancer.GetBackends())
 	if s.limiter != nil {
 		s.limiter.Reset()
+	}
+	if s.strategyMgr != nil {
+		s.strategyMgr.ResetAdaptive()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")

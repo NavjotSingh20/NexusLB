@@ -40,6 +40,17 @@ func TestStrategyManager_HotSwapping(t *testing.T) {
 		t.Errorf("Expected IP Hash, got %s", sm.Name())
 	}
 
+	// Hot-swap to Adaptive
+	if err := sm.SetStrategy("adaptive"); err != nil {
+		t.Fatalf("Failed to switch to adaptive: %v", err)
+	}
+	if sm.CurrentKey() != StrategyAdaptive {
+		t.Errorf("Expected key %s, got %s", StrategyAdaptive, sm.CurrentKey())
+	}
+	if sm.AdaptiveSnapshot() == nil {
+		t.Errorf("Expected non-nil AdaptiveSnapshot when adaptive strategy active")
+	}
+
 	// Reject invalid strategy
 	if err := sm.SetStrategy("random_invalid"); err == nil {
 		t.Errorf("Expected error when setting invalid strategy, got nil")

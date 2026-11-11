@@ -1,9 +1,18 @@
 document.addEventListener("DOMContentLoaded", () => {
   const STRATEGY_META = {
+    adaptive: "Evaluates live socket skew, node lag, weights, and repeat IPs to select the optimal strategy.",
     round_robin: "Distributes incoming requests sequentially across healthy nodes.",
     weighted_round_robin: "Routes requests proportionally according to configured server weights.",
     least_connections: "Targets the healthy node holding the fewest active in-flight sockets.",
     ip_hash: "Hashes the client IP via FNV-1a so returning clients stay pinned to one node.",
+  };
+
+  const RULE_LABELS = {
+    connection_skew: "Rule: Socket skew",
+    latency_skew: "Rule: Latency skew",
+    capacity_weights: "Rule: Capacity weights",
+    client_affinity: "Rule: Repeat client IPs",
+    uniform_baseline: "Rule: Uniform baseline",
   };
 
   const MAX_HISTORY = 24;
@@ -19,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let autoTrafficTimer = null;
   let isScenarioRunning = false;
   let lastSampleTimestamp = 0;
+  const backendDelays = {};
 
   const history = seedInitialHistory();
 
@@ -268,6 +278,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (total === 0) {
       return "No upstream backends configured for this cluster.";
     }
+    if (data.adaptive && data.strategy_key === "adaptive") {
+      return `Smart Auto -> ${data.adaptive.active_name}: ${data.adaptive.reason}`;
+    }
     if (offline.length > 0) {
       return `${offline.length} of ${total} backends offline (${offline.map((b) => b.url.replace("http://", "")).join(", ")}); healthy nodes absorb cluster load.`;
     }
@@ -330,8 +343,21 @@ document.addEventListener("DOMContentLoaded", () => {
     shieldState = Boolean(data.shield_enabled);
 
     if (elUptimeVal) elUptimeVal.textContent = formatUptime(data.uptime_seconds || 0);
-    if (elStrategyBadge) elStrategyBadge.textContent = data.strategy || "Round Robin";
-    if (elStrategyDesc) elStrategyDesc.textContent = STRATEGY_META[currentStrategyKey] || "";
+    if (elStrategyBadge) {
+      if (data.adaptive && currentStrategyKey === "adaptive") {
+        elStrategyBadge.textContent = `Smart Auto -> ${data.adaptive.active_name}`;
+      } else {
+        elStrategyBadge.textContent = data.strategy || "Round Robin";
+      }
+    }
+    if (elStrategyDesc) {
+      if (data.adaptive && currentStrategyKey === "adaptive") {
+        const ruleName = RULE_LABELS[data.adaptive.rule_matched] || "Active policy";
+        elStrategyDesc.textContent = `Delegating to ${data.adaptive.active_name} (${ruleName.replace("Rule: ", "")})`;
+      } else {
+        elStrategyDesc.textContent = STRATEGY_META[currentStrategyKey] || "";
+      }
+    }
     if (elClusterFinding) elClusterFinding.textContent = computeFinding(data);
 
     if (elProxyUrl) {
@@ -400,10 +426,132 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     sampleTelemetry(data);
+    renderAdaptiveExplainer(currentStrategyKey === "adaptive" ? data.adaptive : null);
     renderTelemetryChart();
     renderDistribution(backends);
     renderBackends(backends);
     renderLogs(data.recent_logs || []);
+  }
+
+  function renderAdaptiveExplainer(adaptive) {
+    const elPanel = document.getElementById("adaptive-explainer");
+    if (!elPanel) return;
+
+    if (!adaptive) {
+      elPanel.classList.add("hidden");
+      return;
+    }
+    elPanel.classList.remove("hidden");
+
+    const elDelegatePill = document.getElementById("adaptive-delegate-pill");
+    const elRulePill = document.getElementById("adaptive-rule-pill");
+    const elReason = document.getElementById("adaptive-reason-text");
+    const elSwitchCount = document.getElementById("adaptive-switch-count");
+    const elCooldown = document.getElementById("adaptive-cooldown-label");
+    const elEvalTime = document.getElementById("adaptive-eval-time");
+    const elRulesList = document.getElementById("adaptive-rules-list");
+    const elHistoryList = document.getElementById("adaptive-history-list");
+
+    const sig = adaptive.signals || {};
+    const cdMs = Number(adaptive.cooldown_remaining_ms || 0);
+    const swCount = Number(adaptive.switch_count || 0);
+
+    if (elDelegatePill) elDelegatePill.textContent = `Active: ${adaptive.active_name || "Round Robin"}`;
+    if (elRulePill) elRulePill.textContent = RULE_LABELS[adaptive.rule_matched] || adaptive.rule_matched || "Policy";
+    if (elReason) elReason.textContent = adaptive.reason || "Evaluating live cluster telemetry.";
+    if (elSwitchCount) elSwitchCount.textContent = `${swCount} transition${swCount === 1 ? "" : "s"}`;
+    if (elCooldown) {
+      elCooldown.textContent = cdMs > 0 ? `Cooldown ${(cdMs / 1000).toFixed(1)}s` : "Stable";
+    }
+    if (elEvalTime) elEvalTime.textContent = adaptive.evaluated_at ? `Updated ${adaptive.evaluated_at}` : "Live";
+
+    if (elRulesList) {
+      const sampleCount = Number(sig.recent_sample_size || 0);
+      const uniqueIPs = Number(sig.unique_recent_ips || 0);
+      const repeatPct = Math.round(Number(sig.repeat_ip_ratio || 0) * 100);
+      const skewRatio = Number(sig.latency_skew_ratio || 1).toFixed(1);
+
+      const rules = [
+        {
+          key: "least_connections",
+          rank: "P1",
+          name: "Least Connections",
+          cond: "Socket spread >= 2 or max lag >= 80 ms (2.5x skew)",
+          metric: `Spread ${Number(sig.conn_spread || 0)} / Max ${Number(sig.max_latency_ms || 0)} ms (${skewRatio}x)`,
+        },
+        {
+          key: "weighted_round_robin",
+          rank: "P2",
+          name: "Weighted RR",
+          cond: "Healthy node weights differ across the pool",
+          metric: `Weights ${sig.weight_summary || "1:1:1"}`,
+        },
+        {
+          key: "ip_hash",
+          rank: "P3",
+          name: "IP Hash",
+          cond: "Repeat client IPs >= 70% across last 24 reqs (min 6)",
+          metric: sampleCount > 0 ? `${repeatPct}% repeat (${uniqueIPs}/${sampleCount} IPs)` : "0 samples",
+        },
+        {
+          key: "round_robin",
+          rank: "P4",
+          name: "Round Robin",
+          cond: "Healthy balanced default with uniform weights",
+          metric: `${Number(sig.healthy_nodes || 0)}/${Number(sig.total_nodes || 0)} healthy`,
+        },
+      ];
+
+      elRulesList.innerHTML = rules
+        .map((r) => {
+          const isSelected = adaptive.active_key === r.key;
+          const isPending = !isSelected && adaptive.candidate_key === r.key && cdMs > 0;
+          const pillCls = isSelected ? "accent" : isPending ? "warn" : "neutral";
+          const pillText = isSelected ? "Selected" : isPending ? "Pending" : "Standby";
+
+          return `
+            <div class="rule-item ${isSelected ? "is-selected" : ""}">
+              <div class="rule-main">
+                <div class="rule-name-row">
+                  <span class="rule-rank">${r.rank}</span>
+                  <span class="rule-name">${escapeHTML(r.name)}</span>
+                </div>
+                <span class="rule-cond">${escapeHTML(r.cond)}</span>
+              </div>
+              <div class="rule-right">
+                <span class="rule-metric">${escapeHTML(r.metric)}</span>
+                <span class="pill ${pillCls}">${pillText}</span>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    if (elHistoryList) {
+      const items = Array.isArray(adaptive.history) ? adaptive.history.slice(0, 4) : [];
+      if (items.length === 0) {
+        elHistoryList.innerHTML = `
+          <div class="transition-empty">
+            No automated transitions recorded yet. Adjust simulated lag, backend weights, socket hold, or disable Diverse client IPs to observe and explain a live switch.
+          </div>
+        `;
+      } else {
+        elHistoryList.innerHTML = items
+          .map(
+            (ev) => `
+              <div class="transition-item">
+                <div class="transition-top">
+                  <span class="transition-route">${escapeHTML(ev.from_name || ev.from_key)} &rarr; ${escapeHTML(ev.to_name || ev.to_key)}</span>
+                  <span class="transition-time">${escapeHTML(ev.timestamp || "")}</span>
+                </div>
+                <span class="transition-why">${escapeHTML(ev.reason || "")}</span>
+              </div>
+            `
+          )
+          .join("");
+      }
+    }
   }
 
   function renderDistribution(backends) {
@@ -448,7 +596,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .map((b, idx) => {
         const host = b.url.replace("http://", "");
         const isUp = Boolean(b.alive);
-        const delayMs = Number(b.simulated_delay_ms || 0);
+        const delayMs = Number(backendDelays[b.url] ?? b.simulated_delay_ms ?? 0);
         const errs = Number(b.total_errors || 0);
         const circuit = (b.circuit_state || "closed").toLowerCase();
         const isCanary = Boolean(b.is_canary);
@@ -656,6 +804,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function setBackendDelay(url, ms) {
+    backendDelays[url] = ms;
     await fetch(`/api/backend/delay?url=${encodeURIComponent(url)}&ms=${encodeURIComponent(ms)}`, { method: "POST" });
     await fetchStats();
   }

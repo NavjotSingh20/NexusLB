@@ -58,8 +58,23 @@ func TestServer_StrategyAPI(t *testing.T) {
 	if getResp.Key != "round_robin" {
 		t.Errorf("expected initial key round_robin, got %s", getResp.Key)
 	}
-	if len(getResp.Available) != 4 {
-		t.Errorf("expected 4 available strategies, got %d", len(getResp.Available))
+	if len(getResp.Available) != 5 {
+		t.Errorf("expected 5 available strategies, got %d", len(getResp.Available))
+	}
+
+	// 1b. Test POST /api/strategy to switch to adaptive (Smart Auto)
+	postReqAuto := httptest.NewRequest(http.MethodPost, "/api/strategy?name=adaptive", nil)
+	postRecAuto := httptest.NewRecorder()
+	srv.handleStrategy(postRecAuto, postReqAuto)
+	if postRecAuto.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for adaptive, got %d", postRecAuto.Code)
+	}
+	if sm.CurrentKey() != "adaptive" {
+		t.Errorf("expected strategy manager to be adaptive, got %s", sm.CurrentKey())
+	}
+	stats := srv.getStats()
+	if stats.Adaptive == nil {
+		t.Errorf("expected adaptive explainability payload in stats when active, got nil")
 	}
 
 	// 2. Test POST /api/strategy to switch to least_connections
