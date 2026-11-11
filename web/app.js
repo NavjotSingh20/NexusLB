@@ -1,832 +1,976 @@
-// NexusLB Observability Dashboard Frontend Script
+document.addEventListener("DOMContentLoaded", () => {
+  const STRATEGY_META = {
+    round_robin: "Distributes incoming requests sequentially across healthy nodes.",
+    weighted_round_robin: "Routes requests proportionally according to configured server weights.",
+    least_connections: "Targets the healthy node holding the fewest active in-flight sockets.",
+    ip_hash: "Hashes the client IP via FNV-1a so returning clients stay pinned to one node.",
+  };
 
-const COLOR_PALETTE = [
-  '#6366f1', // Indigo
-  '#06b6d4', // Cyan
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#ec4899', // Pink
-  '#8b5cf6', // Violet
-];
+  const MAX_HISTORY = 24;
+  const TELEMETRY_INTERVAL_MS = 850;
 
-let eventSource = null;
-let lastStats = null;
-let autoTrafficTimer = null;
-const backendDelays = {};
+  let currentStats = null;
+  let currentStrategyKey = "round_robin";
+  let activeView = "overview";
+  let chartMetric = "rps";
+  let logFilter = "all";
+  let logSearchQuery = "";
+  let shieldState = true;
+  let autoTrafficTimer = null;
+  let isScenarioRunning = false;
+  let lastSampleTimestamp = 0;
 
-// DOM Elements
-const uptimeVal = document.getElementById('uptime-val');
-const strategyDisplay = document.getElementById('active-strategy-display');
-const proxyUrlDisplay = document.getElementById('proxy-url-display');
+  const history = seedInitialHistory();
 
-const kpiTotalRequests = document.getElementById('kpi-total-requests');
-const kpiRps = document.getElementById('kpi-rps');
-const kpiLatency = document.getElementById('kpi-latency');
-const kpiP50 = document.getElementById('kpi-p50');
-const kpiP95 = document.getElementById('kpi-p95');
-const kpiP99 = document.getElementById('kpi-p99');
-const kpiSuccessRate = document.getElementById('kpi-success-rate');
-const kpiQueued = document.getElementById('kpi-queued');
-const kpiCardQueue = document.getElementById('kpi-card-queue');
-const kpiThrottled = document.getElementById('kpi-throttled');
-const kpiCardShield = document.getElementById('kpi-card-shield');
+  // DOM References
+  const appShell = document.getElementById("app-shell");
+  const railButtons = document.querySelectorAll(".rail-item[data-nav]");
+  const sseDot = document.getElementById("sse-dot");
+  const sseIndicator = document.getElementById("sse-indicator");
 
-const healthyCountBadge = document.getElementById('healthy-count-badge');
-const backendCardsContainer = document.getElementById('backend-cards-container');
-const distributionBar = document.getElementById('distribution-bar');
-const distributionLegend = document.getElementById('distribution-legend');
-const distributionTotalLabel = document.getElementById('distribution-total-label');
+  const elHealthyBadge = document.getElementById("healthy-count-badge");
+  const elStrategyBadge = document.getElementById("active-strategy-display");
+  const elClusterFinding = document.getElementById("cluster-finding");
+  const elProxyUrl = document.getElementById("proxy-url-display");
+  const elUptimeVal = document.getElementById("uptime-val");
+  const elShieldStatusLabel = document.getElementById("shield-status-label");
+  const elStrategyDesc = document.getElementById("strategy-desc");
 
-const logsTableBody = document.getElementById('logs-table-body');
-const logCountBadge = document.getElementById('log-count-badge');
+  const kpiTotal = document.getElementById("kpi-total-requests");
+  const kpiReqDelta = document.getElementById("kpi-requests-delta");
+  const kpiRps = document.getElementById("kpi-rps");
+  const kpiLatency = document.getElementById("kpi-latency");
+  const kpiP50 = document.getElementById("kpi-p50");
+  const kpiP95 = document.getElementById("kpi-p95");
+  const kpiP99 = document.getElementById("kpi-p99");
+  const kpiSuccess = document.getElementById("kpi-success-rate");
+  const kpiCanarySub = document.getElementById("kpi-canary-sub");
+  const kpiQueued = document.getElementById("kpi-queued");
+  const kpiThrottled = document.getElementById("kpi-throttled");
 
-const btnTestSingle = document.getElementById('btn-test-single');
-const btnTestBurst = document.getElementById('btn-test-burst');
-const burstCountInput = document.getElementById('burst-count-input');
-const checkSimIPs = document.getElementById('check-sim-ips');
-const btnAutoTraffic = document.getElementById('btn-auto-traffic');
-const autoTrafficLabel = document.getElementById('auto-traffic-label');
-const btnResetMetrics = document.getElementById('btn-reset-metrics');
+  const chartHost = document.getElementById("telemetry-chart");
+  const chartTabs = document.querySelectorAll("#chart-metric-tabs .tab");
+  const elDistBar = document.getElementById("distribution-bar");
+  const elDistLegend = document.getElementById("distribution-legend");
+  const elDistTotal = document.getElementById("distribution-total-label");
 
-// Shield & Scenario Studio Elements
-const shieldStatusLabel = document.getElementById('shield-status-label');
-const btnToggleShield = document.getElementById('btn-toggle-shield');
-const shieldBtnText = document.getElementById('shield-btn-text');
-const btnRunDDoSScenario = document.getElementById('btn-run-ddos-scenario');
-const btnSpamAttacker = document.getElementById('btn-spam-attacker');
-const btnSendNormalUsers = document.getElementById('btn-send-normal-users');
+  const btnTestSingle = document.getElementById("btn-test-single");
+  const btnTestBurst = document.getElementById("btn-test-burst");
+  const inputBurstCount = document.getElementById("burst-count-input");
+  const btnTestSlow = document.getElementById("btn-test-slow");
+  const inputHoldConns = document.getElementById("hold-conns-count");
+  const inputHoldSec = document.getElementById("hold-conns-sec");
+  const checkSimIps = document.getElementById("check-sim-ips");
+  const btnAutoTraffic = document.getElementById("btn-auto-traffic");
+  const autoTrafficDot = document.getElementById("auto-traffic-dot");
+  const autoTrafficLabel = document.getElementById("auto-traffic-label");
+  const btnResetMetrics = document.getElementById("btn-reset-metrics");
 
-// Strategy Descriptions
-const STRATEGY_DESCRIPTIONS = {
-  round_robin: 'Monotonically advancing atomic ring counter with zero memory allocations',
-  weighted_round_robin: 'Smoothly interleaves traffic according to node weights without burst clustering',
-  least_connections: 'Dynamically routes to healthy backend with lowest active in-flight sockets',
-  ip_hash: 'Deterministic 32-bit FNV-1a hash over client IP for sticky session persistence'
-};
-const strategyDescEl = document.getElementById('strategy-desc');
+  const btnToggleShield = document.getElementById("btn-toggle-shield");
+  const btnLabToggleShield = document.getElementById("btn-lab-toggle-shield");
+  const shieldBtnText = document.getElementById("shield-btn-text");
+  const labShieldPill = document.getElementById("lab-shield-pill");
 
-// Update active strategy pill styling and description
-function updateStrategyPills(key) {
-  if (!key) return;
-  const pills = document.querySelectorAll('.strategy-pill');
-  pills.forEach(pill => {
-    if (pill.getAttribute('data-strategy') === key) {
-      pill.classList.add('active');
-    } else {
-      pill.classList.remove('active');
+  const btnQuickCanary = document.getElementById("btn-quick-canary");
+  const btnQuickFlood = document.getElementById("btn-quick-flood");
+  const btnRunDdosScenario = document.getElementById("btn-run-ddos-scenario");
+  const btnSpamAttacker = document.getElementById("btn-spam-attacker");
+  const btnSendNormalUsers = document.getElementById("btn-send-normal-users");
+  const btnSendCanarySingle = document.getElementById("btn-send-canary-single");
+  const btnSendCanaryBurst = document.getElementById("btn-send-canary-burst");
+  const btnSetCanaryWeights = document.getElementById("btn-set-canary-weights");
+
+  const storylineBanner = document.getElementById("storyline-banner");
+  const storylinePhase = document.getElementById("storyline-phase-badge");
+  const storylineTitle = document.getElementById("storyline-title");
+  const storylineMessage = document.getElementById("storyline-message");
+  const storylineProgress = document.getElementById("storyline-progress-fill");
+
+  const backendsContainer = document.getElementById("backend-cards-container");
+  const logsTbody = document.getElementById("logs-table-body");
+  const elLogCountBadge = document.getElementById("log-count-badge");
+  const traceFilterTabs = document.querySelectorAll("#trace-filter-tabs .tab");
+  const traceSearchInput = document.getElementById("trace-search-input");
+  const toastRegion = document.getElementById("toast-region");
+
+  function seedInitialHistory() {
+    const now = Date.now();
+    const labels = [];
+    const rps = [];
+    const latency = [];
+    const p95 = [];
+    for (let i = MAX_HISTORY - 1; i >= 0; i -= 1) {
+      labels.push(formatClock(new Date(now - i * 1000)));
+      rps.push(0);
+      latency.push(0);
+      p95.push(0);
     }
-  });
-  if (strategyDescEl && STRATEGY_DESCRIPTIONS[key]) {
-    strategyDescEl.textContent = STRATEGY_DESCRIPTIONS[key];
+    return { labels, rps, latency, p95 };
   }
-}
 
-// Hook strategy switcher buttons
-document.querySelectorAll('.strategy-pill').forEach(pill => {
-  pill.addEventListener('click', async () => {
-    const strat = pill.getAttribute('data-strategy');
-    if (!strat) return;
-    updateStrategyPills(strat);
+  function formatClock(date) {
+    const hh = String(date.getHours()).padStart(2, "0"); // taste-skill-ignore: clock timestamp
+    const mm = String(date.getMinutes()).padStart(2, "0"); // taste-skill-ignore: clock timestamp
+    const ss = String(date.getSeconds()).padStart(2, "0"); // taste-skill-ignore: clock timestamp
+    return `${hh}:${mm}:${ss}`;
+  }
+
+  function formatUptime(sec) {
+    const s = Math.max(0, Number(sec) || 0);
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const rem = s % 60;
+    return [hrs, mins, rem].map((v) => String(v).padStart(2, "0")).join(":"); // taste-skill-ignore: duration clock
+  }
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function showToast(msg) {
+    if (!toastRegion) return;
+    const item = document.createElement("div");
+    item.className = "toast";
+    item.textContent = msg;
+    toastRegion.appendChild(item);
+    setTimeout(() => {
+      item.remove();
+    }, 3200);
+  }
+
+  function setView(viewName, updateHash = true) {
+    const allowed = new Set(["overview", "backends", "lab", "logs"]);
+    const next = allowed.has(viewName) ? viewName : "overview";
+    activeView = next;
+    if (appShell) appShell.setAttribute("data-view", next);
+
+    railButtons.forEach((btn) => {
+      const match = btn.getAttribute("data-nav") === next;
+      btn.classList.toggle("is-active", match);
+      btn.setAttribute("aria-current", match ? "page" : "false");
+    });
+
+    if (updateHash) {
+      const targetHash = `#${next}`;
+      if (window.location.hash !== targetHash) {
+        historyPushOrReplace(targetHash);
+      }
+    }
+
+    if (currentStats) {
+      renderLogs(currentStats.recent_logs || []);
+      if (next === "overview") {
+        renderTelemetryChart();
+      }
+    }
+  }
+
+  function historyPushOrReplace(hash) {
     try {
-      const res = await fetch(`/api/strategy?name=${encodeURIComponent(strat)}`, { method: 'POST' });
-      const data = await res.json();
-      if (data.key) {
-        updateStrategyPills(data.key);
+      window.history.replaceState(null, "", hash);
+    } catch {
+      window.location.hash = hash;
+    }
+  }
+
+  function syncViewFromHash() {
+    const hash = window.location.hash.replace("#", "").trim();
+    if (hash) {
+      setView(hash, false);
+    }
+  }
+
+  function sampleTelemetry(data) {
+    const now = Date.now();
+    const label = formatClock(new Date(now));
+    const nextRps = Number(data.rps || 0);
+    const nextLatency = Number(data.avg_latency_ms || 0);
+    const nextP95 = Number(data.p95_latency_ms || 0);
+
+    if (now - lastSampleTimestamp < TELEMETRY_INTERVAL_MS && history.labels.length > 0) {
+      const lastIdx = history.labels.length - 1;
+      history.rps[lastIdx] = nextRps;
+      history.latency[lastIdx] = nextLatency;
+      history.p95[lastIdx] = nextP95;
+    } else {
+      lastSampleTimestamp = now;
+      history.labels.push(label);
+      history.rps.push(nextRps);
+      history.latency.push(nextLatency);
+      history.p95.push(nextP95);
+
+      while (history.labels.length > MAX_HISTORY) {
+        history.labels.shift();
+        history.rps.shift();
+        history.latency.shift();
+        history.p95.shift();
+      }
+    }
+  }
+
+  function renderTelemetryChart() {
+    if (!chartHost || activeView !== "overview" || typeof window.Charts === "undefined") return;
+    if (chartHost.clientWidth <= 0) return;
+
+    let seriesName = "Throughput";
+    let values = history.rps;
+    let formatter = (v) => `${Number(v).toFixed(1)} req/s`;
+    let fallbackMax = 10;
+
+    if (chartMetric === "latency") {
+      seriesName = "Avg latency";
+      values = history.latency;
+      formatter = (v) => `${Number(v).toFixed(1)} ms`;
+      fallbackMax = 50;
+    } else if (chartMetric === "p95") {
+      seriesName = "Tail p95";
+      values = history.p95;
+      formatter = (v) => `${Number(v).toFixed(1)} ms`;
+      fallbackMax = 100;
+    }
+
+    const peak = Math.max(0, ...values);
+    const mount = document.createElement("div");
+    mount.className = "chart-mount";
+    chartHost.replaceChildren(mount);
+
+    const xTicks = chartHost.clientWidth < 520 ? [0, 11, 23] : [0, 7, 15, 23];
+
+    window.Charts.line(mount, {
+      labels: history.labels,
+      series: [{ name: seriesName, values }],
+      format: formatter,
+      tickFormat: window.Charts.fmt.dec(1),
+      height: 244,
+      fill: true,
+      min: 0,
+      max: peak <= 0 ? fallbackMax : undefined,
+      xAt: xTicks,
+      endLabel: false,
+    });
+  }
+
+  function computeFinding(data) {
+    const backends = data.backends || [];
+    const total = backends.length;
+    const healthy = backends.filter((b) => b.alive).length;
+    const offline = backends.filter((b) => !b.alive);
+    const openCircuits = backends.filter((b) => {
+      const state = (b.circuit_state || "closed").toLowerCase();
+      return state !== "closed";
+    });
+
+    if (total === 0) {
+      return "No upstream backends configured for this cluster.";
+    }
+    if (offline.length > 0) {
+      return `${offline.length} of ${total} backends offline (${offline.map((b) => b.url.replace("http://", "")).join(", ")}); healthy nodes absorb cluster load.`;
+    }
+    if (openCircuits.length > 0) {
+      return `Circuit breaker open on ${openCircuits[0].url.replace("http://", "")}; failover active across ${healthy}/${total} nodes.`;
+    }
+    if (data.queued_requests > 0) {
+      return `${data.queued_requests} in-flight socket${data.queued_requests === 1 ? "" : "s"} active across ${healthy}/${total} nodes under ${data.strategy}.`;
+    }
+    if ((data.total_throttled || 0) > 0 && data.shield_enabled) {
+      return `Edge Shield rate limiter blocked ${data.total_throttled} flood requests (HTTP 429) while upstream nodes remained nominal.`;
+    }
+    if ((data.total_canary_requests || 0) > 0) {
+      return `Canary isolation routed ${data.total_canary_requests} tagged requests; ${healthy}/${total} backends healthy at ${Number(data.avg_latency_ms || 0).toFixed(1)} ms avg.`;
+    }
+    if ((data.total_requests || 0) === 0) {
+      return `All ${healthy}/${total} upstream backends healthy; waiting for ingress traffic under ${data.strategy}.`;
+    }
+    return `Nominal: ${healthy}/${total} backends healthy at ${Number(data.avg_latency_ms || 0).toFixed(1)} ms avg (${Number(data.p95_latency_ms || 0).toFixed(1)} ms p95).`;
+  }
+
+  function connectSSE() {
+    const evtSource = new EventSource("/api/stream");
+
+    evtSource.onopen = () => {
+      if (sseDot) sseDot.className = "status-dot";
+      if (sseIndicator) sseIndicator.title = "Live SSE telemetry connected";
+    };
+
+    evtSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        updateUI(data);
+      } catch (err) {
+        console.error("Failed to parse SSE telemetry", err);
+      }
+    };
+
+    evtSource.onerror = () => {
+      if (sseDot) sseDot.className = "status-dot down";
+      if (sseIndicator) sseIndicator.title = "Telemetry stream disconnected, retrying";
+    };
+  }
+
+  async function fetchStats() {
+    try {
+      const res = await fetch("/api/stats");
+      if (res.ok) {
+        const data = await res.json();
+        updateUI(data);
       }
     } catch (err) {
-      console.error('Failed to change strategy:', err);
-    }
-  });
-});
-
-// Format seconds into HH:MM:SS
-function formatUptime(seconds) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
-}
-
-function formatTailLatency(el, valueMs, hasSamples) {
-  if (!el) return;
-  el.classList.remove('kpi-tail-warn', 'kpi-tail-danger');
-  if (!hasSamples) {
-    el.innerHTML = '<span class="kpi-tail-empty">&mdash;</span>';
-    return;
-  }
-  const num = Number(valueMs || 0);
-  if (num >= 500) {
-    el.classList.add('kpi-tail-danger');
-  } else if (num >= 150) {
-    el.classList.add('kpi-tail-warn');
-  }
-  el.innerHTML = `${num.toFixed(1)} <span class="kpi-unit">ms</span>`;
-}
-
-// Update the entire UI state from stats payload
-function updateUI(stats) {
-  lastStats = stats;
-
-  // Uptime & Strategy
-  uptimeVal.textContent = formatUptime(stats.uptime_seconds || 0);
-  if (stats.strategy_key) {
-    updateStrategyPills(stats.strategy_key);
-  }
-  if (stats.strategy && strategyDisplay) {
-    strategyDisplay.textContent = stats.strategy;
-  }
-
-  // KPIs
-  const total = stats.total_requests || 0;
-  kpiTotalRequests.textContent = total.toLocaleString();
-  kpiRps.innerHTML = `${(stats.rps || 0).toFixed(1)} <span class="kpi-unit">req/s</span>`;
-  kpiLatency.innerHTML = `${(stats.avg_latency_ms || 0).toFixed(1)} <span class="kpi-unit">ms</span>`;
-
-  const hasSamples = total > 0;
-  formatTailLatency(kpiP50, stats.p50_latency_ms, hasSamples);
-  formatTailLatency(kpiP95, stats.p95_latency_ms, hasSamples);
-  formatTailLatency(kpiP99, stats.p99_latency_ms, hasSamples);
-
-  const success = stats.total_success || 0;
-  const successRate = total > 0 ? ((success / total) * 100).toFixed(1) : '100.0';
-  kpiSuccessRate.innerHTML = `${successRate}<span class="kpi-unit">%</span>`;
-
-  // Queued Requests
-  const queued = stats.queued_requests || 0;
-  if (kpiQueued) {
-    kpiQueued.textContent = queued.toLocaleString();
-    if (kpiCardQueue) {
-      if (queued > 0) {
-        kpiCardQueue.classList.add('queue-active');
-      } else {
-        kpiCardQueue.classList.remove('queue-active');
-      }
+      console.error("Stats fetch error", err);
     }
   }
 
-  // Throttled (429) Requests
-  if (kpiThrottled) {
-    const throttled = stats.total_throttled || 0;
-    kpiThrottled.textContent = throttled.toLocaleString();
-    if (kpiCardShield) {
-      if (throttled > 0) {
-        kpiCardShield.classList.add('throttled-active');
-      } else {
-        kpiCardShield.classList.remove('throttled-active');
-      }
+  function updateUI(data) {
+    currentStats = data;
+    currentStrategyKey = data.strategy_key || "round_robin";
+    shieldState = Boolean(data.shield_enabled);
+
+    if (elUptimeVal) elUptimeVal.textContent = formatUptime(data.uptime_seconds || 0);
+    if (elStrategyBadge) elStrategyBadge.textContent = data.strategy || "Round Robin";
+    if (elStrategyDesc) elStrategyDesc.textContent = STRATEGY_META[currentStrategyKey] || "";
+    if (elClusterFinding) elClusterFinding.textContent = computeFinding(data);
+
+    if (elProxyUrl) {
+      elProxyUrl.textContent = `${window.location.protocol}//${window.location.hostname}:8080`;
     }
+
+    // Strategy underline selection
+    document.querySelectorAll(".strategy-pill[data-strategy]").forEach((btn) => {
+      const isSelected = btn.getAttribute("data-strategy") === currentStrategyKey;
+      btn.classList.toggle("is-active", isSelected);
+      btn.setAttribute("aria-selected", isSelected ? "true" : "false");
+    });
+
+    // Shield readouts
+    const elShieldDesc = document.getElementById("shield-desc");
+    if (elShieldDesc && data.shield_rate != null && data.shield_burst != null) {
+      elShieldDesc.textContent = `Token-bucket IP throttle at ${data.shield_rate} req/s (burst ${data.shield_burst})`;
+    }
+    if (elShieldStatusLabel) elShieldStatusLabel.textContent = shieldState ? "Active" : "Bypassed";
+    if (shieldBtnText) shieldBtnText.textContent = shieldState ? "Disable" : "Enable";
+    if (btnLabToggleShield) btnLabToggleShield.textContent = shieldState ? "Disable" : "Enable";
+    if (labShieldPill) {
+      labShieldPill.textContent = shieldState ? "Shield active" : "Shield bypassed";
+      labShieldPill.className = shieldState ? "pill ok" : "pill warn";
+    }
+
+    // KPIs
+    const total = Number(data.total_requests || 0);
+    const success = Number(data.total_success || 0);
+    const errCount = Number(data.total_client_errors || 0) + Number(data.total_server_errors || 0);
+    const rate = total > 0 ? (success / total) * 100 : 100;
+
+    if (kpiTotal) kpiTotal.textContent = total.toLocaleString();
+    if (kpiReqDelta) kpiReqDelta.textContent = `${success.toLocaleString()} OK / ${errCount.toLocaleString()} err`;
+    if (kpiRps) kpiRps.innerHTML = `${Number(data.rps || 0).toFixed(1)} <span class="kpi-unit">req/s</span>`;
+    if (kpiLatency) kpiLatency.innerHTML = `${Number(data.avg_latency_ms || 0).toFixed(1)} <span class="kpi-unit">ms</span>`;
+    if (kpiP50) kpiP50.textContent = `${Number(data.p50_latency_ms || 0).toFixed(1)} ms`;
+    if (kpiP95) kpiP95.innerHTML = `${Number(data.p95_latency_ms || 0).toFixed(1)} <span class="kpi-unit">ms</span>`;
+    if (kpiP99) kpiP99.textContent = `${Number(data.p99_latency_ms || 0).toFixed(1)} ms`;
+
+    if (kpiSuccess) {
+      kpiSuccess.textContent = `${rate.toFixed(1)}%`;
+      kpiSuccess.classList.toggle("bad", rate < 90 && total > 0);
+      kpiSuccess.classList.toggle("warn", rate >= 90 && rate < 98 && total > 0);
+    }
+
+    if (kpiCanarySub) {
+      kpiCanarySub.textContent = `Canary ${Number(data.total_canary_requests || 0).toLocaleString()} reqs`;
+    }
+
+    if (kpiQueued) {
+      const queued = Number(data.queued_requests || 0);
+      kpiQueued.innerHTML = `${queued.toLocaleString()} <span class="kpi-unit">queued</span>`;
+      kpiQueued.classList.toggle("warn", queued > 0);
+    }
+    if (kpiThrottled) {
+      kpiThrottled.textContent = Number(data.total_throttled || 0).toLocaleString();
+    }
+
+    // Health badge
+    const backends = data.backends || [];
+    const aliveCount = backends.filter((b) => b.alive).length;
+    if (elHealthyBadge) {
+      elHealthyBadge.textContent = `${aliveCount} / ${backends.length} healthy`;
+      elHealthyBadge.className = aliveCount === backends.length ? "pill ok" : aliveCount > 0 ? "pill warn" : "pill bad";
+    }
+
+    sampleTelemetry(data);
+    renderTelemetryChart();
+    renderDistribution(backends);
+    renderBackends(backends);
+    renderLogs(data.recent_logs || []);
   }
 
-  // Edge Shield Status
-  if (shieldStatusLabel && btnToggleShield && shieldBtnText) {
-    const isShieldOn = stats.shield_enabled !== false;
-    const rate = stats.shield_rate || 10;
-    const burst = stats.shield_burst || 10;
-    shieldStatusLabel.textContent = isShieldOn
-      ? `Edge Shield: ACTIVE (${rate} req/s, Burst: ${burst})`
-      : `Edge Shield: DISABLED`;
-    if (isShieldOn) {
-      btnToggleShield.className = 'btn btn-shield-active';
-      shieldBtnText.textContent = 'Shield Enabled';
-    } else {
-      btnToggleShield.className = 'btn btn-shield-disabled';
-      shieldBtnText.textContent = 'Shield Disabled';
+  function renderDistribution(backends) {
+    if (!elDistBar || !elDistLegend) return;
+    const total = backends.reduce((sum, b) => sum + (b.total_requests || 0), 0);
+    if (elDistTotal) {
+      elDistTotal.textContent = `${total.toLocaleString()} total requests routed`;
     }
+
+    if (total === 0) {
+      elDistBar.replaceChildren();
+      const items = backends.map((b, idx) => {
+        const cls = `dist-seg-${idx % 4}`;
+        const label = b.url.replace("http://", "");
+        return `<span class="dist-legend-item"><span class="dist-swatch ${cls}"></span><span><code>${escapeHTML(label)}</code> <strong>0%</strong></span></span>`;
+      });
+      elDistLegend.innerHTML = items.join("");
+      return;
+    }
+
+    elDistBar.innerHTML = backends
+      .map((b, idx) => {
+        const pct = ((b.total_requests || 0) / total) * 100;
+        if (pct <= 0) return "";
+        return `<div class="dist-seg dist-seg-${idx % 4}" style="width:${pct.toFixed(2)}%" title="${escapeHTML(b.url)}: ${pct.toFixed(1)}%"></div>`;
+      })
+      .join("");
+
+    elDistLegend.innerHTML = backends
+      .map((b, idx) => {
+        const pct = (((b.total_requests || 0) / total) * 100).toFixed(1);
+        const host = b.url.replace("http://", "");
+        return `<span class="dist-legend-item"><span class="dist-swatch dist-seg-${idx % 4}"></span><span><code>${escapeHTML(host)}</code> <strong>${pct}%</strong> (${(b.total_requests || 0).toLocaleString()})</span></span>`;
+      })
+      .join("");
   }
 
-  // Upstream Backends
-  renderBackends(stats.backends || []);
+  function renderBackends(backends) {
+    if (!backendsContainer) return;
 
-  // Traffic Distribution
-  renderDistribution(stats.backends || [], total);
+    backendsContainer.innerHTML = backends
+      .map((b, idx) => {
+        const host = b.url.replace("http://", "");
+        const isUp = Boolean(b.alive);
+        const delayMs = Number(b.simulated_delay_ms || 0);
+        const errs = Number(b.total_errors || 0);
+        const circuit = (b.circuit_state || "closed").toLowerCase();
+        const isCanary = Boolean(b.is_canary);
+        const weight = Number(b.weight || 1);
 
-  // Request Logs
-  renderLogs(stats.recent_logs || []);
-}
+        let statusClass = "ok";
+        let statusText = "Healthy";
+        if (!isUp) {
+          statusClass = "bad";
+          statusText = "Offline";
+        } else if (circuit === "open") {
+          statusClass = "bad";
+          statusText = "Circuit open";
+        } else if (circuit.includes("half")) {
+          statusClass = "warn";
+          statusText = "Half-open";
+        }
 
-function renderBackends(backends) {
-  let healthyCount = 0;
-  let html = '';
+        const latPresets = [0, 100, 300, 600]
+          .map(
+            (ms) =>
+              `<button type="button" class="latency-tab ${delayMs === ms ? "is-active" : ""}" data-action="delay" data-url="${escapeHTML(b.url)}" data-ms="${ms}">${ms} ms</button>`
+          )
+          .join("");
 
-  let totalAliveWeight = 0;
-  backends.forEach(b => {
-    if (b.alive) totalAliveWeight += (b.weight || 1);
-  });
+        return `
+          <article class="backend-card ${isUp ? "" : "is-down"}">
+            <div class="backend-card-head">
+              <div class="backend-title">
+                <div class="backend-id-line">
+                  <span class="status-dot ${isUp ? "" : "down"}"></span>
+                  <strong>Node ${idx + 1}</strong>
+                  <span class="pill ${statusClass}">${escapeHTML(statusText)}</span>
+                </div>
+                <code class="backend-url">${escapeHTML(host)}</code>
+              </div>
+              <button type="button" class="btn small" data-action="toggle" data-url="${escapeHTML(b.url)}" data-state="${isUp ? "down" : "up"}">
+                ${isUp ? "Take down" : "Bring up"}
+              </button>
+            </div>
 
-  backends.forEach((b, idx) => {
-    if (b.alive) healthyCount++;
-    const color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
-    const isOnline = b.alive;
-    const isCanary = b.is_canary || false;
-    const weight = b.weight || 1;
-    const cardClass = `backend-card ${isOnline ? '' : 'offline'} ${isCanary ? 'canary-node' : ''}`.trim();
-
-    const targetPct = (isOnline && totalAliveWeight > 0)
-      ? ((weight / totalAliveWeight) * 100).toFixed(1)
-      : '0';
-
-    let statusBadge;
-    if (b.circuit_state === 'open') {
-      statusBadge = `<span class="badge badge-danger" title="${b.consecutive_failures || 5} consecutive errors">⚡ CIRCUIT OPEN</span>`;
-    } else if (b.circuit_state === 'half_open') {
-      statusBadge = `<span class="badge badge-accent" title="Probing recovery">⚡ HALF-OPEN (PROBE)</span>`;
-    } else if (!isOnline) {
-      statusBadge = `<span class="badge badge-danger">OFFLINE (BYPASSED)</span>`;
-    } else if (isCanary) {
-      statusBadge = `<span class="badge badge-canary">🐥 CANARY (${escapeHTML(b.canary_tag || 'v2.0')})</span>`;
-    } else {
-      statusBadge = `<span class="badge badge-success">HEALTHY</span>`;
-    }
-
-    const shareBadge = isOnline
-      ? `<span class="target-share-badge active" title="Active expected load share">Target: ${targetPct}% share</span>`
-      : `<span class="target-share-badge inactive">0% (Bypassed)</span>`;
-
-    html += `
-      <div class="${cardClass}" style="border-left: 4px solid ${isOnline ? (isCanary ? '#8b5cf6' : color) : '#f43f5e'}">
-        <div class="backend-card-header">
-          <div class="backend-title-wrap">
-            <span class="node-color-tag" style="background: ${isOnline ? (isCanary ? '#8b5cf6' : color) : '#f43f5e'}"></span>
-            <span class="backend-url">${escapeHTML(b.url)}</span>
-          </div>
-          ${statusBadge}
-        </div>
-
-        <div class="server-toggle-bar">
-          <div class="toggle-wrapper">
-            <label class="switch">
-              <input type="checkbox" ${isOnline ? 'checked' : ''} onchange="window.toggleServer('${escapeHTML(b.url)}', this.checked)">
-              <span class="slider round"></span>
-            </label>
-            <span class="switch-state-label ${isOnline ? 'state-on' : 'state-off'}">
-              ${isOnline ? 'SERVER: ON' : 'SERVER: OFF'}
-            </span>
-          </div>
-          ${shareBadge}
-        </div>
-
-        <div class="node-weight-bar ${isOnline ? '' : 'controls-disabled'}">
-          <div class="weight-stepper-wrap">
-            <span class="weight-label">Weight:</span>
-            <button class="btn-weight-stepper" ${isOnline ? '' : 'disabled'} onclick="window.adjustBackendWeight('${escapeHTML(b.url)}', -1)" title="Decrease weight">-</button>
-            <span class="weight-val-badge">${weight}x</span>
-            <button class="btn-weight-stepper" ${isOnline ? '' : 'disabled'} onclick="window.adjustBackendWeight('${escapeHTML(b.url)}', 1)" title="Increase weight">+</button>
-          </div>
-          <button class="canary-toggle-btn ${isCanary ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.toggleCanary('${escapeHTML(b.url)}', ${!isCanary})" title="${isOnline ? 'Designate as Canary Release target' : 'Server is offline'}">
-            <span class="canary-indicator-dot"></span>
-            <span>${isCanary ? 'Canary Active' : 'Make Canary'}</span>
-          </button>
-        </div>
-
-        <div class="backend-stats-grid ${isOnline ? '' : 'controls-disabled'}">
-          <div class="stat-item active-conn-stat">
-            <div class="stat-header">
-              <span class="stat-label">Active Conn</span>
-              <div class="conn-steppers">
-                <button class="btn-stepper" ${isOnline ? '' : 'disabled'} onclick="window.adjustBackendConn('${escapeHTML(b.url)}', -1)" title="Decrease active connections by 1">-</button>
-                <button class="btn-stepper" ${isOnline ? '' : 'disabled'} onclick="window.adjustBackendConn('${escapeHTML(b.url)}', 1)" title="Increase active connections by 1">+</button>
-                <button class="btn-stepper btn-stepper-reset" ${isOnline ? '' : 'disabled'} onclick="window.setBackendConn('${escapeHTML(b.url)}', 0)" title="Reset active connections to 0">0</button>
+            <div class="backend-stats">
+              <div class="b-stat">
+                <span>Requests</span>
+                <strong>${Number(b.total_requests || 0).toLocaleString()}</strong>
+              </div>
+              <div class="b-stat">
+                <span>Last latency</span>
+                <strong>${Number(b.last_latency_ms || 0)} ms</strong>
+              </div>
+              <div class="b-stat">
+                <span>Errors</span>
+                <strong class="${errs > 0 ? "is-err" : ""}">${errs.toLocaleString()}</strong>
               </div>
             </div>
-            <span class="stat-val ${b.active_connections > 0 ? 'highlight-conn' : ''}">${b.active_connections}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Handled</span>
-            <span class="stat-val">${(b.total_requests || 0).toLocaleString()}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Latency</span>
-            <span class="stat-val">${b.last_latency_ms} ms</span>
-          </div>
-        </div>
 
-        <div class="backend-delay-bar ${isOnline ? '' : 'controls-disabled'}">
-          <span class="delay-label">Latency Sim:</span>
-          <div class="delay-buttons">
-            <button class="btn-delay-preset ${(!backendDelays[b.url] || backendDelays[b.url] === 0) ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.setBackendDelay('${escapeHTML(b.url)}', 0)">0ms</button>
-            <button class="btn-delay-preset ${backendDelays[b.url] === 100 ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.setBackendDelay('${escapeHTML(b.url)}', 100)">100ms</button>
-            <button class="btn-delay-preset ${backendDelays[b.url] === 300 ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.setBackendDelay('${escapeHTML(b.url)}', 300)">300ms</button>
-            <button class="btn-delay-preset ${backendDelays[b.url] === 600 ? 'active' : ''}" ${isOnline ? '' : 'disabled'} onclick="window.setBackendDelay('${escapeHTML(b.url)}', 600)">600ms</button>
-          </div>
-        </div>
-      </div>
-    `;
-  });
+            <div class="backend-controls">
+              <div class="control-line">
+                <span class="control-label">Simulated lag</span>
+                <div class="latency-tabs">${latPresets}</div>
+              </div>
 
-  backendCardsContainer.innerHTML = html;
+              <div class="control-line">
+                <span class="control-label">WRR weight</span>
+                <div class="stepper">
+                  <button type="button" class="step-btn" data-action="weight" data-url="${escapeHTML(b.url)}" data-delta="-1" aria-label="Decrease weight">-</button>
+                  <span class="step-val">${weight}</span>
+                  <button type="button" class="step-btn" data-action="weight" data-url="${escapeHTML(b.url)}" data-delta="1" aria-label="Increase weight">+</button>
+                </div>
+              </div>
 
-  healthyCountBadge.textContent = `${healthyCount} / ${backends.length} Online`;
-  if (healthyCount === backends.length && backends.length > 0) {
-    healthyCountBadge.className = 'badge badge-success';
-  } else if (healthyCount === 0) {
-    healthyCountBadge.className = 'badge badge-danger';
-  } else {
-    healthyCountBadge.className = 'badge badge-danger';
-  }
-}
+              <div class="control-line">
+                <span class="control-label">Pinned sockets</span>
+                <div class="stepper">
+                  <button type="button" class="step-btn" data-action="conn" data-url="${escapeHTML(b.url)}" data-delta="-1" aria-label="Release pinned socket">-</button>
+                  <span class="step-val">${Number(b.active_connections || 0)}</span>
+                  <button type="button" class="step-btn" data-action="conn" data-url="${escapeHTML(b.url)}" data-delta="1" aria-label="Add pinned socket">+</button>
+                </div>
+              </div>
 
-function renderDistribution(backends, totalRequests) {
-  distributionTotalLabel.textContent = `${totalRequests.toLocaleString()} total proxied`;
-
-  let totalBackendReqs = 0;
-  backends.forEach(b => totalBackendReqs += (b.total_requests || 0));
-
-  if (totalBackendReqs === 0) {
-    distributionBar.innerHTML = `<div class="dist-slice" style="width: 100%; background: rgba(255,255,255,0.05);"></div>`;
-    distributionLegend.innerHTML = `<span style="color: var(--text-muted); font-size: 0.8rem;">No requests processed yet &bull; Start traffic above</span>`;
-    return;
+              <div class="canary-row">
+                <div class="canary-meta">
+                  <span class="control-label">Canary pool</span>
+                  ${isCanary ? `<span class="pill accent">${escapeHTML(b.canary_tag || "canary")}</span>` : ""}
+                </div>
+                <label class="switch" aria-label="Toggle canary node">
+                  <input type="checkbox" ${isCanary ? "checked" : ""} data-action="canary" data-url="${escapeHTML(b.url)}" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
   }
 
-  let barHtml = '';
-  let legendHtml = '';
+  function renderLogs(logs) {
+    if (!logsTbody) return;
+    const allLogs = Array.isArray(logs) ? logs : [];
+    const q = logSearchQuery.trim().toLowerCase();
 
-  backends.forEach((b, idx) => {
-    const color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
-    const count = b.total_requests || 0;
-    const pct = ((count / totalBackendReqs) * 100).toFixed(1);
+    const filtered = allLogs.filter((entry) => {
+      if (logFilter === "2xx" && !(entry.status >= 200 && entry.status < 300)) return false;
+      if (logFilter === "429" && entry.status !== 429) return false;
+      if (logFilter === "5xx" && entry.status < 500) return false;
+      if (logFilter === "canary" && !entry.is_canary) return false;
 
-    if (count > 0) {
-      barHtml += `<div class="dist-slice" style="width: ${pct}%; background: ${b.alive ? color : '#64748b'};" title="${b.url}: ${pct}% (${count})"></div>`;
-    }
-
-    const canaryTag = b.is_canary ? `<span class="legend-canary-badge">🐥 CANARY</span>` : '';
-    const weightBadge = `<span class="legend-weight-badge" title="Dynamic weight multiplier">${b.weight || 1}x</span>`;
-    legendHtml += `
-      <div class="legend-item ${b.alive ? '' : 'legend-offline'}">
-        <span class="legend-dot" style="background: ${b.alive ? (b.is_canary ? '#8b5cf6' : color) : '#64748b'}"></span>
-        <span class="legend-url">${escapeHTML(b.url)}</span>
-        <span class="legend-pct"><strong>${pct}%</strong></span>
-        <span class="legend-count">(${count} reqs)</span>
-        ${weightBadge}
-        ${canaryTag}
-        ${b.alive ? '' : '<span class="legend-offline-tag">OFFLINE</span>'}
-      </div>
-    `;
-  });
-
-  distributionBar.innerHTML = barHtml;
-  distributionLegend.innerHTML = legendHtml;
-}
-
-function renderLogs(logs) {
-  logCountBadge.textContent = `${logs.length} logged`;
-
-  if (!logs || logs.length === 0) {
-    logsTableBody.innerHTML = `
-      <tr class="empty-row">
-        <td colspan="7">Waiting for requests... Start Continuous Traffic or click "Send Burst" above.</td>
-      </tr>
-    `;
-    return;
-  }
-
-  let html = '';
-  logs.forEach(log => {
-    let statusClass = 'status-2xx';
-    let statusDisplay = `${log.status}`;
-
-    if (log.status === 429) {
-      statusClass = 'status-429';
-      statusDisplay = '429 BLOCKED';
-    } else if (log.status >= 400 && log.status < 500) {
-      statusClass = 'status-4xx';
-    } else if (log.status >= 500) {
-      statusClass = 'status-5xx';
-    }
-
-    let backendDisplay;
-    if (log.backend === 'Edge Shield') {
-      backendDisplay = `<span class="badge badge-accent" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">Edge Shield</span>`;
-    } else if (log.is_canary) {
-      backendDisplay = `<span class="canary-tag">CANARY</span> ${escapeHTML(log.backend)}`;
-    } else {
-      backendDisplay = escapeHTML(log.backend);
-    }
-
-    const fullId = escapeHTML(log.id || '');
-    const idCell = fullId
-      ? `<button type="button" class="req-id-btn" data-request-id="${fullId}" title="Click to copy X-Request-ID: ${fullId}"><span>${fullId.length > 8 ? `${fullId.slice(0, 8)}&hellip;` : fullId}</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>`
-      : '<span class="req-id-missing">&mdash;</span>';
-
-    html += `
-      <tr>
-        <td>${escapeHTML(log.timestamp)}</td>
-        <td>${idCell}</td>
-        <td><span class="method-tag method-${escapeHTML(log.method)}">${escapeHTML(log.method)}</span></td>
-        <td><code>${escapeHTML(log.client_ip || '127.0.0.1')}</code></td>
-        <td>${backendDisplay}</td>
-        <td><span class="status-tag ${statusClass}">${statusDisplay}</span></td>
-        <td class="num-col">${Number(log.latency_ms || 0).toLocaleString()} <span class="cell-unit">ms</span></td>
-      </tr>
-    `;
-  });
-
-  logsTableBody.innerHTML = html;
-}
-
-if (logsTableBody) {
-  logsTableBody.addEventListener('click', async (event) => {
-    const btn = event.target.closest('.req-id-btn');
-    if (!btn) return;
-    const reqId = btn.dataset.requestId;
-    if (!reqId) return;
-    try {
-      await navigator.clipboard?.writeText(reqId);
-      btn.classList.add('copied');
-      setTimeout(() => btn.classList.remove('copied'), 900);
-    } catch (_) {
-      // Clipboard API unavailable in non-secure context; ignore gracefully
-    }
-  });
-}
-
-function escapeHTML(str) {
-  if (!str) return '';
-  return str.replace(/[&<>'"]/g, 
-    tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-  );
-}
-
-// Toggle a server ON or OFF idempotently
-window.toggleServer = async function(url, isOnline) {
-  const state = isOnline ? 'up' : 'down';
-  try {
-    const res = await fetch(`/api/backend/toggle?url=${encodeURIComponent(url)}&state=${state}`, { method: 'POST' });
-    const data = await res.json();
-    console.log(`Server ${url} set to ${state}:`, data);
-  } catch (err) {
-    console.error(`Failed to set server ${url} state:`, err);
-  }
-};
-
-// Set simulated latency on a backend server
-window.setBackendDelay = async function(url, ms) {
-  backendDelays[url] = ms;
-  try {
-    const res = await fetch(`/api/backend/delay?url=${encodeURIComponent(url)}&ms=${ms}`, { method: 'POST' });
-    const data = await res.json();
-    console.log(`Server ${url} latency set to ${ms}ms:`, data);
-    if (lastStats && lastStats.backends) {
-      renderBackends(lastStats.backends);
-    }
-  } catch (err) {
-    console.error(`Failed to set latency for ${url}:`, err);
-  }
-};
-
-// Reset metrics
-async function resetMetrics() {
-  const originalHtml = btnResetMetrics.innerHTML;
-  btnResetMetrics.disabled = true;
-  btnResetMetrics.innerHTML = `<span>Resetting...</span>`;
-  try {
-    await fetch('/api/stats/reset', { method: 'POST' });
-  } catch (err) {
-    console.error('Failed to reset stats:', err);
-  } finally {
-    btnResetMetrics.disabled = false;
-    btnResetMetrics.innerHTML = originalHtml;
-  }
-}
-
-// Continuous Traffic Generator
-function toggleAutoTraffic() {
-  if (autoTrafficTimer) {
-    clearInterval(autoTrafficTimer);
-    autoTrafficTimer = null;
-    btnAutoTraffic.classList.remove('active');
-    autoTrafficLabel.textContent = 'Start Continuous Traffic';
-  } else {
-    btnAutoTraffic.classList.add('active');
-    autoTrafficLabel.textContent = 'Stop Continuous Traffic';
-    // Send 1 request every 500ms (2 requests per second)
-    autoTrafficTimer = setInterval(() => {
-      triggerTestRequest(1);
-    }, 500);
-  }
-}
-
-// Connect to Server-Sent Events stream
-function connectSSE() {
-  if (eventSource) {
-    eventSource.close();
-  }
-
-  eventSource = new EventSource('/api/stream');
-
-  eventSource.onopen = () => {
-    // Connected to stream
-  };
-
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      updateUI(data);
-    } catch (err) {
-      console.error('Failed to parse SSE payload:', err);
-    }
-  };
-
-  eventSource.onerror = () => {
-    eventSource.close();
-    setTimeout(connectSSE, 2000);
-  };
-}
-
-// Quick trigger helper
-async function triggerTestRequest(count = 1) {
-  // Optimistically reflect queued request count immediately
-  if (kpiQueued) {
-    const current = parseInt(kpiQueued.textContent.replace(/,/g, ''), 10) || 0;
-    const newQueued = current + count;
-    kpiQueued.textContent = newQueued.toLocaleString();
-    if (kpiCardQueue) kpiCardQueue.classList.add('queue-active');
-  }
-
-  const simIPs = checkSimIPs ? checkSimIPs.checked : true;
-  try {
-    const res = await fetch(`/api/test-request?count=${count}&sim_ips=${simIPs}`, { method: 'POST' });
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error('Error triggering test request:', err);
-  }
-}
-
-btnTestSingle.addEventListener('click', () => triggerTestRequest(1));
-btnTestBurst.addEventListener('click', () => {
-  let count = parseInt(burstCountInput ? burstCountInput.value : 10, 10);
-  if (isNaN(count) || count <= 0) {
-    count = 10;
-  }
-  if (count > 2000) {
-    count = 2000;
-  }
-  triggerTestRequest(count);
-});
-
-// Adjust active connections manually on a backend server
-window.adjustBackendConn = async function(url, delta) {
-  try {
-    await fetch(`/api/backend/connections?url=${encodeURIComponent(url)}&delta=${delta}`, { method: 'POST' });
-  } catch (err) {
-    console.error(`Failed to adjust connections for ${url}:`, err);
-  }
-};
-
-window.setBackendConn = async function(url, count) {
-  try {
-    await fetch(`/api/backend/connections?url=${encodeURIComponent(url)}&count=${count}`, { method: 'POST' });
-  } catch (err) {
-    console.error(`Failed to set connections for ${url}:`, err);
-  }
-};
-
-const btnTestSlow = document.getElementById('btn-test-slow');
-const holdConnsCount = document.getElementById('hold-conns-count');
-const holdConnsSec = document.getElementById('hold-conns-sec');
-
-if (btnTestSlow) {
-  btnTestSlow.addEventListener('click', async () => {
-    let count = parseInt(holdConnsCount ? holdConnsCount.value : 15, 10) || 15;
-    let sec = parseInt(holdConnsSec ? holdConnsSec.value : 4, 10) || 4;
-    if (count > 150) count = 150;
-    if (count < 1) count = 1;
-    if (sec > 30) sec = 30;
-    if (sec < 1) sec = 1;
-
-    const delayMs = sec * 1000;
-    btnTestSlow.disabled = true;
-    const origHtml = btnTestSlow.innerHTML;
-    btnTestSlow.innerHTML = `<span>Holding ${count} Conns (${sec}s)...</span>`;
-    try {
-      await fetch(`/api/test-request?count=${count}&delay=${delayMs}`, { method: 'POST' });
-    } catch (err) {
-      console.error('Error triggering custom hold requests:', err);
-    } finally {
-      setTimeout(() => {
-        btnTestSlow.disabled = false;
-        btnTestSlow.innerHTML = origHtml;
-      }, delayMs);
-    }
-  });
-}
-
-btnAutoTraffic.addEventListener('click', toggleAutoTraffic);
-btnResetMetrics.addEventListener('click', resetMetrics);
-
-// Trigger request with custom client IP
-async function triggerTestRequestWithIP(count, clientIP) {
-  if (kpiQueued) {
-    const current = parseInt(kpiQueued.textContent.replace(/,/g, ''), 10) || 0;
-    kpiQueued.textContent = (current + count).toLocaleString();
-    if (kpiCardQueue) kpiCardQueue.classList.add('queue-active');
-  }
-  try {
-    const url = clientIP
-      ? `/api/test-request?count=${count}&client_ip=${encodeURIComponent(clientIP)}`
-      : `/api/test-request?count=${count}&sim_ips=true`;
-    const res = await fetch(url, { method: 'POST' });
-    return await res.json();
-  } catch (err) {
-    console.error('Error triggering custom IP request:', err);
-  }
-}
-
-// Edge Shield Toggle Handler
-if (btnToggleShield) {
-  btnToggleShield.addEventListener('click', async () => {
-    btnToggleShield.disabled = true;
-    try {
-      const res = await fetch('/api/shield/toggle', { method: 'POST' });
-      const data = await res.json();
-      if (shieldBtnText) {
-        shieldBtnText.textContent = data.enabled ? 'Shield Enabled' : 'Shield Disabled';
+      if (q) {
+        const hay = `${entry.id || ""} ${entry.client_ip || ""} ${entry.backend || ""} ${entry.path || ""} ${entry.method || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
       }
-    } catch (err) {
-      console.error('Failed to toggle shield:', err);
-    } finally {
-      btnToggleShield.disabled = false;
+      return true;
+    });
+
+    const visibleLimit = activeView === "overview" ? 6 : 50;
+    const visibleRows = filtered.slice(0, visibleLimit);
+
+    if (elLogCountBadge) {
+      elLogCountBadge.textContent = `${filtered.length} ${filtered.length === 1 ? "entry" : "entries"}`;
     }
-  });
-}
 
-// Guided DDoS Scenario Runner
-let ddosRunning = false;
+    if (visibleRows.length === 0) {
+      logsTbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="empty-cell">
+            ${allLogs.length === 0 ? "No requests routed yet. Send a test request above to populate trace telemetry." : "No trace entries match the current filter."}
+          </td>
+        </tr>
+      `;
+      return;
+    }
 
-async function runDDoSScenario() {
-  if (ddosRunning) return;
-  ddosRunning = true;
+    logsTbody.innerHTML = visibleRows
+      .map((l) => {
+        const isCanary = Boolean(l.is_canary);
+        const statusNum = Number(l.status || 0);
+        let statusPillClass = "ok";
+        if (statusNum === 429) statusPillClass = "warn";
+        else if (statusNum >= 400) statusPillClass = "bad";
 
-  const banner = document.getElementById('storyline-banner');
-  const phaseBadge = document.getElementById('storyline-phase-badge');
-  const title = document.getElementById('storyline-title');
-  const message = document.getElementById('storyline-message');
-  const progressFill = document.getElementById('storyline-progress-fill');
+        const latMs = Number(l.latency_ms || 0);
+        const latClass = latMs > 400 ? "latency-bad" : latMs > 150 ? "latency-warn" : "";
+        const targetHost = (l.backend || "-").replace("http://", "");
+        const fullId = String(l.id || "");
+        const shortId = fullId.length > 8 ? `${fullId.slice(0, 8)}\u2026` : fullId || "n/a";
 
-  if (banner) banner.classList.remove('hidden');
-  if (btnRunDDoSScenario) btnRunDDoSScenario.disabled = true;
-
-  function updateStory(phase, t, msg, pct) {
-    if (phaseBadge) phaseBadge.textContent = phase;
-    if (title) title.textContent = t;
-    if (message) message.textContent = msg;
-    if (progressFill) progressFill.style.width = `${pct}%`;
+        return `
+          <tr>
+            <td class="col-time">${escapeHTML(l.timestamp || "")}</td>
+            <td>
+              <button type="button" class="req-id-btn" data-copy-id="${escapeHTML(fullId)}" title="Copy full X-Request-ID (${escapeHTML(fullId)})">
+                <code>${escapeHTML(shortId)}</code>
+              </button>
+            </td>
+            <td class="col-method"><code>${escapeHTML(l.method || "GET")}</code></td>
+            <td class="col-ip"><code>${escapeHTML(l.client_ip || "-")}</code></td>
+            <td>
+              <div class="target-cell">
+                <code>${escapeHTML(targetHost)}</code>
+                ${isCanary ? '<span class="pill accent">Canary</span>' : ""}
+              </div>
+            </td>
+            <td class="num"><span class="pill ${statusPillClass}">${statusNum}</span></td>
+            <td class="num ${latClass}">${latMs.toFixed(1)} ms</td>
+          </tr>
+        `;
+      })
+      .join("");
   }
 
-  // Ensure shield is enabled
-  try {
-    await fetch('/api/shield/toggle?state=on', { method: 'POST' });
-  } catch (e) {}
+  // Control Handlers & API Calls
 
-  // Phase 1: Baseline Legitimate Traffic
-  updateStory(
-    'Phase 1 of 4',
-    'Baseline Legitimate User Traffic',
-    'Sending 5 normal requests from legitimate user IPs (198.51.100.x)... All admitted with 200 OK.',
-    25
-  );
-  await triggerTestRequestWithIP(5, '');
-  await new Promise(r => setTimeout(r, 1500));
-
-  // Phase 2: Attacker Flood
-  updateStory(
-    'Phase 2 of 4',
-    'Rogue Botnet Flood Injected',
-    'Attacker IP 203.0.113.42 floods proxy with 20 rapid requests exceeding token bucket capacity (10 tokens)...',
-    50
-  );
-  await triggerTestRequestWithIP(20, '203.0.113.42');
-  await new Promise(r => setTimeout(r, 1500));
-
-  // Phase 3: Edge Shield Throttles Excess
-  updateStory(
-    'Phase 3 of 4',
-    'Edge Shield Active (HTTP 429)',
-    'Token bucket exhausted for attacker IP 203.0.113.42. Excess requests rejected at edge in <0.1ms with 429 Too Many Requests!',
-    75
-  );
-  await new Promise(r => setTimeout(r, 1600));
-
-  // Phase 4: Innocent User Continues Unaffected
-  updateStory(
-    'Phase 4 of 4',
-    'Legitimate User Admitted with Zero Lag',
-    'Innocent client (198.51.100.1) connects while attacker is throttled. Admitted instantly (200 OK) with zero noisy-neighbor degradation!',
-    100
-  );
-  await triggerTestRequestWithIP(2, '198.51.100.1');
-  await new Promise(r => setTimeout(r, 2000));
-
-  updateStory(
-    'Demo Completed',
-    'Anti-DDoS Mitigation Verified',
-    'Target attacker isolated and blocked at edge shield; legitimate users preserved with 100% availability.',
-    100
-  );
-
-  setTimeout(() => {
-    if (btnRunDDoSScenario) btnRunDDoSScenario.disabled = false;
-    ddosRunning = false;
-  }, 1000);
-}
-
-if (btnRunDDoSScenario) {
-  btnRunDDoSScenario.addEventListener('click', runDDoSScenario);
-}
-
-if (btnSpamAttacker) {
-  btnSpamAttacker.addEventListener('click', async () => {
-    btnSpamAttacker.disabled = true;
+  async function setStrategy(key) {
     try {
-      await triggerTestRequestWithIP(20, '203.0.113.42');
-    } finally {
-      setTimeout(() => btnSpamAttacker.disabled = false, 500);
+      const res = await fetch(`/api/strategy?name=${encodeURIComponent(key)}`, { method: "POST" });
+      if (res.ok) {
+        await fetchStats();
+        showToast(`Strategy set to ${STRATEGY_META[key] ? key.replace(/_/g, " ") : key}`);
+      } else {
+        showToast("Failed to update strategy");
+      }
+    } catch {
+      showToast("Error updating strategy");
     }
-  });
-}
-
-if (btnSendNormalUsers) {
-  btnSendNormalUsers.addEventListener('click', async () => {
-    btnSendNormalUsers.disabled = true;
-    try {
-      await triggerTestRequestWithIP(15, '');
-    } finally {
-      setTimeout(() => btnSendNormalUsers.disabled = false, 500);
-    }
-  });
-}
-
-// Adjust weight on backend
-window.adjustBackendWeight = async function(url, delta) {
-  try {
-    await fetch(`/api/backend/weight?url=${encodeURIComponent(url)}&delta=${delta}`, { method: 'POST' });
-  } catch (err) {
-    console.error(`Failed to adjust weight for ${url}:`, err);
   }
-};
 
-window.setBackendWeight = async function(url, weight) {
-  try {
-    await fetch(`/api/backend/weight?url=${encodeURIComponent(url)}&weight=${weight}`, { method: 'POST' });
-  } catch (err) {
-    console.error(`Failed to set weight for ${url}:`, err);
+  async function fireTraffic({ count = 1, delay = 0, clientIp = "", canary = false } = {}) {
+    const simIps = checkSimIps ? checkSimIps.checked : true;
+    const params = new URLSearchParams({
+      count: String(count),
+      sim_ips: String(simIps),
+    });
+    if (delay > 0) params.set("delay", String(delay));
+    if (clientIp) params.set("client_ip", clientIp);
+    if (canary) params.set("canary", "true");
+
+    const res = await fetch(`/api/test-request?${params.toString()}`, { method: "POST" });
+    return res.ok;
   }
-};
 
-window.toggleCanary = async function(url, enabled) {
-  try {
-    await fetch(`/api/backend/canary?url=${encodeURIComponent(url)}&enabled=${enabled}&tag=v2.0-canary`, { method: 'POST' });
-  } catch (err) {
-    console.error(`Failed to toggle canary for ${url}:`, err);
+  async function toggleServer(url, state) {
+    await fetch(`/api/backend/toggle?url=${encodeURIComponent(url)}&state=${encodeURIComponent(state)}`, { method: "POST" });
+    await fetchStats();
   }
-};
 
-// Scenario 2: Canary Deployment Controls
-const btnSendCanarySingle = document.getElementById('btn-send-canary-single');
-const btnSendCanaryBurst = document.getElementById('btn-send-canary-burst');
-const btnSetCanaryWeights = document.getElementById('btn-set-canary-weights');
+  async function setBackendDelay(url, ms) {
+    await fetch(`/api/backend/delay?url=${encodeURIComponent(url)}&ms=${encodeURIComponent(ms)}`, { method: "POST" });
+    await fetchStats();
+  }
 
-if (btnSendCanarySingle) {
-  btnSendCanarySingle.addEventListener('click', async () => {
-    btnSendCanarySingle.disabled = true;
-    try {
-      await fetch('/api/test-request?count=1&canary=true', { method: 'POST' });
-    } finally {
-      setTimeout(() => btnSendCanarySingle.disabled = false, 400);
+  async function adjustBackendConn(url, delta) {
+    await fetch(`/api/backend/connections?url=${encodeURIComponent(url)}&delta=${encodeURIComponent(delta)}`, { method: "POST" });
+    await fetchStats();
+  }
+
+  async function adjustBackendWeight(url, delta) {
+    await fetch(`/api/backend/weight?url=${encodeURIComponent(url)}&delta=${encodeURIComponent(delta)}`, { method: "POST" });
+    await fetchStats();
+  }
+
+  async function setBackendWeight(url, weight) {
+    await fetch(`/api/backend/weight?url=${encodeURIComponent(url)}&weight=${encodeURIComponent(weight)}`, { method: "POST" });
+  }
+
+  async function toggleCanary(url, enabled) {
+    await fetch(`/api/backend/canary?url=${encodeURIComponent(url)}&enabled=${enabled}&tag=v2.0-canary`, { method: "POST" });
+    await fetchStats();
+  }
+
+  async function toggleShield(forceState) {
+    const url = forceState ? `/api/shield/toggle?state=${forceState}` : "/api/shield/toggle";
+    const res = await fetch(url, { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      shieldState = Boolean(data.shield_enabled);
+      await fetchStats();
+      showToast(shieldState ? "Edge Shield rate limiter enabled" : "Edge Shield bypassed");
     }
-  });
-}
+  }
 
-if (btnSendCanaryBurst) {
-  btnSendCanaryBurst.addEventListener('click', async () => {
-    btnSendCanaryBurst.disabled = true;
+  function updateStoryline(phase, title, msg, pct) {
+    if (!storylineBanner) return;
+    storylineBanner.classList.remove("hidden");
+    if (storylinePhase) storylinePhase.textContent = phase;
+    if (storylineTitle) storylineTitle.textContent = title;
+    if (storylineMessage) storylineMessage.textContent = msg;
+    if (storylineProgress) storylineProgress.style.width = `${pct}%`;
+  }
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  async function runDdosScenario() {
+    if (isScenarioRunning) return;
+    isScenarioRunning = true;
+    setView("lab");
+
     try {
-      await fetch('/api/test-request?count=10&canary=true', { method: 'POST' });
-    } finally {
-      setTimeout(() => btnSendCanaryBurst.disabled = false, 500);
-    }
-  });
-}
+      if (btnRunDdosScenario) btnRunDdosScenario.disabled = true;
 
-if (btnSetCanaryWeights) {
-  btnSetCanaryWeights.addEventListener('click', async () => {
-    btnSetCanaryWeights.disabled = true;
-    try {
-      // 1. Set weights 5 : 5 : 1
-      await fetch('/api/backend/weight?url=http://localhost:8001&weight=5', { method: 'POST' });
-      await fetch('/api/backend/weight?url=http://localhost:8002&weight=5', { method: 'POST' });
-      await fetch('/api/backend/weight?url=http://localhost:8003&weight=1', { method: 'POST' });
-      // 2. Set Node 3 as Canary
-      await fetch('/api/backend/canary?url=http://localhost:8003&enabled=true&tag=v2.0-canary', { method: 'POST' });
-      // 3. Switch strategy to Weighted Round Robin
-      await fetch('/api/strategy?name=weighted_round_robin', { method: 'POST' });
-      updateStrategyPills('weighted_round_robin');
-    } finally {
-      setTimeout(() => btnSetCanaryWeights.disabled = false, 600);
-    }
-  });
-}
+      updateStoryline("Phase 1 / 3", "Baseline traffic check", "Routing legitimate requests from varied client IPs under normal capacity.", 18);
+      await fireTraffic({ count: 8 });
+      await fetchStats();
+      await sleep(2200);
 
-// Initialize SSE connection
-connectSSE();
+      updateStoryline("Phase 2 / 3", "Unprotected IP flood", "Disabling Edge Shield and sending 40 rapid flood requests from attacker 203.0.113.66.", 55);
+      await toggleShield("off");
+      await fireTraffic({ count: 40, clientIp: "203.0.113.66" });
+      await fetchStats();
+      await sleep(2600);
+
+      updateStoryline("Phase 3 / 3", "Mitigation engaged", "Re-enabling Edge Shield token buckets, blocking attacker 429 floods while serving valid clients.", 90);
+      await toggleShield("on");
+      await Promise.all([
+        fireTraffic({ count: 40, clientIp: "203.0.113.66" }),
+        fireTraffic({ count: 8 }),
+      ]);
+      await fetchStats();
+      await sleep(1800);
+
+      if (storylineProgress) storylineProgress.style.width = "100%";
+      updateStoryline("Complete", "DDoS mitigation verified", "Attacker bursts were throttled with HTTP 429 while valid traffic continued cleanly.", 100);
+    } finally {
+      isScenarioRunning = false;
+      if (btnRunDdosScenario) btnRunDdosScenario.disabled = false;
+    }
+  }
+
+  // Event Wiring
+
+  railButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setView(btn.getAttribute("data-nav"));
+    });
+  });
+
+  document.querySelectorAll("[data-jump-view]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setView(btn.getAttribute("data-jump-view"));
+    });
+  });
+
+  document.querySelectorAll(".strategy-pill[data-strategy]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setStrategy(btn.getAttribute("data-strategy"));
+    });
+  });
+
+  chartTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      chartMetric = tab.getAttribute("data-chart-metric") || "rps";
+      chartTabs.forEach((t) => {
+        const active = t === tab;
+        t.classList.toggle("is-active", active);
+        t.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      renderTelemetryChart();
+    });
+  });
+
+  traceFilterTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      logFilter = tab.getAttribute("data-log-filter") || "all";
+      traceFilterTabs.forEach((t) => {
+        const active = t === tab;
+        t.classList.toggle("is-active", active);
+        t.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      renderLogs(currentStats?.recent_logs || []);
+    });
+  });
+
+  if (traceSearchInput) {
+    traceSearchInput.addEventListener("input", (e) => {
+      logSearchQuery = e.target.value || "";
+      renderLogs(currentStats?.recent_logs || []);
+    });
+  }
+
+  if (btnTestSingle) {
+    btnTestSingle.addEventListener("click", async () => {
+      await fireTraffic({ count: 1 });
+      await fetchStats();
+    });
+  }
+
+  if (btnTestBurst) {
+    btnTestBurst.addEventListener("click", async () => {
+      const count = Math.max(1, Math.min(500, parseInt(inputBurstCount?.value || "10", 10) || 10));
+      btnTestBurst.disabled = true;
+      try {
+        await fireTraffic({ count });
+        await fetchStats();
+        showToast(`Dispatched ${count} concurrent requests`);
+      } finally {
+        btnTestBurst.disabled = false;
+      }
+    });
+  }
+
+  if (btnTestSlow) {
+    btnTestSlow.addEventListener("click", async () => {
+      const count = Math.max(1, Math.min(50, parseInt(inputHoldConns?.value || "5", 10) || 5));
+      const sec = Math.max(1, Math.min(15, parseInt(inputHoldSec?.value || "4", 10) || 4));
+      fireTraffic({ count, delay: sec * 1000 });
+      showToast(`Holding ${count} sockets open for ${sec}s`);
+      setTimeout(fetchStats, 250);
+    });
+  }
+
+  if (btnAutoTraffic) {
+    btnAutoTraffic.addEventListener("click", () => {
+      if (autoTrafficTimer) {
+        clearInterval(autoTrafficTimer);
+        autoTrafficTimer = null;
+        btnAutoTraffic.classList.remove("is-active");
+        if (autoTrafficDot) autoTrafficDot.className = "status-dot muted";
+        if (autoTrafficLabel) autoTrafficLabel.textContent = "Continuous off";
+      } else {
+        autoTrafficTimer = setInterval(() => {
+          fireTraffic({ count: 2 }).catch(() => {});
+        }, 1000);
+        btnAutoTraffic.classList.add("is-active");
+        if (autoTrafficDot) autoTrafficDot.className = "status-dot accent";
+        if (autoTrafficLabel) autoTrafficLabel.textContent = "Continuous on";
+        showToast("Continuous stream active (2 req/s)");
+      }
+    });
+  }
+
+  if (btnResetMetrics) {
+    btnResetMetrics.addEventListener("click", async () => {
+      const res = await fetch("/api/stats/reset", { method: "POST" });
+      if (res.ok) {
+        const fresh = seedInitialHistory();
+        history.labels.splice(0, history.labels.length, ...fresh.labels);
+        history.rps.splice(0, history.rps.length, ...fresh.rps);
+        history.latency.splice(0, history.latency.length, ...fresh.latency);
+        history.p95.splice(0, history.p95.length, ...fresh.p95);
+        await fetchStats();
+        showToast("Cluster metrics and request logs reset");
+      }
+    });
+  }
+
+  if (btnToggleShield) btnToggleShield.addEventListener("click", () => toggleShield());
+  if (btnLabToggleShield) btnLabToggleShield.addEventListener("click", () => toggleShield());
+
+  if (btnQuickCanary) {
+    btnQuickCanary.addEventListener("click", async () => {
+      await fireTraffic({ count: 1, canary: true });
+      await fetchStats();
+      showToast("Sent canary request (X-Canary: true)");
+    });
+  }
+
+  if (btnQuickFlood) {
+    btnQuickFlood.addEventListener("click", async () => {
+      await fireTraffic({ count: 25, clientIp: "203.0.113.66" });
+      await fetchStats();
+      showToast("Sent 25 flood requests from 203.0.113.66");
+    });
+  }
+
+  if (btnRunDdosScenario) btnRunDdosScenario.addEventListener("click", runDdosScenario);
+
+  if (btnSpamAttacker) {
+    btnSpamAttacker.addEventListener("click", async () => {
+      await fireTraffic({ count: 35, clientIp: "203.0.113.66" });
+      await fetchStats();
+      showToast("Dispatched 35 flood requests from 203.0.113.66");
+    });
+  }
+
+  if (btnSendNormalUsers) {
+    btnSendNormalUsers.addEventListener("click", async () => {
+      await fireTraffic({ count: 15 });
+      await fetchStats();
+      showToast("Dispatched 15 legitimate client requests");
+    });
+  }
+
+  if (btnSendCanarySingle) {
+    btnSendCanarySingle.addEventListener("click", async () => {
+      await fireTraffic({ count: 1, canary: true });
+      await fetchStats();
+      showToast("Sent 1 canary request (X-Canary: true)");
+    });
+  }
+
+  if (btnSendCanaryBurst) {
+    btnSendCanaryBurst.addEventListener("click", async () => {
+      await fireTraffic({ count: 10, canary: true });
+      await fetchStats();
+      showToast("Sent 10 canary requests");
+    });
+  }
+
+  if (btnSetCanaryWeights) {
+    btnSetCanaryWeights.addEventListener("click", async () => {
+      const backends = currentStats?.backends || [];
+      if (backends.length === 0) return;
+
+      for (let i = 0; i < backends.length; i += 1) {
+        const target = backends[i];
+        const isLast = i === backends.length - 1;
+        await fetch(`/api/backend/canary?url=${encodeURIComponent(target.url)}&enabled=${isLast}&tag=v2.0-canary`, { method: "POST" });
+        await setBackendWeight(target.url, isLast ? 1 : 9);
+      }
+      await setStrategy("weighted_round_robin");
+      await fetchStats();
+      showToast("Applied 90/10 canary rollout split under Weighted RR");
+    });
+  }
+
+  if (backendsContainer) {
+    backendsContainer.addEventListener("click", (e) => {
+      const target = e.target.closest("[data-action]");
+      if (!target || target.tagName === "INPUT") return;
+
+      const action = target.getAttribute("data-action");
+      const url = target.getAttribute("data-url");
+      if (!url) return;
+
+      if (action === "toggle") toggleServer(url, target.getAttribute("data-state"));
+      else if (action === "delay") setBackendDelay(url, Number(target.getAttribute("data-ms") || 0));
+      else if (action === "weight") adjustBackendWeight(url, Number(target.getAttribute("data-delta") || 0));
+      else if (action === "conn") adjustBackendConn(url, Number(target.getAttribute("data-delta") || 0));
+    });
+
+    backendsContainer.addEventListener("change", (e) => {
+      const input = e.target;
+      if (input.getAttribute("data-action") === "canary") {
+        toggleCanary(input.getAttribute("data-url"), input.checked);
+      }
+    });
+  }
+
+  if (logsTbody) {
+    logsTbody.addEventListener("click", (e) => {
+      const btn = e.target.closest(".req-id-btn");
+      if (!btn) return;
+      const reqId = btn.getAttribute("data-copy-id");
+      if (!reqId) return;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(reqId).then(() => {
+          showToast(`Copied Request ID: ${reqId}`);
+        });
+      }
+    });
+  }
+
+  window.addEventListener("hashchange", syncViewFromHash);
+
+  // Backwards-compatible globals
+  window.toggleServer = toggleServer;
+  window.setBackendDelay = setBackendDelay;
+  window.adjustBackendConn = adjustBackendConn;
+  window.adjustBackendWeight = adjustBackendWeight;
+  window.toggleCanary = toggleCanary;
+
+  syncViewFromHash();
+  fetchStats();
+  connectSSE();
+});
