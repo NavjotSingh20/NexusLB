@@ -1,9 +1,9 @@
 # NexusLB: High-Availability Reverse Proxy & Intelligent Load Balancer
 
-[![Go Version](https://img.shields.io/badge/Go-1.20%2B-00ADD8?style=flat&logo=go)](https://golang.org/)
-[![Status](https://img.shields.io/badge/Status-Active%20MVP-success)](#)
-[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen)](#-testing--verification)
-[![License](https://img.shields.io/badge/License-Academic-blue)](#)
+[![Go Version](https://img.shields.io/badge/Go-1.27%2B-00ADD8?style=flat&logo=go)](https://golang.org/)
+[![Status](https://img.shields.io/badge/Status-Active-success)](#)
+[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen)](#testing--verification)
+[![License](https://img.shields.io/badge/License-MIT-blue)](./LICENSE)
 
 > **Course Project for UCS503P (Software Engineering)**  
 > **Thapar Institute of Engineering and Technology (TIET), Patiala**  
@@ -15,195 +15,189 @@
 
 ---
 
-## 📖 Table of Contents
+## Table of Contents
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [System Architecture](#-system-architecture)
-- [Repository Structure](#-repository-structure)
-- [Configuration](#-configuration)
-- [Load Balancing Strategies & Hot-Swapping](#-load-balancing-strategies--hot-swapping)
-- [Getting Started](#-getting-started)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [System Architecture](#system-architecture)
+- [Repository Structure](#repository-structure)
+- [Configuration & CLI Flags](#configuration--cli-flags)
+- [Load Balancing Strategies & Smart Auto](#load-balancing-strategies--smart-auto)
+- [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [1. Launch Simulated Backend Cluster](#1-launch-simulated-backend-cluster)
   - [2. Launch NexusLB Ingress Gateway](#2-launch-nexuslb-ingress-gateway)
-- [Live Observability Dashboard](#-live-observability-dashboard)
-- [Simulating & Testing Active Connections](#-simulating--testing-active-connections)
-- [Fault Tolerance & Load Rebalancing](#-fault-tolerance--load-rebalancing)
-- [Academic Engineering Journals](#-academic-engineering-journals)
-- [API Reference](#-api-reference)
-- [Testing & Verification](#-testing--verification)
-- [Engineering Highlights & Concurrency](#-engineering-highlights--concurrency)
+- [Real-Life Traffic & Chaos Simulator](#real-life-traffic--chaos-simulator)
+- [Live Observability Dashboard](#live-observability-dashboard)
+- [Simulating & Testing Active Connections](#simulating--testing-active-connections)
+- [Fault Tolerance & Load Rebalancing](#fault-tolerance--load-rebalancing)
+- [Academic Engineering Journals](#academic-engineering-journals)
+- [API Reference](#api-reference)
+- [Testing & Verification](#testing--verification)
+- [Engineering Highlights & Concurrency](#engineering-highlights--concurrency)
 
 ---
 
-## 🌟 Overview
+## Overview
 
-**NexusLB** is a production-grade, health-aware **Reverse Proxy and Application Load Balancer** engineered from scratch in Go with zero external runtime framework dependencies.
+**NexusLB** is a health-aware **Layer 7 Reverse Proxy and Intelligent Application Load Balancer** engineered from scratch in Go with zero external runtime framework dependencies.
 
-In distributed cloud architectures, simply provisioning multiple backend microservices behind network ports does not guarantee high availability or even utilization. Unmonitored backend crashes, bursty traffic surges, asymmetric compute runtimes, and a lack of operational visibility frequently cause client-facing outages and cascading failures. 
+In distributed architectures, simply spreading requests across static ports leaves systems vulnerable to silent upstream blackholes, connection starvation, unequal node capacities, botnet floods, and zero operational visibility. NexusLB solves this as a non-blocking HTTP gateway that combines:
 
-NexusLB resolves these challenges by serving as an intelligent, non-blocking Layer 7 ingress gateway that:
-
-1. **Intelligently routes traffic** across active upstream nodes using pluggable algorithms (Round-Robin, Least Connections, and Deterministic IP Hash).
-2. **Monitors backend health actively and reactively**, isolating failing servers instantly with zero dropped requests.
-3. **Tracks in-flight concurrency** (`ActiveConnections`) atomically with fair circular tie-breaking.
-4. **Presents live telemetry and interactive chaos injection** through an embedded dark-mode dashboard delivered via single-binary `embed.FS` and Server-Sent Events (SSE).
-
----
-
-## ✨ Key Features
-
-- 🎯 **Pluggable Multi-Strategy Routing Engine**:
-  - **Round-Robin**: Monotonically advancing 64-bit atomic ring counter with zero memory allocations on the fast path.
-  - **Smooth Weighted Round-Robin (SWRR)**: Enterprise capacity-weighted scheduling (NGINX SWRR algorithm) that smoothly interleaves requests without burst-clustering on high-weight nodes.
-  - **Least Connections**: Dynamically routes to the upstream node with lowest in-flight connections, utilizing an atomic rotating circular offset for fair tie-breaking under sub-millisecond workloads.
-  - **Deterministic IP Hashing**: 32-bit FNV-1a hash algorithm featuring client IP normalization (`X-Forwarded-For`, `X-Real-IP`, ephemeral port stripping) and sequential ring walk failover.
-  - **Zero-Downtime Hot-Swapping**: Switch algorithms on-the-fly via Web UI or REST API backed by `sync.RWMutex`.
-- 🐥 **Layer 7 Canary Deployments & Traffic Splitting**:
-  - Precision client targeting via `X-Canary: true` request header, `?canary=true` query parameter, or `canary=true` cookie.
-  - Automatically isolates and routes targeted users to designated Canary nodes (`v2.0`) with transparent self-healing fallback to stable nodes if the canary goes offline.
-  - Gradual percentage-based traffic rollouts (e.g., 90% Stable vs. 10% Canary) achieved seamlessly via SWRR weights.
-- 🛡️ **Edge Security & Anti-DDoS Rate Limiting (Token Bucket)**:
-  - High-performance, lock-free per-IP token bucket rate limiting with automatic background bucket eviction.
-  - Rejects abusive traffic at the ingress edge with **HTTP 429 Too Many Requests**, `Retry-After`, and standard RFC rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`).
-  - Zero collateral damage to legitimate users (per-IP isolation prevents noisy-neighbor degradation).
-- 🎬 **Real-World Simulation Studio & Guided Scenarios**:
-  - Live in-dashboard simulation deck featuring an automated **4-Phase Guided DDoS Demonstration**.
-  - Interactive on-screen Storyline Banner displaying real-time phases, progress bars, and operational narratives.
-  - One-click testing for single rogue attacker spam vs. multi-client legitimate user browsing.
-- 🎛️ **Custom Active Connections Simulation & Steppers**:
-  - Hold real in-flight connections for custom durations ($N$ connections held for $D$ ms) to observe Least Connections load-shedding live.
-  - Interactively increment (`+`), decrement (`-`), or reset (`0`) active connection counters directly on backend cards in the UI or via REST API (`/api/backend/connections`).
-- 🩺 **Dual-Mode Health Awareness**:
-  - **Proactive Polling Daemon**: Background workers ping `/health` endpoints periodically (default: 3s) with strict timeouts.
-  - **Reactive In-Flight Interception**: Custom `httputil.ReverseProxy.ErrorHandler` catches socket resets mid-stream, marks the target node dead, and retries alternate nodes transparently.
-- 🔄 **Self-Healing & Auto-Reintegration**: Automatically restores recovered servers to active rotation within $\le 3$ seconds upon receiving `200 OK`.
-- 📊 **Embedded Observability Dashboard**:
-  - Hermetically bundled into the single binary executable via `embed.FS` (no external runtime asset dependencies).
-  - Pushes live cluster telemetry via Server-Sent Events (SSE) every 1 second.
-  - Real-time KPIs: Total Requests, Live Throughput (RPS), Average Latency, Success Rate, and **Blocked Requests (429)**.
-  - Dynamic traffic distribution share bar and real-time request trace logs with color-coded status badges.
-- ⚡ **Interactive Fault Injection**:
-  - Individual **ON / OFF power toggle switches** on each backend card to simulate instant outages.
-  - Configurable traffic generator (single request, continuous stream, or custom in-flight hold bursts).
-  - 1-Click Automated Failover Demo demonstrating baseline, failure, and recovery phases.
+1. **Five Routing Modes Including Smart Auto**: Zero-downtime hot-swapping across **Smart Auto (`adaptive`)**, **Round Robin**, **Smooth Weighted Round Robin**, **Least Connections**, and **Deterministic IP Hash**, complete with live explainability for every automated delegation decision.
+2. **Defense-in-Depth Resilience**: Per-IP token-bucket **Edge Shield** rate limiting (`HTTP 429`), three-state per-backend **Circuit Breakers** (`Closed` / `Open` / `Half-Open`), proactive `/health` polling, and staged `retryRecorder` transparent failover across upstreams.
+3. **Layer 7 Canary Routing**: Header, query parameter, and cookie-based canary steering with automatic fallback if canary instances go offline.
+4. **Autonomous Real-Life Traffic & Chaos Simulator (`pkg/simulator`)**: Built-in background traffic generator producing diverse random public IPs, sticky sessions, slow queries, canary traffic, single-IP/botnet DDoS floods, and reversible cluster chaos drills with automatic baseline restoration.
+5. **Embedded `data-terminal` Dashboard (`embed.FS` + SSE)**: Four-view (`Overview`, `Pool`, `Lab`, `Trace`) live telemetry console streamed at 1 Hz over Server-Sent Events with Chart.js sliding telemetry, per-node controls, and request ID tracing.
 
 ---
 
-## 🏗 System Architecture
+## Key Features
 
-```
-                               ┌────────────────────────┐
-                               │     Client Traffic     │
-                               └───────────┬────────────┘
-                                           │ (Port 8080)
-                                           ▼
-                               ┌────────────────────────┐
-                               │  NexusLB Ingress Proxy │
-                               │  (Header Normalization)│
-                               └───────────┬────────────┘
-                                           │
-                                           ▼
-                               ┌────────────────────────┐
-                               │ Pluggable Strategy Mgr │
-                               │ (RR | LeastConn | IPH) │
-                               └───────────┬────────────┘
-                                           │
-                    ┌──────────────────────┼──────────────────────┐
-                    │                      │                      │
-                    ▼                      ▼                      ▼
-         ┌────────────────────┐ ┌────────────────────┐ ┌────────────────────┐
-         │  Backend Server 1  │ │  Backend Server 2  │ │  Backend Server 3  │
-         │   (Port :8001)     │ │   (Port :8002)     │ │   (Port :8003)     │
-         └──────────┬─────────┘ └──────────┬─────────┘ └──────────┬─────────┘
-                    │                      │                      │
-                    └──────────────────────┼──────────────────────┘
-                                           │ Dual-Mode Health Check
-                                           ▼
-                               ┌────────────────────────┐
-                               │ Active Health Checker  │
-                               │  & In-Flight Monitor   │
-                               └───────────┬────────────┘
-                                           │
-                                           ▼
-                               ┌────────────────────────┐
-                               │   Metrics Collector    │
-                               │ (RPS, Latency, Logs)   │
-                               └───────────┬────────────┘
-                                           │
-                                           ▼ (Port 8081)
-                               ┌────────────────────────┐
-                               │ Observability Dashboard│
-                               │ (SSE Stream + embed.FS)│
-                               └────────────────────────┘
+- **Pluggable 5-Strategy Routing Engine**:
+  - **Smart Auto (`adaptive`)**: Autonomous meta-balancer that inspects live connection skew, upstream response latency skew, heterogeneous weights, and client IP locality every 250 ms, delegating with a 4-second anti-flap hysteresis cooldown (immediate bypass on load/capacity escalations) and emitting live explainability snapshots.
+  - **Round Robin (`round_robin`)**: Monotonically advancing 64-bit atomic ring counter with zero allocations on the fast path.
+  - **Smooth Weighted Round Robin (`weighted_round_robin`)**: NGINX SWRR capacity-weighted interleaving supporting dynamic 1x-100x backend weights without burst clustering.
+  - **Least Connections (`least_connections`)**: Routes to the healthy upstream with minimum in-flight connections and uses an atomic rotating circular offset for fair sub-millisecond tie-breaking.
+  - **IP Hash (`ip_hash`)**: 32-bit FNV-1a hashing over normalized client IPs (`X-Forwarded-For`, `X-Real-IP`, ephemeral port stripping) with sequential ring-walk failover.
+  - **Zero-Downtime Hot-Swapping**: Switch algorithms live from the top strategy strip or `POST /api/strategy?name=...` protected by `sync.RWMutex`.
+- **Layer 7 Canary Deployments & Traffic Splitting**:
+  - Targets canary upstreams via `X-Canary: true`, `?canary=true`, or `canary=true` cookie, falling back transparently to stable upstreams when no healthy canary node is available.
+  - Supports instant weighted canary rollouts (e.g., 90/10 split under Smooth Weighted Round Robin).
+- **Edge Security & Anti-DDoS Rate Limiting**:
+  - `sync.Map`-backed per-IP token bucket rate limiter with background stale-bucket eviction, rejecting floods with `HTTP 429 Too Many Requests` (`Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`).
+  - Live runtime rate/burst tuning (`POST /api/shield/config`) and enable/bypass toggle without dropping legitimate isolated callers.
+- **Fault Tolerance, Circuit Breaker & Transparent Retries**:
+  - Three-state circuit breaker (`Closed` -> `Open` after configurable consecutive failures -> `Half-Open` probe after cooldown) isolates failing upstreams faster than passive health intervals alone.
+  - Buffered `retryRecorder` intercepts upstream socket errors before committing headers to clients and retries alternate healthy backends (honoring `max_retries`, `max_retry_body_bytes`, `retry_non_idempotent`, and `Idempotency-Key` headers).
+- **Autonomous Real-Life Traffic & Cluster Chaos Simulator**:
+  - Streams Poisson-jittered multi-IP organic workloads, returning sticky caller sessions, canary requests, and slow queries alongside periodic or on-demand `single_ip_dos` and `botnet_ddos` attacks.
+  - Executes reversible chaos drills (`latency_spike`, `canary_weighted_rollout`, `node_outage_failover`) and automatically restores pre-wave delays, weights, canary flags, node health, and touched circuit breakers when a wave finishes or stops.
+- **Embedded Multi-View Observability Dashboard**:
+  - Bundled into a single Go binary via `embed.FS` (`web/web.go`) with zero external asset runtime dependencies.
+  - Four focused navigation views (`Overview`, `Pool`, `Lab`, `Trace`), 6-cell KPI bar (including p50/p95/p99 tail latency, in-flight queue depth, and blocked `429` count), 24-second sliding Chart.js area charts, interactive per-backend latency/weight/socket/canary controls, and searchable 50-entry request trace logs with click-to-copy `X-Request-ID`.
+
+---
+
+## System Architecture
+
+```text
+                       +------------------------------+
+                       |   Clients / pkg/simulator    |
+                       +--------------+---------------+
+                                      | :8080 (HTTP Ingress)
+                                      v
+                       +------------------------------+
+                       | Edge Shield (ratelimit)      |
+                       | Per-IP Token Bucket -> 429   |
+                       +--------------+---------------+
+                                      |
+                                      v
+                       +------------------------------+
+                       | Reverse Proxy Pipeline       |
+                       | Canary Steering + Retries    |
+                       +--------------+---------------+
+                                      |
+                                      v
+                       +------------------------------+
+                       | StrategyManager              |
+                       | Smart Auto | RR | WRR | LC   |
+                       | IP Hash    | Live Explain     |
+                       +--------------+---------------+
+                                      |
+            +-------------------------+-------------------------+
+            |                         |                         |
+            v                         v                         v
+   +-----------------+       +-----------------+       +-----------------+
+   | Backend :8001   |       | Backend :8002   |       | Backend :8003   |
+   | CB: Closed/Open |       | CB: Closed/Open |       | CB: Closed/Open |
+   +--------+--------+       +--------+--------+       +--------+--------+
+            |                         |                         |
+            +-------------------------+-------------------------+
+                                      |
+            +-------------------------+-------------------------+
+            |                                                   |
+            v                                                   v
+   +--------------------+                             +--------------------+
+   | Active HealthCheck |                             | Metrics Collector  |
+   | /health @ interval |                             | RPS, p50/p95/p99   |
+   +--------------------+                             +---------+----------+
+                                                                | :8081
+                                                                v
+                                                      +--------------------+
+                                                      | Dashboard + API    |
+                                                      | 1 Hz SSE + embedFS |
+                                                      +--------------------+
 ```
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
-```
+```text
 NexusLB/
 ├── backend/
-│   └── server.go             # Multi-server mock upstream cluster (:8001, :8002, :8003)
+│   └── server.go                  # Multi-server mock upstream cluster (:8001, :8002, :8003) with /chaos/* hooks
 ├── config/
-│   └── config.go             # Configuration models, validation & JSON loader
-├── journals/                 # Academic engineering challenge journals (2 per member)
-│   ├── 1024030313-navjot/    # Navjot Singh (1024030313)
-│   │   ├── 01-concurrent-slice-mutation.md
-│   │   ├── 02-least-connections-clustering-tiebreaker.md
-│   │   └── index.md
-│   ├── 1024030316-shaina/    # Shaina Gera (1024030316)
-│   │   ├── 01-reverse-proxy-telemetry-loss.md
-│   │   ├── 02-ip-hash-ephemeral-port-affinity-skew.md
-│   │   └── index.md
-│   └── 1024030320-prabhgun/  # Prabhgun Kaur (1024030320)
-│       ├── 01-asset-embedding-boundary-violation.md
-│       ├── 02-sse-stream-goroutine-leak-timeout-conflict.md
-│       └── index.md
-├── MST-report/               # Formal LaTeX Mid-Semester Technical Report
-│   ├── main.tex              # Complete academic report with TikZ architectural diagrams
-│   ├── references.bib        # BibTeX bibliography database
-│   └── tietreport.cls        # TIET report formatting class
+│   ├── config.go                  # Configuration structs, defaults, validation & JSON loader
+│   └── config_test.go             # Config loading & validation unit tests
+├── journals/                      # Academic engineering journals (Groups/Authors 1024030313, 1024030316, 1024030320)
+├── MST-report/                    # LaTeX Mid-Semester Technical Report & compiled PDF
+├── project-proposal/              # Project proposal LaTeX source & PDF
 ├── pkg/
 │   ├── backend/
-│   │   └── backend.go        # Thread-safe Backend state & atomic connection counters
+│   │   ├── backend.go             # Thread-safe Backend state, simulated lag tracking & atomic counters
+│   │   ├── backend_test.go        # Backend unit tests
+│   │   └── circuit_breaker.go     # Closed/Open/Half-Open circuit breaker state machine
 │   ├── balancer/
-│   │   ├── balancer.go       # Balancer interface & Round-Robin implementation
-│   │   ├── balancer_test.go  # Unit tests for round-robin routing & offline skips
-│   │   ├── ip_hash.go        # 32-bit FNV-1a IP hash with sequential ring failover
-│   │   ├── ip_hash_test.go   # Unit tests for session affinity & failover
-│   │   ├── least_conn.go     # Least Connections with circular offset tie-breaking
-│   │   ├── least_conn_test.go# Unit tests for least connections selection
-│   │   ├── manager.go        # Thread-safe StrategyManager for zero-downtime swaps
-│   │   └── manager_test.go   # Unit tests for strategy manager & concurrency
+│   │   ├── adaptive.go            # Smart Auto meta-balancer, signal evaluator & explainability history
+│   │   ├── adaptive_test.go       # Smart Auto strategy & hysteresis tests
+│   │   ├── balancer.go            # Balancer interface & Round Robin
+│   │   ├── balancer_test.go       # Round Robin tests
+│   │   ├── canary_test.go         # Layer 7 canary steering & fallback tests
+│   │   ├── ip_hash.go             # 32-bit FNV-1a IP Hash with normalized IP & failover walk
+│   │   ├── ip_hash_test.go        # IP Hash tests
+│   │   ├── least_conn.go          # Least Connections with circular rotating tie-breaker
+│   │   ├── least_conn_test.go     # Least Connections tests
+│   │   ├── manager.go             # StrategyManager hot-swapping & canary precedence
+│   │   ├── manager_test.go        # Concurrency & hot-swap tests
+│   │   ├── weighted_rr.go         # Smooth Weighted Round Robin (NGINX SWRR)
+│   │   └── weighted_rr_test.go    # Weighted RR tests
 │   ├── dashboard/
-│   │   ├── server.go         # Dashboard HTTP server, SSE telemetry & REST API
-│   │   └── server_test.go    # Unit tests for dashboard API endpoints
+│   │   ├── server.go              # Admin HTTP server, 1 Hz SSE telemetry, chaos, shield & /api/sim/* endpoints
+│   │   └── server_test.go         # Dashboard API & simulator endpoint tests
 │   ├── health/
-│   │   ├── checker.go        # Background active health monitoring daemon
-│   │   └── checker_test.go   # Unit tests for active health detection
+│   │   ├── checker.go             # Periodic active /health polling daemon
+│   │   └── checker_test.go        # Active health transition tests
 │   ├── metrics/
-│   │   └── metrics.go        # High-performance metrics aggregator & ring buffer
-│   └── proxy/
-│       └── proxy.go          # Reverse proxy pipeline & streaming response recorder
-├── web/                      # Embedded dashboard frontend
-│   ├── app.js                # SSE consumer, interactive controls & traffic generator
-│   ├── index.html            # Dark-mode dashboard layout & control panels
-│   ├── style.css             # Glassmorphic styling & responsive UI tokens
-│   └── web.go                # go:embed directive exporting Assets embed.FS
-├── config.json               # Runtime JSON configuration
-├── go.mod                    # Go module definition
-├── main.go                   # Gateway entrypoint & graceful shutdown coordinator
-└── README.md                 # Complete project documentation
+│   │   ├── metrics.go             # Thread-safe rolling throughput, p50/p95/p99 latency & 50-entry trace ring
+│   │   └── metrics_test.go        # Metrics collector tests
+│   ├── proxy/
+│   │   ├── proxy.go               # Reverse proxy, canary detection, Edge Shield check & staged retryRecorder
+│   │   └── proxy_test.go          # Retry, body limit, idempotency & shield proxy tests
+│   ├── ratelimit/
+│   │   ├── limiter.go             # Per-IP token-bucket rate limiter with background stale bucket eviction
+│   │   └── limiter_test.go        # Rate limiter & concurrent eviction tests
+│   └── simulator/
+│       ├── simulator.go           # Real-life traffic & reversible chaos wave engine + worker pool
+│       └── simulator_test.go      # IP diversity, DDoS 429, reversible chaos & default hook tests
+├── web/
+│   ├── app.js                     # SSE client, Smart Auto explainability UI, simulator studio & pool actions
+│   ├── charts.js                  # Chart.js 24s sliding telemetry canvas renderer
+│   ├── index.html                 # 4-view data-terminal console (Overview, Pool, Lab, Trace)
+│   ├── style.css                  # Dark terminal palette (#171719/#131217) & responsive breakpoints
+│   └── web.go                     # go:embed directive bundling frontend assets into binary
+├── config.json                    # Runtime JSON configuration
+├── go.mod                         # Go module definition (Go 1.27.1, stdlib only)
+├── main.go                        # Ingress gateway entrypoint, CLI flags & graceful shutdown
+└── README.md                      # Project documentation
 ```
 
 ---
 
-## ⚙️ Configuration
+## Configuration & CLI Flags
 
-NexusLB is configured declaratively using [`config.json`](./config.json):
+NexusLB loads settings from [`config.json`](./config.json) (falling back to [`config.DefaultConfig()`](./config/config.go) when absent):
 
 ```json
 {
@@ -216,88 +210,127 @@ NexusLB is configured declaratively using [`config.json`](./config.json):
   ],
   "health_check_interval": "3s",
   "health_check_path": "/health",
-  "strategy": "round_robin"
+  "strategy": "round_robin",
+  "max_retries": 2,
+  "max_retry_body_bytes": 1048576,
+  "retry_non_idempotent": false,
+  "rate_limit_enabled": true,
+  "rate_limit_rate": 10.0,
+  "rate_limit_burst": 10,
+  "circuit_breaker_max_failures": 5,
+  "circuit_breaker_cooldown": "10s"
 }
 ```
 
+### JSON Configuration Fields
+
 | Field | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `proxy_port` | `string` | `":8080"` | Ingress port where NexusLB accepts client HTTP requests |
-| `dashboard_port` | `string` | `":8081"` | Administrative port serving the embedded dashboard and REST API |
-| `backends` | `[]string` | `3 nodes` | List of upstream HTTP backend server URLs |
-| `health_check_interval` | `string` | `"3s"` | Interval between proactive health check probes |
-| `health_check_path` | `string` | `"/health"` | HTTP endpoint queried on upstream servers |
-| `strategy` | `string` | `"round_robin"` | Initial load balancing strategy (`round_robin`, `least_connections`, `ip_hash`) |
+| `proxy_port` | `string` | `":8080"` | Ingress port accepting proxied client traffic |
+| `dashboard_port` | `string` | `":8081"` | Administrative dashboard and REST/SSE API port |
+| `backends` | `[]string` | `3 local nodes` | Upstream HTTP backend URLs |
+| `health_check_interval` | `string` | `"3s"` | Proactive background `/health` probe cadence |
+| `health_check_path` | `string` | `"/health"` | Health endpoint path queried per upstream |
+| `strategy` | `string` | `"round_robin"` | Initial algorithm (`adaptive`, `round_robin`, `weighted_round_robin`, `least_connections`, `ip_hash`) |
+| `max_retries` | `int` | `2` | Maximum upstream failover retries per failed attempt |
+| `max_retry_body_bytes` | `int64` | `1048576` | Max request body size (bytes) buffered for replay |
+| `retry_non_idempotent` | `bool` | `false` | Whether `POST`/non-idempotent requests retry without `Idempotency-Key` |
+| `rate_limit_enabled` | `bool` | `true` | Enables Edge Shield per-IP token bucket limiting |
+| `rate_limit_rate` | `float64` | `10.0` | Token replenishment rate per client IP (req/s) |
+| `rate_limit_burst` | `int` | `10` | Token bucket burst ceiling per client IP |
+| `circuit_breaker_max_failures` | `int64` | `5` | Consecutive failures before tripping backend circuit breaker to `Open` |
+| `circuit_breaker_cooldown` | `string` | `"10s"` | Cooldown before an `Open` circuit enters `Half-Open` probe state |
+| `sim_enabled` | `bool` | `false` | Optional auto-start for the background traffic simulator on launch |
+| `sim_intensity` | `string` | `"normal"` | Simulator throughput profile (`"low"`, `"normal"`, `"heavy"`) |
+| `sim_chaos` | `bool` | `true` | Allow reversible cluster chaos drills (`latency_spike`, `canary_weighted_rollout`, `node_outage_failover`) |
+| `sim_ddos` | `bool` | `true` | Allow periodic DDoS attack waves (`single_ip_dos`, `botnet_ddos`) |
+
+### CLI Startup Flags (`main.go`)
+
+| Flag | Default | Description |
+| :--- | :--- | :--- |
+| `-config` | `"config.json"` | Path to JSON configuration file |
+| `-simulate` | `false` | Auto-start the real-life traffic & chaos simulator on boot |
+| `-sim-intensity` | `""` | Override simulation intensity (`low`, `normal`, `heavy`) |
+| `-sim-chaos` | `""` | Override reversible chaos drills (`true` / `false`) |
+| `-sim-ddos` | `""` | Override periodic DDoS attack waves (`true` / `false`) |
 
 ---
 
-## ⚖️ Load Balancing Strategies & Hot-Swapping
+## Load Balancing Strategies & Smart Auto
 
-NexusLB implements three specialized Layer 7 routing strategies:
+NexusLB supports **five** runtime routing strategies selectable from the UI or `POST /api/strategy?name=...`:
 
 | Strategy | Key | Selection Logic | Best Use Case |
 | :--- | :--- | :--- | :--- |
-| **Round Robin** | `"round_robin"` | Atomic counter traversal across healthy nodes: $$i = (\text{atomic.AddUint64}(\&current, 1) - 1) \pmod n$$ | Homogeneous backends with uniform request processing times. |
-| **Least Connections** | `"least_connections"` | Queries in-flight connections: $$b^* = \arg\min_{b \in \mathcal{B}_{\text{alive}}} \{ b.\text{ActiveConns} \}$$ Resolves ties using a circular rotating offset to prevent node starvation under fast workloads. | Heterogeneous workloads, long-lived requests (WebSockets, SSE), complex DB queries. |
-| **IP Hashing** | `"ip_hash"` | 32-bit FNV-1a hash over normalized client IP: $$idx = \text{FNV1a}(\text{ExtractClientIP}(r)) \pmod n$$ Deterministic sequential ring walk if primary mapped node fails. | Stateful sessions, local caching, and sticky user affinity without external storage. |
+| **Smart Auto** | `"adaptive"` | Live telemetry meta-balancer (`AdaptiveBalancer`) switching across all 4 core algorithms | Mixed or unpredictable real-world traffic with shifting bursts, weights, or upstream lag |
+| **Round Robin** | `"round_robin"` | Lock-free atomic ring counter across healthy backends | Homogeneous backends and balanced traffic |
+| **Weighted RR** | `"weighted_round_robin"` | Smooth Weighted Round Robin (NGINX SWRR) proportional interleaving | Asymmetric compute capacities or 90/10 canary splits |
+| **Least Connections** | `"least_connections"` | Minimum `ActiveConnections` with atomic rotating circular tie-breaker | Long-lived requests or skewed upstream response times |
+| **IP Hash** | `"ip_hash"` | 32-bit FNV-1a over normalized client IP with deterministic ring failover | Repeat clients needing stateful upstream affinity |
 
-### Zero-Downtime Hot-Swapping
+### Smart Auto Priority Engine & Explainability
 
-The active routing strategy can be swapped at runtime with zero downtime:
-- **Via Dashboard UI**: Click any of the strategy pills in the header banner (`[Round Robin]`, `[Least Connections]`, `[IP Hash]`).
-- **Via REST API**:
-  ```bash
-  curl -X POST "http://localhost:8081/api/strategy?name=least_connections"
-  ```
-- **Thread Safety**: Governed by `sync.RWMutex` inside `StrategyManager`, allowing thousands of in-flight proxy requests to read strategies concurrently while atomic pointer swaps execute instantaneously.
+When **Smart Auto (`adaptive`)** is active, `AdaptiveBalancer` evaluates four ordered priority rules every 250 ms across live cluster state and exposes the exact reason string, active rule badge, priority signal rows, and 12-entry transition timeline to the dashboard:
+
+1. **P1 Least Connections (`connection_skew` / `latency_skew`)**: Selected when healthy active socket spread reaches `>= 2`, or when slowest healthy upstream latency reaches `>= 80 ms` with `>= 2.5x` skew over the fastest node.
+2. **P2 Weighted Round Robin (`capacity_weights`)**: Selected when healthy nodes have unequal weights (e.g., `5:4:1` or `9:1`).
+3. **P3 IP Hash (`client_affinity`)**: Selected across a 24-request sliding client window (min `6` samples) when repeat client IP ratio reaches `>= 70%`.
+4. **P4 Round Robin (`uniform_baseline`)**: Default O(1) distribution when the pool is healthy and uniform.
+
+Transitions honor a `4.0s` anti-flap stability cooldown, while immediate escalations to **P1 Least Connections** or **P2 Weighted RR** bypass cooldown to react without lag.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- **Go**: Version 1.20 or newer installed ([Download Go](https://golang.org/dl/)).
-- **Web Browser**: Chrome, Edge, Firefox, or Safari for the dashboard.
-- **Terminal**: Bash, zsh, or PowerShell.
+- **Go**: Version 1.27+ recommended (`go.mod` targets `go 1.27.1`; stdlib-only dependencies).
+- **Web Browser**: Modern Chromium, Firefox, Edge, or Safari for the dashboard.
 
 ### 1. Launch Simulated Backend Cluster
 
-Start the 3 mock backend servers in a separate terminal:
+Start the three mock upstream servers (`:8001`, `:8002`, `:8003`) in terminal 1:
 
 ```bash
-go run backend/server.go
+go run ./backend/server.go
 ```
-
-This concurrently launches 3 mock upstream servers on ports `:8001`, `:8002`, and `:8003`.
 
 ### 2. Launch NexusLB Ingress Gateway
 
-In another terminal, start NexusLB:
+Start NexusLB in terminal 2 (starts with the simulator paused by default):
 
 ```bash
-go run main.go
+go run .
 ```
 
-Or build and execute the binary:
+Or auto-start the real-life simulator immediately at heavy intensity:
 
 ```bash
-go build -o nexuslb.exe main.go
+go run . -simulate -sim-intensity heavy
+```
+
+Or compile a standalone binary:
+
+```bash
+go build -o nexuslb.exe .
 ./nexuslb.exe
 ```
 
-Console output confirms startup:
+Console startup output:
+
 ```text
 ==================================================
-    NexusLB - Reverse Proxy & Load Balancer       
+    NexusLB - Reverse Proxy & Load Balancer
 ==================================================
-[INIT] Registered upstream backend: http://localhost:8001
-[INIT] Registered upstream backend: http://localhost:8002
-[INIT] Registered upstream backend: http://localhost:8003
+[INIT] Registered upstream backend: http://localhost:8001 (CB threshold=5, cooldown=10s)
+[INIT] Registered upstream backend: http://localhost:8002 (CB threshold=5, cooldown=10s)
+[INIT] Registered upstream backend: http://localhost:8003 (CB threshold=5, cooldown=10s)
 [INIT] Active routing algorithm: Round Robin
+[INIT] Edge Shield rate limiter active=true (10.0 req/s, burst capacity 10)
 [INIT] Health checker active (probing every 3s on /health)
-[PROXY] Reverse proxy listening on http://localhost:8080
-[DASHBOARD] Monitoring dashboard listening on http://localhost:8081
+[INIT] Real-life traffic simulator standby (start via Dashboard or -simulate flag)
 
 NexusLB is running!
 Ingress Proxy:     http://localhost:8080
@@ -306,61 +339,58 @@ Admin Dashboard:   http://localhost:8081
 
 ---
 
-## 🖥 Live Observability Dashboard
+## Real-Life Traffic & Chaos Simulator
 
-Open your browser and navigate to:  
-👉 **[http://localhost:8081](http://localhost:8081)**
+The built-in simulator (`pkg/simulator`) runs inside NexusLB against the real `:8080` ingress path using a bounded 64-worker pool and two coordinated loops:
 
-### Dashboard Features:
-1. **Header Control Strip**:
-   - **Active Algorithm Pill Selector**: One-click switching between Round-Robin, Least Connections, and IP Hashing.
-   - **Connection Indicator**: Displays live SSE synchronization status (`CONNECTED` / `RECONNECTING`).
-   - **Reset Metrics**: Flushes all rolling counters and log history.
-2. **Real-Time KPIs**:
-   - **Total Requests**: Total requests handled across all upstreams.
-   - **Live Throughput**: Real-time requests per second (RPS) over a rolling window.
-   - **Average Latency**: End-to-end proxy processing latency in milliseconds.
-   - **Success Rate**: Ratio of successful requests (`2xx/3xx`) to total requests.
-3. **Dynamic Traffic Distribution Share Bar**:
-   - High-contrast visual bar depicting the real-time share of requests distributed to each backend.
-4. **Backend Server Cards**:
-   - Live health badge (`HEALTHY` vs `OFFLINE`).
-   - Active in-flight connections counter (`ActiveConns`).
-   - Interactive connection stepper (`-`, count badge, `+`, `Reset 0`).
-   - Interactive power toggle switch (simulates immediate server shutdown).
-   - Expected target share indicator (`33.3%`, `50.0%`, or `100%`).
-5. **Interactive Traffic Simulator**:
-   - **Quick Actions**: Send 1 Request, Burst 10 Requests, Start/Stop Continuous Traffic (2 req/s).
-   - **Custom In-Flight Burst**: Dispatch $N$ parallel requests held in-flight for $D$ ms with optional diverse client IP simulation.
-   - **1-Click Failover Demo**: Automated walkthrough of baseline, sudden node failure, and self-healing phases.
-6. **Live Request Stream Log**:
-   - Displays the last 50 requests with timestamps, HTTP method, client IP, target backend, response code, and latency.
+- **`trafficLoop`**: Generates Poisson-jittered client workloads across intensity profiles:
+  - `low`: ~6 req/s organic baseline (~22 req/s attack waves)
+  - `normal`: ~14 req/s organic baseline (~40 req/s attack waves)
+  - `heavy`: ~28 req/s organic baseline (~70 req/s attack waves)
+  - Includes unique public client IPs across multiple CIDRs, sticky session micro-bursts, `GET`/`POST`/`HEAD` routes with `Idempotency-Key`, canary requests (`X-Canary: true`, `?canary=true`, cookie), and occasional slow queries.
+- **`directorLoop` & Reversible Chaos Drills**: Alternates organic baselines with randomized autonomous scenarios (or immediate manual wave triggers from UI/API):
+  - `sticky_affinity`: Concentrates returning requests from a pinned client IP to demonstrate IP Hash & Smart Auto `P3` affinity switching.
+  - `single_ip_dos`: High-rate flood from a single rogue IP blended with normal organic clients so you can watch Edge Shield block the attacker with `HTTP 429` without harming legitimate users.
+  - `botnet_ddos`: Rotating swarm of 5-8 attacker IPs testing concurrent per-IP rate limiting.
+  - `latency_spike`: Temporarily injects chaos delay onto one healthy node via `/chaos/delay`, triggering Smart Auto `P1 Least Connections` skew avoidance, then reverts delay back to baseline.
+  - `canary_weighted_rollout`: Temporarily assigns asymmetric capacity weights (e.g., `5:4:1`), tags a canary node (`v2.0-canary`), streams canary traffic, and triggers `P2 Weighted RR` before restoring initial weights and canary flags.
+  - `node_outage_failover`: Takes one healthy node down via `/chaos/toggle?state=down`, triggers health checks + peer failover + circuit breaker transitions, then brings the node back online and runs recovery health probes.
+
+Stopping the simulator (`Stop` button, `POST /api/sim/stop`, or process shutdown) invokes `restoreChaos(true)` to guarantee every backend reverts to its exact pre-simulation delay, weight, canary flag, healthy state, and closed circuit breaker.
 
 ---
 
-## 🎛 Simulating & Testing Active Connections
+## Live Observability Dashboard
 
-To verify the **Least Connections** algorithm under real-world conditions, NexusLB provides two mechanisms to produce and inspect non-zero active connection states:
+Open **[http://localhost:8081](http://localhost:8081)** after launching NexusLB. The console uses a compact dark `data-terminal` architecture organized into four views:
 
-### Method A: Custom In-Flight Hold Burst (Traffic Simulator)
-1. Open the dashboard at `http://localhost:8081` and select **Least Connections**.
-2. In the **Traffic Simulator** panel, set:
-   - **Connections**: `15`
-   - **Hold Duration**: `3000 ms`
-3. Click **"Dispatch In-Flight Burst"**.
-4. 15 concurrent goroutines immediately open connections and hold them for 3 seconds. The backend cards instantly display active in-flight counts (e.g., `5`, `5`, `5`).
-5. While the burst is held, click **"Send 1 Request"** or inject a delay on Server 1. NexusLB dynamically evaluates in-flight counts and directs new traffic away from heavily loaded instances.
+1. **Overview (`#overview`)**:
+   - **Top Bar & Algorithm Tabs**: Cluster health pill, active algorithm / Smart Auto delegation indicator, quick traffic controls (`Send 1 req`, live `Sim` toggle pill, `Reset`, custom burst), and zero-downtime tabs (`Smart Auto`, `Round Robin`, `Weighted RR`, `Least Connections`, `IP Hash`).
+   - **6-Cell KPI Bar**: Total requests, live Throughput (5s RPS), Avg latency & median p50, Tail p95 / p99 latency, Success rate & Canary request count, and In-flight queued sockets / Blocked `429` count.
+   - **Overview Simulator Strip**: Live wave pill, summary with target RPS, `Low`/`Normal`/`Heavy` selector, `Chaos` switch, `Start`/`Stop`, and `Studio ->` shortcut.
+   - **Adaptive Explainability Panel**: Visible when `Smart Auto` is active; renders live rule-by-rule evaluation matrix (`P1`-`P4`) and timestamped transition timeline.
+   - **Cluster Telemetry & Traffic Controls**: 24-second Chart.js sliding chart (`Throughput`, `Avg latency`, `Tail p95`), proportional backend distribution bar, Edge Shield toggle, socket-hold tester (`Hold active`), and quick canary/flood actions.
+2. **Upstream Pool (`#pool` / `#backends`)**:
+   - Per-backend cards displaying health/circuit state badge (`Healthy`, `Half-open`, `Circuit open`, `Offline`), request/latency/error stats, `Take down` / `Bring up` action, `Simulated lag` presets (`0`, `100`, `300`, `600 ms` plus active custom chaos lag label), `WRR weight` stepper, `Pinned sockets` stepper, and `Canary pool` toggle.
+3. **Defense, Simulator & Canary Lab (`#lab`)**:
+   - **Traffic Simulator Studio**: Config bar (`Intensity`, `Reversible chaos drills`, `Periodic DDoS waves`), 4-cell live breakdown (`Unique IPs`, `Repeat IPs`, `Attack / 429`, `Canary / Chaos`), 6 on-demand wave buttons (`Single-IP DoS`, `Botnet DDoS`, `Sticky clients`, `Latency spike`, `Canary + WRR`, `Node outage drill`), and scrollable **Simulation Timeline**.
+   - **DDoS Rate-Limiter Lab**: Live `Refill req/s` and `Burst limit` tuner (`Apply limits`), Edge Shield toggle, multi-step automated DDoS scenario banner, attacker flood (`35x`), and valid user burst (`15x`).
+   - **Canary Rollout Lab**: Send single or `10x` canary traffic and one-click `Apply 90/10 split` under Weighted RR.
+4. **Request Trace (`#trace`)**:
+   - Filterable (`All`, `2xx OK`, `429`, `5xx`, `Canary`) and searchable live log table of recent requests showing timestamp, clickable `X-Request-ID` copy badge, HTTP method, client IP, target backend (with Canary tag), status pill, and upstream latency.
 
-### Method B: Manual Active Connection Steppers
-Each backend card includes an interactive stepper to manually simulate artificial load:
-- Click **`+`** to increment active connections (e.g., set Server 1 to 5 active connections).
-- Click **`-`** to decrement active connections.
-- Click **`0`** to reset the counter to zero.
-- **Verification**: With Server 1 set to 5 active connections and Least Connections active, dispatch requests through the proxy (`http://localhost:8080/`). Observe that NexusLB automatically routes all new traffic to Servers 2 and 3 until Server 1 is no longer the busiest node.
+---
 
-### Method C: Via REST API
+## Simulating & Testing Active Connections
+
+To inspect **Least Connections** or **Smart Auto** connection-skew reactions:
+
+1. Open `http://localhost:8081` (`Overview`) and select **Smart Auto** or **Least Connections**.
+2. Under **Traffic controls -> Socket hold simulation**, configure `Conns` (e.g., `5`) and `Seconds` (e.g., `4`) and click **Hold active**, or adjust **Pinned sockets** (`-` / `+`) on individual cards in **Upstream Pool**.
+3. Alternatively, use the REST API directly:
+
 ```bash
-# Set Server 1 active connections directly to 10
+# Pin Server 1 active connections directly to 10
 curl -X POST "http://localhost:8081/api/backend/connections?url=http://localhost:8001&count=10"
 
 # Adjust Server 2 active connections by +3
@@ -372,38 +402,27 @@ curl -X POST "http://localhost:8081/api/backend/connections?url=http://localhost
 
 ---
 
-## 🛡 Fault Tolerance & Load Rebalancing
+## Fault Tolerance & Load Rebalancing
 
-NexusLB guarantees that if an upstream server goes offline or crashes, **zero client requests are dropped**.
+You can trigger and verify zero-drop failover either autonomously (`Node outage drill` in Lab Studio) or manually:
 
-### Verification via Dashboard:
-1. Open [`http://localhost:8081`](http://localhost:8081).
-2. Click **"Start Continuous Traffic"** to stream continuous requests.
-3. Flip the switch on **Server 2** to **OFF**:
-   - Server 2 immediately dims with `OFFLINE (BYPASSED)`.
-   - Traffic share instantaneously recalculates to **50.0% Server 1** and **50.0% Server 3**.
-   - Server 2 receives **0 requests** while offline.
-4. Flip **Server 2** back to **ON**:
-   - The proactive health checker queries `/health`, receives `200 OK`, and restores Server 2 within $\le 3$ seconds.
-   - Traffic smoothly rebalances to **33.3% across all three nodes**.
+1. Start the simulator from the Overview bar or trigger `node_outage_failover` in **Lab**.
+2. Or go to **Pool** (`#backends`), click **Take down** on Node 2, and observe immediate traffic redistribution across remaining healthy nodes followed by automatic restoration when brought up:
 
-### Verification via CLI:
 ```bash
-# 1. Send requests through the proxy (Round-Robin cycles 8001 -> 8002 -> 8003)
-curl http://localhost:8080/
-curl http://localhost:8080/
-
-# 2. Simulate failure on Server 2
+# Mark Node 2 offline
 curl -X POST "http://localhost:8081/api/backend/toggle?url=http://localhost:8002&state=down"
 
-# 3. Send requests - Server 2 is skipped automatically with 100% success rate
+# Verify proxy traffic routes cleanly to remaining healthy nodes
 curl http://localhost:8080/
-curl http://localhost:8080/
+
+# Restore Node 2 and allow health checks to reintegrate it
+curl -X POST "http://localhost:8081/api/backend/toggle?url=http://localhost:8002&state=up"
 ```
 
 ---
 
-## 📝 Academic Engineering Journals
+## Academic Engineering Journals
 
 As part of the UCS503P curriculum, each team member authored detailed engineering journals documenting challenging technical obstacles encountered during design, debugging, and benchmarking:
 
@@ -420,81 +439,94 @@ As part of the UCS503P curriculum, each team member authored detailed engineerin
 | **Prabhgun Kaur** (`1024030320`) | [Journal 01](./journals/1024030320-prabhgun/01-asset-embedding-boundary-violation.md) | Compile-Time Encapsulation Failure in `go:embed` | Resolved `pattern ../../web/*: cannot use '..'` compile errors by co-locating `web.go` to hermetically bundle UI assets into the binary. |
 | **Prabhgun Kaur** (`1024030320`) | [Journal 02](./journals/1024030320-prabhgun/02-sse-stream-goroutine-leak-timeout-conflict.md) | SSE Goroutine Leak & `WriteTimeout` Collision | Resolved stream disconnects every 15s caused by `WriteTimeout` conflicts and eliminated goroutine leakage on tab refreshes using context cancellation. |
 | **Prabhgun Kaur** (`1024030320`) | [Journal 03](./journals/1024030320-prabhgun/03-token-bucket-ip-churn-memory-leak.md) | Memory Exhaustion Under IP Churn in Token Bucket | Eliminated unbounded memory growth during botnet flood simulations; implemented periodic background sweeper and lock-free token bucket eviction. |
-| **Prabhgun Kaur** (`1024030320`) | [Journal 04](./journals/1024030320-prabhgun/04-circuit-breaker-outlier-detection.md) | Latent Upstream Blackholes & Circuit Breaking | Resolved synthetic `/health` polling blind spots during application degradation; implemented finite state machine Circuit Breaker (`Closed`/`Open`/`Half-Open`), outlier detection, and slice/map mutex protection. |
+| **Prabhgun Kaur** (`1024030320`) | Journal 04 *(not present in repo)* | Latent Upstream Blackholes & Circuit Breaking | Resolved synthetic `/health` polling blind spots during application degradation; implemented finite state machine Circuit Breaker (`Closed`/`Open`/`Half-Open`), outlier detection, and slice/map mutex protection. |
 
 ---
 
-## 📡 API Reference
+## API Reference
 
 ### NexusLB Ingress Gateway (`http://localhost:8080`)
+
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `ANY` | `/*` | Forwards client requests to an upstream backend using the active load balancing strategy |
+| `ANY` | `/*` | Proxies requests through Edge Shield, L7 Canary Steering, Retry Pipeline, and active StrategyManager |
 
 ### NexusLB Admin & Telemetry API (`http://localhost:8081`)
+
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/` | Serves the embedded dark-mode observability dashboard |
-| `GET` | `/api/stats` | Returns JSON snapshot of metrics, active strategy, backend states, and trace logs |
-| `GET` | `/api/stream` | Server-Sent Events (SSE) live telemetry feed (1 Hz) |
-| `GET` | `/api/strategy` | Returns active strategy key, display name, and list of available algorithms |
-| `POST` | `/api/strategy?name=STRAT` | Switches load balancing strategy (`round_robin`, `weighted_round_robin`, `least_connections`, `ip_hash`) |
-| `POST` | `/api/test-request?count=N&delay=MS&client_ip=IP&canary=[true\|false]&sim_ips=[true\|false]` | Dispatches $N$ parallel requests held in-flight for $D$ ms with custom IP and optional canary header steering |
-| `GET` | `/api/shield` | Returns current Edge Shield status (`enabled`, `rate`, `burst`, `total_throttled`) |
-| `POST` | `/api/shield/toggle?state=[on\|off]` | Dynamically activates or disables Edge Shield per-IP rate limiting |
-| `POST` | `/api/shield/config?rate=N&burst=N` | Reconfigures token bucket replenishment rate and burst ceiling |
-| `POST` | `/api/backend/toggle?url=URL&state=[up\|down]` | Toggles backend health state online or offline |
-| `POST` | `/api/backend/connections?url=URL&count=N&delta=N` | Directly overrides or adjusts active connections counter on target backend |
-| `POST` | `/api/backend/weight?url=URL&weight=N&delta=N` | Directly overrides or adjusts capacity weight on target backend (1x - 100x) |
-| `POST` | `/api/backend/canary?url=URL&enabled=[true\|false]&tag=TAG` | Designates or undiscloses target backend as a Canary release node |
-| `POST` | `/api/backend/delay?url=URL&ms=N` | Injects persistent artificial delay (latency) on target backend |
-| `POST` | `/api/stats/reset` | Resets all metric counters and request trace logs |
+| `GET` | `/` | Serves the embedded `data-terminal` observability dashboard |
+| `GET` | `/api/stats` | JSON snapshot of cluster KPIs, strategy/Smart Auto state, backend health, recent trace logs, and `simulation` state |
+| `GET` | `/api/stream` | Server-Sent Events (SSE) live telemetry stream (1 Hz) |
+| `GET` | `/api/strategy` | Returns active strategy key/name and available strategies |
+| `POST` | `/api/strategy?name=STRAT` | Hot-swaps strategy (`adaptive`, `round_robin`, `weighted_round_robin`, `least_connections`, `ip_hash`) |
+| `POST` | `/api/test-request?count=N&delay=MS&client_ip=IP&canary=[true\|false]&sim_ips=[true\|false]` | Fires N concurrent synthetic requests held in-flight for D ms with optional spoofed IP or canary flag |
+| `GET` | `/api/shield` | Returns Edge Shield status (`enabled`, `rate`, `burst`, `total_throttled`) |
+| `POST` | `/api/shield/toggle?state=[on\|off]` | Enables or bypasses Edge Shield per-IP rate limiting |
+| `POST` | `/api/shield/config?rate=N&burst=N` | Updates token bucket refill rate (req/s) and burst ceiling |
+| `POST` | `/api/backend/toggle?url=URL&state=[up\|down]` | Marks upstream backend online or offline |
+| `POST` | `/api/backend/delay?url=URL&ms=N` | Injects artificial simulated delay on target upstream (`mock /chaos/delay` + `simulated_delay_ms`) |
+| `POST` | `/api/backend/connections?url=URL&count=N&delta=N` | Overrides or adjusts simulated active connection counter on target upstream |
+| `POST` | `/api/backend/weight?url=URL&weight=N&delta=N` | Sets or adjusts SWRR backend weight (`>= 1`) |
+| `POST` | `/api/backend/canary?url=URL&enabled=[true\|false]&tag=TAG` | Tags or untags target upstream as a Canary pool member |
+| `POST` | `/api/stats/reset` | Resets metrics collector, rate limiter buckets, Smart Auto transition history, and simulator counters/events |
+| `GET` | `/api/sim/status` | Returns real-life traffic simulator `Snapshot` (status, wave, intensity, attacker count, counters, events) |
+| `POST` | `/api/sim/start` | Starts simulator; accepts optional query or JSON `intensity`, `allow_chaos`, `allow_ddos` |
+| `POST` | `/api/sim/stop` | Stops simulator and restores pre-wave backend delays, weights, canary flags, health, and circuit breakers |
+| `POST` | `/api/sim/config` | Live-updates simulator `intensity`, `allow_chaos`, or `allow_ddos` without interrupting stream |
+| `POST` | `/api/sim/trigger?wave=WAVE` | Preempts to an immediate wave (`organic_baseline`, `sticky_affinity`, `single_ip_dos`, `botnet_ddos`, `latency_spike`, `canary_weighted_rollout`, `node_outage_failover`), auto-starting if paused |
 
 ### Mock Upstream Cluster (`http://localhost:8001`, `8002`, `8003`)
+
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/?delay=MS` | Returns server identity and port number with optional processing delay |
-| `GET` | `/health` | Returns `200 OK` (healthy) or `503 Service Unavailable` (simulated down) |
-| `GET/POST` | `/chaos/toggle?state=[up\|down]` | Toggles failure simulation state for that node |
-| `GET/POST` | `/chaos/delay?ms=MS` | Sets persistent artificial delay for that node |
+| `GET` | `/?delay=MS` | Responds with upstream server port and identity after optional delay |
+| `GET` | `/health` | Returns `200 OK` when healthy or `503 Service Unavailable` when toggled down via `/chaos/toggle` |
+| `GET/POST` | `/chaos/toggle?state=[up\|down]` | Simulates upstream crash/recovery on that mock node |
+| `GET/POST` | `/chaos/delay?ms=MS` | Sets artificial processing delay in milliseconds on that mock node |
 
 ---
 
-## 🧪 Testing & Verification
+## Testing & Verification
 
-Automated test suites validate all routing strategies, concurrency safety, active health checking, and API endpoints.
+### Go Tests & Static Checks
 
-### Run All Unit Tests
 ```bash
+go vet ./...
 go test -v -count=1 ./...
 ```
 
-### Run Concurrency Race Detector
+On toolchains with cgo enabled (Linux/macOS or Windows with gcc):
+
 ```bash
 go test -race ./...
 ```
 
-### Test Suite Highlights:
-- `pkg/balancer/balancer_test.go`: Validates Round-Robin circular sequencing, skips dead nodes, and returns `ErrNoHealthyBackends` when all nodes are offline.
-- `pkg/balancer/least_conn_test.go`: Verifies routing toward nodes with lowest active connections and validates fair circular tie-breaking.
-- `pkg/balancer/ip_hash_test.go`: Confirms deterministic sticky session affinity, ephemeral port stripping, and sequential ring walk failover.
-- `pkg/balancer/manager_test.go`: Tests concurrency safety during zero-downtime hot-swapping under simulated high-throughput traffic.
-- `pkg/health/checker_test.go`: Uses mock HTTP test servers to verify active health transitions and failure detection.
-- `pkg/dashboard/server_test.go`: Tests SSE streaming, strategy switching, connection steppers, and metric reset endpoints.
+### Frontend Syntax Check
+
+```bash
+node --check web/app.js
+```
+
+### Test Coverage Breakdown
+
+- `config/config_test.go`: JSON config loading, defaults, duration parsing, and `sim_intensity` validation.
+- `pkg/backend/backend_test.go`: Atomic state/weight/canary/simulated delay mutations and `Closed` / `Open` / `Half-Open` circuit breaker transitions.
+- `pkg/balancer/*_test.go`: Round Robin, Smooth Weighted Round Robin, Least Connections circular tie-breaker, FNV-1a IP Hash affinity + ring failover, Canary steering & fallback, `StrategyManager` concurrent hot-swaps, and `Smart Auto` priority rules + cooldown hysteresis (`adaptive_test.go`).
+- `pkg/dashboard/server_test.go`: SSE telemetry streaming, strategy swaps, connection/weight/delay/canary mutations, Edge Shield APIs, stats reset, and `/api/sim/*` lifecycle routes.
+- `pkg/health/checker_test.go`: Proactive `/health` failure detection and auto-reintegration.
+- `pkg/metrics/metrics_test.go`: Rolling throughput, latency percentiles (`p50`/`p95`/`p99`), and log ring buffer tests.
+- `pkg/proxy/proxy_test.go`: Transparent retry failover, payload size cap, idempotency enforcement, and Edge Shield `429` interception.
+- `pkg/ratelimit/limiter_test.go`: Token bucket replenishment, per-IP isolation, config hot-updates, and stale bucket eviction.
+- `pkg/simulator/simulator_test.go`: Unique/repeat IP diversity, `single_ip_dos` / `botnet_ddos` `429` validation, reversible chaos & `Stop()` baseline restore, configure/reset, and default `/chaos/*` hook wiring.
 
 ---
 
-## 💡 Engineering Highlights & Concurrency
+## Engineering Highlights & Concurrency
 
-1. **Non-Blocking Atomic Indexing**:
-   - Rather than allocating or filtering slices on every incoming request (which causes heap pressure and race conditions), NexusLB preserves an invariant ring of backend pointers. An atomic counter (`atomic.AddUint64`) selects candidates in $O(1)$ time with zero locks in the critical path.
-2. **Zero-Allocation Status Recorder**:
-   - Go's `httputil.ReverseProxy` writes status codes directly to the underlying socket. NexusLB wraps `http.ResponseWriter` in a specialized `statusRecorder` that intercepts `WriteHeader` calls without buffering the response body in memory, preserving zero-allocation streaming.
-3. **Fair Circular Tie-Breaking**:
-   - Mitigates the "first-minimum trap" in Least Connections routing by advancing an atomic offset on every incoming request, ensuring equitable distribution during low-latency operations while preserving load-shedding during latency spikes.
-4. **Hermetic Single-Binary Embedding**:
-   - Web assets are bundled directly into the executable using `embed.FS` declared in a co-located [`web/web.go`](./web/web.go) package, avoiding relative path traversal restrictions while enabling standalone single-binary portability.
-5. **Context-Aware Streaming**:
-   - The SSE telemetry engine listens to `r.Context().Done()` with multiplexed `select` blocks and deferred ticker teardowns, preventing goroutine leaks and eliminating `WriteTimeout` disconnects.
-6. **Graceful Shutdown Coordinator**:
-   - Listens for `os.Interrupt` (`Ctrl+C`) and `SIGTERM`, stopping ingress traffic, draining in-flight connections with a 5-second timeout context, and cleanly releasing all network listeners.
+1. **Zero-Allocation Hot-Path Routing**: Pre-allocated backend slices paired with 64-bit atomic cursors and circular tie-breakers avoid slice filtering allocations on per-request selection.
+2. **Staged Retry Buffering & Status Capture**: `retryRecorder` buffers response headers and bodies before socket commitment so failed upstream connections retry alternate backends transparently while capturing accurate upstream status codes and latencies.
+3. **Hermetic Single-Binary Packaging**: [`web/web.go`](./web/web.go) embeds all dashboard UI files via `go:embed`, producing a self-contained binary with zero runtime template or asset path dependencies.
+4. **Anti-Flap Meta-Balancing & Observable Explainability**: `AdaptiveBalancer` decouples periodic `250ms` cluster evaluation from fast-path selection while enforcing hysteresis cooldowns with immediate escalation overrides and full human-readable transition history.
+5. **Deterministic Simulator Baseline Rollback**: Every chaos perturbation snapshots original per-node lag, WRR weights, canary flags/tags, node health, and touched circuit breakers so waves and shutdowns cleanly restore cluster baselines without orphaned faults.
+6. **Context-Controlled Shutdown & Leak Prevention**: SSE streams, health pollers, bucket sweepers, simulator worker goroutines, and HTTP listeners terminate cleanly via context cancellation and bounded drain timeouts on `SIGINT`/`SIGTERM`.
