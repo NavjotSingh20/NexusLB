@@ -7,3 +7,4 @@ Name: Navjot Singh
 +  [02 : Asymmetric Backend Starvation and Connection Clustering in Least Connections Routing](./02-least-connections-clustering-tiebreaker.md)
 +  [03 : Micro-Burst Spikes and Uneven Interleaving in Weighted Round-Robin Scheduling](./03-smooth-weighted-round-robin-burst-clustering.md)
 +  [04 : Data Race and Cross-Goroutine Status Mutation in Shared ReverseProxy Error Handler](./04-reverse-proxy-closure-race-condition.md)
++  [05 : High-Frequency Algorithmic Oscillation and Telemetry Flapping in Dynamic Adaptive Load Balancing](./05-adaptive-smart-auto-oscillation-hysteresis.md)

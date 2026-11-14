@@ -7,3 +7,4 @@ Name: Shaina Gera
 +  [02 : Sticky Session Invalidation Due to Ephemeral Port Skew in IP Hashing](./02-ip-hash-ephemeral-port-affinity-skew.md)
 +  [03 : Progressive Delivery Failure and Hard Outages During Canary Node Degradation](./03-canary-steering-outage-fallback.md)
 +  [04 : Premature Socket Commitment and Broken Failover in Mid-Stream Upstream Socket Resets](./04-transparent-retry-staged-recorder.md)
++  [05 : Orphaned Cluster Perturbations and Struct-Copy Hook Nil Pointer Dereference in Autonomous Chaos Simulation](./05-autonomous-chaos-simulation-state-rollback.md)

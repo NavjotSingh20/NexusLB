@@ -7,3 +7,4 @@ Name: Prabhgun Kaur
 +  [02 : Goroutine Leakage and Premature Stream Severing in Real-Time SSE Telemetry](./02-sse-stream-goroutine-leak-timeout-conflict.md)
 +  [03 : Memory Exhaustion Under High IP Churn in Distributed Edge Shield Rate Limiting](./03-token-bucket-ip-churn-memory-leak.md)
 +  [04 : Latent Upstream Blackholes and Health-Check Flapping Under Application Degradation](./04-circuit-breaker-outlier-detection.md)
++  [05 : Lock Contention and Memory Churn in High-Throughput Request Tracing and Quantile Latency Calculation](./05-concurrent-metrics-ring-buffer-contention.md)
