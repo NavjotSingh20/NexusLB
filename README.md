@@ -5,8 +5,9 @@
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen)](#testing--verification)
 [![License](https://img.shields.io/badge/License-MIT-blue)](./LICENSE)
 
-> **Course Project for UCS503P (Software Engineering)**  
+> **Course Project for UCS503 / UCS503P (Software Engineering Capstone)**  
 > **Thapar Institute of Engineering and Technology (TIET), Patiala**  
+> **Evaluation:** End-Semester Evaluation (EST)  
 > **Instructor:** Jhonsy Bansal  
 > **Authors (Group 3C23):**  
 > - Navjot Singh (`1024030313`)  
@@ -31,7 +32,7 @@
 - [Live Observability Dashboard](#live-observability-dashboard)
 - [Simulating & Testing Active Connections](#simulating--testing-active-connections)
 - [Fault Tolerance & Load Rebalancing](#fault-tolerance--load-rebalancing)
-- [Academic Engineering Journals](#academic-engineering-journals)
+- [Academic Deliverables & Engineering Journals](#academic-deliverables--engineering-journals)
 - [API Reference](#api-reference)
 - [Testing & Verification](#testing--verification)
 - [Engineering Highlights & Concurrency](#engineering-highlights--concurrency)
@@ -142,6 +143,7 @@ NexusLB/
 │   ├── config.go                  # Configuration structs, defaults, validation & JSON loader
 │   └── config_test.go             # Config loading & validation unit tests
 ├── journals/                      # Academic engineering journals (Groups/Authors 1024030313, 1024030316, 1024030320)
+├── EST-report/                    # LaTeX End-Semester Technical (EST) Report & Publication Diagrams
 ├── MST-report/                    # LaTeX Mid-Semester Technical Report & compiled PDF
 ├── project-proposal/              # Project proposal LaTeX source & PDF
 ├── pkg/
@@ -422,7 +424,15 @@ curl -X POST "http://localhost:8081/api/backend/toggle?url=http://localhost:8002
 
 ---
 
-## Academic Engineering Journals
+## Academic Deliverables & Engineering Journals
+
+### Technical Reports & Proposal Documentation
+
+- **End-Semester Technical (EST) Report**: Located in [`EST-report/main.tex`](./EST-report/main.tex) — Comprehensive 4-chapter technical report adhering to the official TIET engineering thesis specification, featuring 10 publication-standard monochrome architectural diagrams (SDLC, Use-Case, System Architecture, Deployment, DFD Level 0/1, UML Class, UML Activity, Circuit Breaker FSM, UML Sequence, and Chaos Simulator FSM).
+- **Mid-Semester Technical (MST) Report**: Located in [`MST-report/`](./MST-report/) — Mid-semester progress evaluation and baseline architecture.
+- **Project Proposal**: Located in [`project-proposal/`](./project-proposal/) — Original software engineering specification, requirement matrix, and scope.
+
+### Individual Engineering Journals
 
 As part of the UCS503P curriculum, each team member authored detailed engineering journals documenting challenging technical obstacles encountered during design, debugging, and benchmarking:
 
