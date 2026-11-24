@@ -125,11 +125,12 @@
     <text class="state-footer-text" x="320" y="338">Upstream healthy &amp; active</text>
   </g>
 
-  <!-- Self-Loop on StateClosed (Success / Reset) - Symmetrically Isolated on Left -->
-  <!-- Exits at (220, 230), loops out to X=85, re-enters cleanly at (220, 330) -->
-  <path class="conn-solid" d="M 220 230 C 85 190, 85 370, 220 330" marker-end="url(#arrow)" />
-  <g transform="translate(85, 280)">
-    <rect class="badge-bg" x="-75" y="-11" width="150" height="22" />
+  <!-- Rebound Self-Loop on StateClosed (Success / Reset) -->
+  <!-- Exits at exact R=120 (222, 211), arcs out to X=100 at Y=280, enters at exact R=120 (222, 349) -->
+  <!-- Tangent at (222, 349) is -35.0 deg, pointing dead-center at (320, 280) -->
+  <path class="conn-solid" d="M 222 211 C 60 98, 60 462, 222 349" marker-end="url(#arrow)" />
+  <g transform="translate(100, 280)">
+    <rect class="badge-bg" x="-72" y="-11" width="144" height="22" />
     <text class="badge-text" x="0" y="4">Success: failures = 0</text>
   </g>
 
@@ -167,7 +168,7 @@
 
 
   <!-- ==================== TRANSITION 2: OPEN -> HALF-OPEN (Cooldown Elapsed) ==================== -->
-  <!-- Direct 45-degree diagonal from (995, 365) to (785, 565) -->
+  <!-- Direct 45-degree diagonal from (995, 365) to (785, 565) pointing towards StateHalfOpen center -->
   <path class="conn-solid" d="M 995 365 L 785 565" marker-end="url(#arrow)" />
   <g transform="translate(890, 465)">
     <rect class="badge-bg" x="-105" y="-12" width="210" height="24" />
@@ -176,7 +177,7 @@
 
 
   <!-- ==================== TRANSITION 3: HALF-OPEN -> CLOSED (Trial Succeeded) ==================== -->
-  <!-- Direct 45-degree diagonal from (615, 565) to (405, 365) -->
+  <!-- Direct 45-degree diagonal from (615, 565) to (405, 365) pointing towards StateClosed center -->
   <path class="conn-solid" d="M 615 565 L 405 365" marker-end="url(#arrow)" />
   <g transform="translate(510, 465)">
     <rect class="badge-bg" x="-115" y="-12" width="230" height="24" />
@@ -185,8 +186,9 @@
 
 
   <!-- ==================== TRANSITION 4: HALF-OPEN -> OPEN (Trial Failed / Re-Trip) ==================== -->
-  <!-- Clean outer corridor: exits HalfOpen right, goes to X=1260, up to Y=365, into StateOpen -->
-  <path class="conn-dash" d="M 820 650 L 1260 650 L 1260 365 L 1165 365" marker-end="url(#arrow)" />
+  <!-- Dotted arrow: exits HalfOpen right (820, 650), goes to X=1260, up to Y=280, enters at (1200, 280) -->
+  <!-- Arrow tip at (1200, 280) enters horizontally, pointing dead-straight at StateOpen center (1080, 280) -->
+  <path class="conn-dash" d="M 820 650 L 1260 650 L 1260 280 L 1200 280" marker-end="url(#arrow)" />
   <g transform="translate(1040, 650)">
     <rect class="badge-bg" x="-110" y="-12" width="220" height="24" />
     <text class="badge-text" x="0" y="4">Trial Probe Failed &rarr; Re-Trip</text>
