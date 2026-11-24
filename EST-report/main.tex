@@ -550,7 +550,8 @@ Table~\ref{tab:performance_comparison} details the empirical performance results
 \begin{table}[H]
 \centering
 \small
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccc@{}}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}
 \toprule
 \textbf{Balancing Strategy} & \textbf{Sustained RPS} & \textbf{Mean Latency (ms)} & \textbf{P99 Latency (ms)} & \textbf{Std Dev ($\sigma$)} \\
 \midrule
@@ -560,7 +561,8 @@ Deterministic IP Hash & 1,492.0 & 2.28 & 6.45 & 14.72 \\
 Smooth Weighted RR (SWRR) & 1,497.1 & 1.98 & 4.65 & 2.15 \\
 \textbf{Smart Auto (Adaptive)} & \textbf{1,499.0} & \textbf{1.82} & \textbf{3.95} & \textbf{1.85} \\
 \bottomrule
-\end{tabular*}
+\end{tabular}%
+}
 \caption{Empirical performance benchmark across all 5 load balancing strategies at 1,500 RPS.}
 \label{tab:performance_comparison}
 \end{table}
