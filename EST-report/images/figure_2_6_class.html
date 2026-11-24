@@ -1,413 +1,387 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-
+<meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #ffffff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #1e293b;
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #FFFFFF;
+    font-family: "Latin Modern Roman", "Computer Modern", "Times New Roman", Times, serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 36px;
+    width: 100%;
+    height: 100%;
   }
-  .card {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    border: 1px solid #e2e8f0;
-    padding: 28px;
-    position: relative;
-  }
-  .diagram-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: #0f172a;
-    text-align: center;
-    letter-spacing: -0.3px;
-    margin-bottom: 6px;
-  }
-  .diagram-subtitle {
-    font-size: 13px;
-    color: #64748b;
-    text-align: center;
-    margin-bottom: 24px;
-    font-weight: 500;
-  }
-  .entity-box {
-    background: #f8fafc;
-    border: 2px solid #334155;
-    border-radius: 8px;
-    padding: 14px 18px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 15px;
-    color: #0f172a;
-  }
-  .process-circle {
-    background: #eff6ff;
-    border: 2.5px solid #2563eb;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 12px;
-  }
-  .datastore-box {
-    background: #f0fdf4;
-    border: 2px solid #16a34a;
-    border-radius: 6px;
-    padding: 10px 14px;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: #166534;
-  }
-  .badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .badge-blue { background: #dbeafe; color: #1e40af; }
-  .badge-green { background: #dcfce7; color: #166534; }
-  .badge-amber { background: #fef3c7; color: #92400e; }
-  .badge-red { background: #fee2e2; color: #991b1b; }
-  .badge-purple { background: #f3e8ff; color: #6b21a8; }
-</style>
-
-<style>
   .canvas {
     width: 1540px;
-    height: 1280px;
+    height: 1040px;
+    background: #FFFFFF;
     position: relative;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 24px;
   }
-  .uml-class {
-    background: #ffffff;
-    border: 2px solid #2563eb;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.08);
-    position: absolute;
-    font-size: 13px;
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
-  .uml-class-header {
-    background: #eff6ff;
-    padding: 10px 14px;
-    border-bottom: 2px solid #2563eb;
-    text-align: center;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
+
+  /* UML Class Boxes */
+  .class-box {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.8px;
+    rx: 3px;
   }
-  .uml-class-name {
-    font-size: 16px;
-    font-weight: 800;
-    color: #1e3a8a;
+  .class-divider {
+    stroke: #000000;
+    stroke-width: 1.2px;
   }
-  .uml-interface {
-    border-color: #0d9488;
-    box-shadow: 0 4px 12px rgba(13,148,136,0.08);
+
+  /* Class Headers */
+  .class-title {
+    font-size: 15px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
-  .uml-interface .uml-class-header {
-    background: #f0fdfa;
-    border-bottom-color: #0d9488;
+  .class-pkg {
+    font-size: 11px;
+    font-weight: normal;
+    font-style: italic;
+    fill: #222222;
+    text-anchor: middle;
   }
-  .uml-interface .uml-class-name {
-    color: #0f766e;
-  }
-  .uml-subclass {
-    border-color: #6366f1;
-    box-shadow: 0 4px 12px rgba(99,102,241,0.08);
-  }
-  .uml-subclass .uml-class-header {
-    background: #eef2ff;
-    border-bottom-color: #6366f1;
-  }
-  .uml-subclass .uml-class-name {
-    color: #4338ca;
-  }
-  .uml-section {
-    padding: 8px 12px;
-    border-bottom: 1px solid #e2e8f0;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  .interface-tag {
     font-size: 12px;
-    color: #334155;
-    line-height: 1.5;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
-  .uml-section:last-child {
-    border-bottom: none;
+
+  /* Class Body Text (Code font) */
+  .code-text {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 11px;
+    fill: #000000;
+    text-anchor: start;
+  }
+  .interface-desc {
+    font-size: 11.5px;
+    font-style: italic;
+    fill: #111111;
+    text-anchor: middle;
+  }
+
+  /* Connectors */
+  .conn-solid {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 1.6px;
+  }
+  .conn-dash {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 1.6px;
+    stroke-dasharray: 6,4;
+  }
+
+  /* Badges & Markers */
+  .badge-bg {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1px;
+    rx: 3px;
+  }
+  .badge-text {
+    font-size: 11px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
+  }
+  .aggr-diamond {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.6px;
+  }
+  .impl-triangle {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.6px;
   }
 </style>
 </head>
 <body>
-<div class="card canvas">
-  <div class="diagram-title">Figure 2.6: UML Class Diagram & Go Structural Design</div>
-  <div class="diagram-subtitle">Object-Oriented Decomposition, Interfaces, Aggregations, and Dynamic Strategy Realizations</div>
+<div class="canvas">
+<svg viewBox="0 0 1540 1040" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#000000" />
+    </marker>
+  </defs>
 
-  <!-- SVG Connectors -->
-  <svg style="position: absolute; top: 0; left: 0; width: 1540px; height: 1280px; pointer-events: none;">
-    <defs>
-      <marker id="uml-rel" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
-      </marker>
-      <marker id="uml-aggr" markerWidth="16" markerHeight="10" refX="1" refY="5" orient="auto">
-        <polygon points="1 5, 8 1, 15 5, 8 9" fill="#ffffff" stroke="#7c3aed" stroke-width="1.8" />
-      </marker>
-      <marker id="uml-impl" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto">
-        <polygon points="1 1, 13 6, 1 11" fill="#ffffff" stroke="#0d9488" stroke-width="1.8" />
-      </marker>
-    </defs>
+  <!-- ==================== ROW 1: PRIMARY GATEWAY & CORE CLASSES ==================== -->
+  <!-- 1. ReverseProxy (X=50, Y=40, W=400, H=280) -->
+  <g transform="translate(50, 40)">
+    <rect class="class-box" x="0" y="0" width="400" height="280" />
+    <text class="class-title" x="200" y="26">ReverseProxy</text>
+    <text class="class-pkg" x="200" y="44">pkg/proxy/proxy.go</text>
+    <line class="class-divider" x1="0" y1="54" x2="400" y2="54" />
 
-    <!-- ReverseProxy to StrategyManager -->
-    <path d="M 430 220 L 580 220" stroke="#2563eb" stroke-width="2.5" marker-end="url(#uml-rel)" fill="none" />
-    <text x="505" y="210" fill="#1e40af" font-size="12" font-weight="700" text-anchor="middle">routes to</text>
+    <!-- Attributes -->
+    <text class="code-text" x="14" y="74">- proxy : *httputil.ReverseProxy</text>
+    <text class="code-text" x="14" y="93">- manager : *StrategyManager</text>
+    <text class="code-text" x="14" y="112">- limiter : *Limiter</text>
+    <text class="code-text" x="14" y="131">- metrics : *MetricsCollector</text>
+    <text class="code-text" x="14" y="150">- maxRetries : int</text>
+    <line class="class-divider" x1="0" y1="164" x2="400" y2="164" />
 
-    <!-- ReverseProxy to Limiter -->
-    <path d="M 240 370 L 240 470" stroke="#7c3aed" stroke-width="2.2" marker-start="url(#uml-aggr)" fill="none" />
-    <text x="250" y="420" fill="#6b21a8" font-size="12" font-weight="700">enforces</text>
+    <!-- Methods -->
+    <text class="code-text" x="14" y="184">+ ServeHTTP(w ResponseWriter, r *Request)</text>
+    <text class="code-text" x="14" y="205">+ ErrorHandler(w, r, err error)</text>
+    <text class="code-text" x="14" y="226">+ ModifyResponse(resp *Response) error</text>
+    <text class="code-text" x="14" y="247">+ replayRequest(r *Request, b *Backend)</text>
+  </g>
 
-    <!-- StrategyManager to Balancer Interface -->
-    <path d="M 770 370 L 770 470" stroke="#7c3aed" stroke-width="2.2" marker-start="url(#uml-aggr)" fill="none" />
-    <text x="780" y="420" fill="#6b21a8" font-size="12" font-weight="700">manages</text>
+  <!-- 2. StrategyManager (X=570, Y=40, W=400, H=280) -->
+  <g transform="translate(570, 40)">
+    <rect class="class-box" x="0" y="0" width="400" height="280" />
+    <text class="class-title" x="200" y="26">StrategyManager</text>
+    <text class="class-pkg" x="200" y="44">pkg/strategy/manager.go</text>
+    <line class="class-divider" x1="0" y1="54" x2="400" y2="54" />
 
-    <!-- StrategyManager to Backend -->
-    <path d="M 960 220 L 1110 220" stroke="#2563eb" stroke-width="2.5" marker-end="url(#uml-rel)" fill="none" />
-    <text x="1035" y="210" fill="#1e40af" font-size="12" font-weight="700" text-anchor="middle">dispatches</text>
+    <!-- Attributes -->
+    <text class="code-text" x="14" y="74">- current : Balancer</text>
+    <text class="code-text" x="14" y="93">- strategies : map[string]Balancer</text>
+    <text class="code-text" x="14" y="112">- canaryPool : []*Backend</text>
+    <text class="code-text" x="14" y="131">- mu : sync.RWMutex</text>
+    <text class="code-text" x="14" y="150">- canaryRatio : float64</text>
+    <line class="class-divider" x1="0" y1="164" x2="400" y2="164" />
 
-    <!-- Backend to CircuitBreaker -->
-    <path d="M 1300 370 L 1300 470" stroke="#7c3aed" stroke-width="2.2" marker-start="url(#uml-aggr)" fill="none" />
-    <text x="1310" y="420" fill="#6b21a8" font-size="12" font-weight="700">monitored by</text>
+    <!-- Methods -->
+    <text class="code-text" x="14" y="184">+ SetStrategy(name string) error</text>
+    <text class="code-text" x="14" y="205">+ NextBackend(b []*Backend, r *Request) (*Backend, err)</text>
+    <text class="code-text" x="14" y="226">+ GetCurrentName() string</text>
+    <text class="code-text" x="14" y="247">+ RegisterStrategy(name string, b Balancer)</text>
+  </g>
 
-    <!-- Implementations of Balancer Interface from Row 3 subclasses -->
-    <!-- Bus line at Y=740 -->
-    <path d="M 770 660 L 770 730" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" marker-start="url(#uml-impl)" fill="none" />
-    <path d="M 140 730 L 1400 730" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
+  <!-- 3. Backend (X=1090, Y=40, W=400, H=280) -->
+  <g transform="translate(1090, 40)">
+    <rect class="class-box" x="0" y="0" width="400" height="280" />
+    <text class="class-title" x="200" y="26">Backend</text>
+    <text class="class-pkg" x="200" y="44">pkg/proxy/backend.go</text>
+    <line class="class-divider" x1="0" y1="54" x2="400" y2="54" />
 
-    <path d="M 140 730 L 140 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
-    <path d="M 455 730 L 455 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
-    <path d="M 770 730 L 770 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
-    <path d="M 1085 730 L 1085 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
-    <path d="M 1400 730 L 1400 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
-    <text x="770" y="720" fill="#0f766e" font-size="12" font-weight="700" text-anchor="middle">&laquo;realizes Balancer interface&raquo;</text>
-  </svg>
+    <!-- Attributes -->
+    <text class="code-text" x="14" y="74">- URL : *url.URL</text>
+    <text class="code-text" x="14" y="93">- Alive : bool</text>
+    <text class="code-text" x="14" y="112">- Weight : int</text>
+    <text class="code-text" x="14" y="131">- EffectiveWeight : int</text>
+    <text class="code-text" x="14" y="150">- ActiveConns : int64 / CB : *CircuitBreaker</text>
+    <line class="class-divider" x1="0" y1="164" x2="400" y2="164" />
 
-  <!-- ROW 1 -->
-  <!-- ReverseProxy -->
-  <div style="top: 90px; left: 50px; width: 380px;" class="uml-class">
-    <div class="uml-class-header">
-      <div class="uml-class-name">ReverseProxy</div>
-      <div style="font-size: 11px; color: #64748b;">pkg/proxy/proxy.go</div>
-    </div>
-    <div class="uml-section">
-      - proxy : *httputil.ReverseProxy<br>
-      - manager : *StrategyManager<br>
-      - limiter : *Limiter<br>
-      - metrics : *MetricsCollector<br>
-      - maxRetries : int
-    </div>
-    <div class="uml-section">
-      + ServeHTTP(w ResponseWriter, r *Request)<br>
-      + ErrorHandler(w, r, err error)<br>
-      + ModifyResponse(resp *Response) error<br>
-      + replayRequest(r *Request, b *Backend)
-    </div>
-  </div>
+    <!-- Methods -->
+    <text class="code-text" x="14" y="184">+ IsAlive() bool</text>
+    <text class="code-text" x="14" y="205">+ SetAlive(alive bool)</text>
+    <text class="code-text" x="14" y="226">+ IncConns() / DecConns()</text>
+    <text class="code-text" x="14" y="247">+ GetActiveConns() int64 / GetURL() *url.URL</text>
+  </g>
 
-  <!-- StrategyManager -->
-  <div style="top: 90px; left: 580px; width: 380px;" class="uml-class">
-    <div class="uml-class-header">
-      <div class="uml-class-name">StrategyManager</div>
-      <div style="font-size: 11px; color: #64748b;">pkg/strategy/manager.go</div>
-    </div>
-    <div class="uml-section">
-      - current : Balancer<br>
-      - strategies : map[string]Balancer<br>
-      - canaryPool : []*Backend<br>
-      - mu : sync.RWMutex<br>
-      - canaryRatio : float64
-    </div>
-    <div class="uml-section">
-      + SetStrategy(name string) error<br>
-      + NextBackend(b []*Backend, r *Request) (*Backend, error)<br>
-      + GetCurrentName() string<br>
-      + RegisterStrategy(name string, b Balancer)
-    </div>
-  </div>
+  <!-- Horizontal Connections Row 1 -->
+  <!-- ReverseProxy -> StrategyManager -->
+  <path class="conn-solid" d="M 450 160 L 570 160" marker-end="url(#arrow)" />
+  <g transform="translate(510, 160)">
+    <rect class="badge-bg" x="-32" y="-11" width="64" height="22" />
+    <text class="badge-text" x="0" y="4">routes to</text>
+  </g>
 
-  <!-- Backend -->
-  <div style="top: 90px; left: 1110px; width: 380px;" class="uml-class">
-    <div class="uml-class-header">
-      <div class="uml-class-name">Backend</div>
-      <div style="font-size: 11px; color: #64748b;">pkg/proxy/backend.go</div>
-    </div>
-    <div class="uml-section">
-      - URL : *url.URL<br>
-      - Alive : bool<br>
-      - Weight : int<br>
-      - EffectiveWeight : int<br>
-      - ActiveConns : int64<br>
-      - CB : *CircuitBreaker
-    </div>
-    <div class="uml-section">
-      + IsAlive() bool<br>
-      + SetAlive(alive bool)<br>
-      + IncConns() / DecConns()<br>
-      + GetActiveConns() int64<br>
-      + GetURL() *url.URL
-    </div>
-  </div>
+  <!-- StrategyManager -> Backend -->
+  <path class="conn-solid" d="M 970 160 L 1090 160" marker-end="url(#arrow)" />
+  <g transform="translate(1030, 160)">
+    <rect class="badge-bg" x="-34" y="-11" width="68" height="22" />
+    <text class="badge-text" x="0" y="4">dispatches</text>
+  </g>
 
-  <!-- ROW 2 -->
-  <!-- Limiter -->
-  <div style="top: 470px; left: 50px; width: 380px;" class="uml-class">
-    <div class="uml-class-header">
-      <div class="uml-class-name">Limiter (Edge Shield)</div>
-      <div style="font-size: 11px; color: #64748b;">pkg/limiter/limiter.go</div>
-    </div>
-    <div class="uml-section">
-      - buckets : sync.Map<br>
-      - rate : float64 (tokens/sec)<br>
-      - burst : int<br>
-      - ttl : time.Duration (60s)
-    </div>
-    <div class="uml-section">
-      + Allow(ip string) bool<br>
-      + StartSweeper(ctx context.Context)<br>
-      + getBucket(ip string) *tokenBucket<br>
-      + GetActiveIPCount() int
-    </div>
-  </div>
 
-  <!-- Interface Balancer -->
-  <div style="top: 470px; left: 580px; width: 380px;" class="uml-class uml-interface">
-    <div class="uml-class-header">
-      <div style="font-size: 12px; font-weight: 700; color: #0d9488;">&laquo;interface&raquo;</div>
-      <div class="uml-class-name">Balancer</div>
-      <div style="font-size: 11px; color: #64748b;">pkg/strategy/strategy.go</div>
-    </div>
-    <div class="uml-section" style="text-align: center; color: #64748b; font-style: italic;">
-      Polymorphic Strategy Contract
-    </div>
-    <div class="uml-section">
-      + NextBackend(backends []*Backend, r *Request) (*Backend, error)<br>
-      + Name() string<br>
-      + Reset()
-    </div>
-  </div>
+  <!-- ==================== ROW 2: SUBSYSTEMS & STRATEGY INTERFACE ==================== -->
+  <!-- 4. Limiter (X=50, Y=430, W=400, H=230) -->
+  <g transform="translate(50, 430)">
+    <rect class="class-box" x="0" y="0" width="400" height="230" />
+    <text class="class-title" x="200" y="25">Limiter (Edge Shield)</text>
+    <text class="class-pkg" x="200" y="43">pkg/limiter/limiter.go</text>
+    <line class="class-divider" x1="0" y1="52" x2="400" y2="52" />
 
-  <!-- CircuitBreaker -->
-  <div style="top: 470px; left: 1110px; width: 380px;" class="uml-class">
-    <div class="uml-class-header">
-      <div class="uml-class-name">CircuitBreaker</div>
-      <div style="font-size: 11px; color: #64748b;">pkg/breaker/breaker.go</div>
-    </div>
-    <div class="uml-section">
-      - state : CircuitState (Closed/Open/HalfOpen)<br>
-      - failures : uint32<br>
-      - cooldown : time.Duration (10s)<br>
-      - lastTripped : time.Time<br>
-      - mu : sync.Mutex
-    </div>
-    <div class="uml-section">
-      + Allow() bool<br>
-      + RecordResult(err error)<br>
-      + GetState() CircuitState<br>
-      + Trip() / Reset()
-    </div>
-  </div>
+    <!-- Attributes -->
+    <text class="code-text" x="14" y="73">- buckets : sync.Map</text>
+    <text class="code-text" x="14" y="93">- rate : float64 (tokens/sec)</text>
+    <text class="code-text" x="14" y="113">- burst : int / ttl : time.Duration (60s)</text>
+    <line class="class-divider" x1="0" y1="126" x2="400" y2="126" />
 
-  <!-- ROW 3 (5 Realizations) -->
-  <!-- 1. RoundRobin -->
-  <div style="top: 810px; left: 20px; width: 240px;" class="uml-class uml-subclass">
-    <div class="uml-class-header">
-      <div class="uml-class-name" style="font-size: 14px;">RoundRobin</div>
-      <div style="font-size: 10px; color: #64748b;">atomic pointer</div>
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      - current : uint64
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      + NextBackend(...)<br>
-      + Name(): "round_robin"
-    </div>
-  </div>
+    <!-- Methods -->
+    <text class="code-text" x="14" y="146">+ Allow(ip string) bool</text>
+    <text class="code-text" x="14" y="167">+ StartSweeper(ctx context.Context)</text>
+    <text class="code-text" x="14" y="188">+ getBucket(ip string) *tokenBucket</text>
+    <text class="code-text" x="14" y="209">+ GetActiveIPCount() int</text>
+  </g>
 
-  <!-- 2. LeastConn -->
-  <div style="top: 810px; left: 335px; width: 240px;" class="uml-class uml-subclass">
-    <div class="uml-class-header">
-      <div class="uml-class-name" style="font-size: 14px;">LeastConn</div>
-      <div style="font-size: 10px; color: #64748b;">rotating tiebreaker</div>
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      - offset : uint64
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      + NextBackend(...)<br>
-      + Name(): "least_conn"
-    </div>
-  </div>
+  <!-- 5. <<interface>> Balancer (X=570, Y=430, W=400, H=230) -->
+  <g transform="translate(570, 430)">
+    <rect class="class-box" x="0" y="0" width="400" height="230" />
+    <text class="interface-tag" x="200" y="24">&laquo;interface&raquo;</text>
+    <text class="class-title" x="200" y="44">Balancer</text>
+    <text class="class-pkg" x="200" y="60">pkg/strategy/strategy.go</text>
+    <line class="class-divider" x1="0" y1="70" x2="400" y2="70" />
 
-  <!-- 3. IPHash -->
-  <div style="top: 810px; left: 650px; width: 240px;" class="uml-class uml-subclass">
-    <div class="uml-class-header">
-      <div class="uml-class-name" style="font-size: 14px;">IPHash</div>
-      <div style="font-size: 10px; color: #64748b;">fnv-1a deterministic</div>
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      - hashFn : HashFunc
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      + NextBackend(...)<br>
-      + Name(): "ip_hash"
-    </div>
-  </div>
+    <!-- Contract description -->
+    <text class="interface-desc" x="200" y="96">Polymorphic Strategy Contract</text>
+    <line class="class-divider" x1="0" y1="116" x2="400" y2="116" />
 
-  <!-- 4. SmoothWRR -->
-  <div style="top: 810px; left: 965px; width: 240px;" class="uml-class uml-subclass">
-    <div class="uml-class-header">
-      <div class="uml-class-name" style="font-size: 14px;">SmoothWRR</div>
-      <div style="font-size: 10px; color: #64748b;">nginx smooth interleaving</div>
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      - curWeights : []int<br>
-      - totalWeight : int
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      + NextBackend(...)<br>
-      + Name(): "smooth_wrr"
-    </div>
-  </div>
+    <!-- Methods -->
+    <text class="code-text" x="14" y="142">+ NextBackend(b []*Backend, r *Request) (*Backend, err)</text>
+    <text class="code-text" x="14" y="167">+ Name() string</text>
+    <text class="code-text" x="14" y="192">+ Reset()</text>
+  </g>
 
-  <!-- 5. Adaptive -->
-  <div style="top: 810px; left: 1280px; width: 240px;" class="uml-class uml-subclass">
-    <div class="uml-class-header">
-      <div class="uml-class-name" style="font-size: 14px;">Adaptive</div>
-      <div style="font-size: 10px; color: #64748b;">4-tier priority cascade</div>
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      - history : []Event<br>
-      - lastSwitch : time.Time
-    </div>
-    <div class="uml-section" style="font-size: 11px;">
-      + NextBackend(...)<br>
-      + Name(): "smart_auto"
-    </div>
-  </div>
+  <!-- 6. CircuitBreaker (X=1090, Y=430, W=400, H=230) -->
+  <g transform="translate(1090, 430)">
+    <rect class="class-box" x="0" y="0" width="400" height="230" />
+    <text class="class-title" x="200" y="25">CircuitBreaker</text>
+    <text class="class-pkg" x="200" y="43">pkg/breaker/breaker.go</text>
+    <line class="class-divider" x1="0" y1="52" x2="400" y2="52" />
 
-  <div style="position: absolute; bottom: 15px; left: 0; right: 0; text-align: center; font-size: 12px; color: #94a3b8; font-weight: 500;">
-    NexusLB Go Structural Architecture &bull; Standard Library Concurrency &bull; TIET UCS503 Software Engineering
-  </div>
+    <!-- Attributes -->
+    <text class="code-text" x="14" y="73">- state : CircuitState (Closed / Open / HalfOpen)</text>
+    <text class="code-text" x="14" y="93">- failures : uint32 / cooldown : time.Duration (10s)</text>
+    <text class="code-text" x="14" y="113">- lastTripped : time.Time / mu : sync.Mutex</text>
+    <line class="class-divider" x1="0" y1="126" x2="400" y2="126" />
+
+    <!-- Methods -->
+    <text class="code-text" x="14" y="146">+ Allow() bool</text>
+    <text class="code-text" x="14" y="167">+ RecordResult(err error)</text>
+    <text class="code-text" x="14" y="188">+ GetState() CircuitState</text>
+    <text class="code-text" x="14" y="209">+ Trip() / Reset()</text>
+  </g>
+
+  <!-- Vertical Connections Row 1 to Row 2 (With UML Aggregation Diamonds) -->
+  <!-- ReverseProxy -> Limiter -->
+  <polygon class="aggr-diamond" points="250,320 257,330 250,340 243,330" />
+  <path class="conn-solid" d="M 250 340 L 250 430" />
+  <g transform="translate(250, 385)">
+    <rect class="badge-bg" x="-32" y="-11" width="64" height="22" />
+    <text class="badge-text" x="0" y="4">enforces</text>
+  </g>
+
+  <!-- StrategyManager -> Balancer Interface -->
+  <polygon class="aggr-diamond" points="770,320 777,330 770,340 763,330" />
+  <path class="conn-solid" d="M 770 340 L 770 430" />
+  <g transform="translate(770, 385)">
+    <rect class="badge-bg" x="-32" y="-11" width="64" height="22" />
+    <text class="badge-text" x="0" y="4">manages</text>
+  </g>
+
+  <!-- Backend -> CircuitBreaker -->
+  <polygon class="aggr-diamond" points="1290,320 1297,330 1290,340 1283,330" />
+  <path class="conn-solid" d="M 1290 340 L 1290 430" />
+  <g transform="translate(1290, 385)">
+    <rect class="badge-bg" x="-45" y="-11" width="90" height="22" />
+    <text class="badge-text" x="0" y="4">monitored by</text>
+  </g>
+
+
+  <!-- ==================== ROW 3: 5 CONCRETE STRATEGY REALIZATIONS ==================== -->
+  <!-- Realization Triangle Marker (Touches bottom of Balancer Interface at Y=660) -->
+  <polygon class="impl-triangle" points="770,660 760,676 780,676" />
+
+  <!-- Vertical Trunk to Realization Bus -->
+  <path class="conn-dash" d="M 770 676 L 770 735" />
+
+  <!-- Horizontal Realization Bus (Spanning X=170 to X=1370 at Y=735) -->
+  <path class="conn-dash" d="M 170 735 L 1370 735" />
+
+  <!-- Centered Realization Badge (Neatly masking the T-Junction) -->
+  <g transform="translate(770, 735)">
+    <rect class="badge-bg" x="-95" y="-11" width="190" height="22" />
+    <text class="badge-text" x="0" y="4">&laquo;realizes Balancer interface&raquo;</text>
+  </g>
+
+  <!-- Branch Drops from Bus into Row 3 Classes -->
+  <path class="conn-dash" d="M 170 735 L 170 800" />
+  <path class="conn-dash" d="M 470 735 L 470 800" />
+  <!-- Center branch from badge bottom to IPHash -->
+  <path class="conn-dash" d="M 770 746 L 770 800" />
+  <path class="conn-dash" d="M 1070 735 L 1070 800" />
+  <path class="conn-dash" d="M 1370 735 L 1370 800" />
+
+  <!-- 1. RoundRobin (X=40 to 300, Center X=170, Y=800, W=260, H=190) -->
+  <g transform="translate(40, 800)">
+    <rect class="class-box" x="0" y="0" width="260" height="190" />
+    <text class="class-title" x="130" y="24">RoundRobin</text>
+    <text class="class-pkg" x="130" y="40">atomic pointer</text>
+    <line class="class-divider" x1="0" y1="48" x2="260" y2="48" />
+    <text class="code-text" x="12" y="70">- current : uint64</text>
+    <line class="class-divider" x1="0" y1="84" x2="260" y2="84" />
+    <text class="code-text" x="12" y="110">+ NextBackend(...)</text>
+    <text class="code-text" x="12" y="134">+ Name(): "round_robin"</text>
+    <text class="code-text" x="12" y="158">+ Reset()</text>
+  </g>
+
+  <!-- 2. LeastConn (X=340 to 600, Center X=470, Y=800, W=260, H=190) -->
+  <g transform="translate(340, 800)">
+    <rect class="class-box" x="0" y="0" width="260" height="190" />
+    <text class="class-title" x="130" y="24">LeastConn</text>
+    <text class="class-pkg" x="130" y="40">rotating tiebreaker</text>
+    <line class="class-divider" x1="0" y1="48" x2="260" y2="48" />
+    <text class="code-text" x="12" y="70">- offset : uint64</text>
+    <line class="class-divider" x1="0" y1="84" x2="260" y2="84" />
+    <text class="code-text" x="12" y="110">+ NextBackend(...)</text>
+    <text class="code-text" x="12" y="134">+ Name(): "least_conn"</text>
+    <text class="code-text" x="12" y="158">+ Reset()</text>
+  </g>
+
+  <!-- 3. IPHash (X=640 to 900, Center X=770, Y=800, W=260, H=190) -->
+  <g transform="translate(640, 800)">
+    <rect class="class-box" x="0" y="0" width="260" height="190" />
+    <text class="class-title" x="130" y="24">IPHash</text>
+    <text class="class-pkg" x="130" y="40">fnv-1a deterministic</text>
+    <line class="class-divider" x1="0" y1="48" x2="260" y2="48" />
+    <text class="code-text" x="12" y="70">- hashFn : HashFunc</text>
+    <line class="class-divider" x1="0" y1="84" x2="260" y2="84" />
+    <text class="code-text" x="12" y="110">+ NextBackend(...)</text>
+    <text class="code-text" x="12" y="134">+ Name(): "ip_hash"</text>
+    <text class="code-text" x="12" y="158">+ Reset()</text>
+  </g>
+
+  <!-- 4. SmoothWRR (X=940 to 1200, Center X=1070, Y=800, W=260, H=190) -->
+  <g transform="translate(940, 800)">
+    <rect class="class-box" x="0" y="0" width="260" height="190" />
+    <text class="class-title" x="130" y="24">SmoothWRR</text>
+    <text class="class-pkg" x="130" y="40">nginx smooth interleaving</text>
+    <line class="class-divider" x1="0" y1="48" x2="260" y2="48" />
+    <text class="code-text" x="12" y="66">- curWeights : []int</text>
+    <text class="code-text" x="12" y="84">- totalWeight : int</text>
+    <line class="class-divider" x1="0" y1="94" x2="260" y2="94" />
+    <text class="code-text" x="12" y="114">+ NextBackend(...)</text>
+    <text class="code-text" x="12" y="136">+ Name(): "smooth_wrr"</text>
+    <text class="code-text" x="12" y="158">+ Reset()</text>
+  </g>
+
+  <!-- 5. Adaptive (X=1240 to 1500, Center X=1370, Y=800, W=260, H=190) -->
+  <g transform="translate(1240, 800)">
+    <rect class="class-box" x="0" y="0" width="260" height="190" />
+    <text class="class-title" x="130" y="24">Adaptive</text>
+    <text class="class-pkg" x="130" y="40">4-tier priority cascade</text>
+    <line class="class-divider" x1="0" y1="48" x2="260" y2="48" />
+    <text class="code-text" x="12" y="66">- history : []Event</text>
+    <text class="code-text" x="12" y="84">- lastSwitch : time.Time</text>
+    <line class="class-divider" x1="0" y1="94" x2="260" y2="94" />
+    <text class="code-text" x="12" y="114">+ NextBackend(...)</text>
+    <text class="code-text" x="12" y="136">+ Name(): "smart_auto"</text>
+    <text class="code-text" x="12" y="158">+ Reset()</text>
+  </g>
+
+</svg>
 </div>
 </body>
 </html>

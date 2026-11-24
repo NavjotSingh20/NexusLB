@@ -1,214 +1,228 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-
+<meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #ffffff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #1e293b;
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #FFFFFF;
+    font-family: "Latin Modern Roman", "Computer Modern", "Times New Roman", Times, serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 36px;
+    width: 100%;
+    height: 100%;
   }
-  .card {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    border: 1px solid #e2e8f0;
-    padding: 28px;
-    position: relative;
-  }
-  .diagram-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: #0f172a;
-    text-align: center;
-    letter-spacing: -0.3px;
-    margin-bottom: 6px;
-  }
-  .diagram-subtitle {
-    font-size: 13px;
-    color: #64748b;
-    text-align: center;
-    margin-bottom: 24px;
-    font-weight: 500;
-  }
-  .entity-box {
-    background: #f8fafc;
-    border: 2px solid #334155;
-    border-radius: 8px;
-    padding: 14px 18px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 15px;
-    color: #0f172a;
-  }
-  .process-circle {
-    background: #eff6ff;
-    border: 2.5px solid #2563eb;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 12px;
-  }
-  .datastore-box {
-    background: #f0fdf4;
-    border: 2px solid #16a34a;
-    border-radius: 6px;
-    padding: 10px 14px;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: #166534;
-  }
-  .badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .badge-blue { background: #dbeafe; color: #1e40af; }
-  .badge-green { background: #dcfce7; color: #166534; }
-  .badge-amber { background: #fef3c7; color: #92400e; }
-  .badge-red { background: #fee2e2; color: #991b1b; }
-  .badge-purple { background: #f3e8ff; color: #6b21a8; }
-</style>
-
-<style>
   .canvas {
-    width: 1450px;
-    height: 900px;
+    width: 1560px;
+    height: 800px;
+    background: #FFFFFF;
     position: relative;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 30px;
   }
-  .chaos-stage {
-    background: #ffffff;
-    border: 2.5px solid #0d9488;
-    border-radius: 10px;
-    box-shadow: 0 4px 14px rgba(13,148,136,0.08);
-    position: absolute;
-    padding: 20px;
-    text-align: left;
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
-  .stage-num {
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: #0d9488;
-    margin-bottom: 4px;
+
+  /* State Boxes */
+  .state-box {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.8px;
+    rx: 6px;
   }
-  .stage-title {
-    font-size: 18px;
-    font-weight: 800;
-    color: #0f172a;
-    margin-bottom: 8px;
+  .state-divider {
+    stroke: #000000;
+    stroke-width: 1.2px;
   }
-  .stage-desc {
-    font-size: 13px;
-    color: #475569;
-    line-height: 1.5;
+
+  /* Typography */
+  .state-title {
+    font-size: 14.5px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
-  .stage-badge {
-    margin-top: 10px;
-    display: inline-block;
+  .state-sub {
+    font-size: 11.5px;
+    font-weight: normal;
+    font-style: italic;
+    fill: #222222;
+    text-anchor: middle;
+  }
+  .bullet-text {
+    font-size: 11px;
+    font-weight: normal;
+    fill: #000000;
+    text-anchor: start;
+  }
+  .status-pill-bg {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1px;
+    rx: 3px;
+  }
+  .status-pill-text {
+    font-size: 10.5px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
+  }
+
+  /* Initial Pseudo-State Node */
+  .init-node {
+    fill: #000000;
+  }
+
+  /* Connectors */
+  .conn-solid {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 1.8px;
+  }
+
+  /* Badges & Labels */
+  .badge-bg {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1px;
+    rx: 3px;
+  }
+  .badge-text {
+    font-size: 11px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
 </style>
 </head>
 <body>
-<div class="card canvas">
-  <div class="diagram-title">Figure 2.11: Autonomous Chaos Simulation Engine State Lifecycle</div>
-  <div class="diagram-subtitle">Baseline Capture, Synthetic Stress Wave Execution, and Zero-Downtime Atomic Rollback</div>
+<div class="canvas">
+<svg viewBox="0 0 1560 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#000000" />
+    </marker>
+  </defs>
 
-  <!-- SVG Connectors -->
-  <svg style="position: absolute; top: 0; left: 0; width: 1450px; height: 900px; pointer-events: none;">
-    <defs>
-      <marker id="arr-teal" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#0d9488" />
-      </marker>
-      <marker id="arr-red" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626" />
-      </marker>
-      <marker id="arr-green" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a" />
-      </marker>
-    </defs>
+  <!-- ==================== INITIAL PSEUDO-STATE (UML STANDARD) ==================== -->
+  <!-- Clean vertical entry from top into State 1.0 center (X=260) -->
+  <circle class="init-node" cx="260" cy="35" r="9" />
+  <path class="conn-solid" d="M 260 44 L 260 80" marker-end="url(#arrow)" />
 
-    <!-- Stage 1 to Stage 2 -->
-    <path d="M 370 280 L 490 280" stroke="#0d9488" stroke-width="3" marker-end="url(#arr-teal)" fill="none" />
-    <text x="430" y="270" fill="#0f766e" font-size="13" font-weight="800" text-anchor="middle">Trigger Wave</text>
 
-    <!-- Stage 2 to Stage 3 -->
-    <path d="M 850 280 L 970 280" stroke="#0d9488" stroke-width="3" marker-end="url(#arr-teal)" fill="none" />
-    <text x="910" y="270" fill="#0f766e" font-size="13" font-weight="800" text-anchor="middle">Launch Workers</text>
+  <!-- ==================== STATE 1.0: PRISTINE BASELINE (X=80, Y=80, W=360, H=210) ==================== -->
+  <g transform="translate(80, 80)">
+    <rect class="state-box" x="0" y="0" width="360" height="210" />
+    <text class="state-title" x="180" y="28">State 1.0: Pristine Baseline</text>
+    <text class="state-sub" x="180" y="48">Normal Cluster Equilibrium</text>
+    <line class="state-divider" x1="0" y1="58" x2="360" y2="58" />
 
-    <!-- Stage 3 to Stage 4 (Diagonal Down-Left) -->
-    <path d="M 1150 400 L 1150 560 L 890 560" stroke="#dc2626" stroke-width="3" marker-end="url(#arr-red)" fill="none" />
-    <rect x="940" y="542" width="220" height="34" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5" />
-    <text x="1050" y="564" fill="#991b1b" font-size="13" font-weight="800" text-anchor="middle">Duration Elapsed / Stop Wave</text>
+    <text class="bullet-text" x="18" y="86">&bull; All 3 backends healthy (:8001, :8002, :8003)</text>
+    <text class="bullet-text" x="18" y="108">&bull; Injected latency = 0 ms, drop rate = 0%</text>
+    <text class="bullet-text" x="18" y="130">&bull; Baseline weight ratios preserved</text>
 
-    <!-- Stage 4 to Stage 1 (Diagonal Up-Left) -->
-    <path d="M 530 560 L 220 560 L 220 400" stroke="#16a34a" stroke-width="3" marker-end="url(#arr-green)" fill="none" />
-    <rect x="270" y="542" width="220" height="34" rx="6" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5" />
-    <text x="380" y="564" fill="#166534" font-size="13" font-weight="800" text-anchor="middle">Atomic Cluster Restoration</text>
-  </svg>
+    <!-- Status Invariant Badge -->
+    <g transform="translate(180, 172)">
+      <rect class="status-pill-bg" x="-65" y="-11" width="130" height="22" />
+      <text class="status-pill-text" x="0" y="4">Pristine Cluster</text>
+    </g>
+  </g>
 
-  <!-- Stage 1 -->
-  <div style="top: 170px; left: 50px; width: 320px;" class="chaos-stage">
-    <div class="stage-num">State 1.0</div>
-    <div class="stage-title">Pristine Baseline</div>
-    <div class="stage-desc">
-      All 3 upstream backends healthy (:8001, :8002, :8003). Injected latency = 0ms, packet drops = 0%, clean connection pools.
-    </div>
-    <div class="stage-badge"><span class="badge badge-green">Pristine Cluster</span></div>
-  </div>
+  <!-- Connector: State 1.0 -> State 2.0 (Spans X=440 to X=600, 160px clear gap) -->
+  <path class="conn-solid" d="M 440 185 L 600 185" marker-end="url(#arrow)" />
+  <g transform="translate(520, 185)">
+    <rect class="badge-bg" x="-48" y="-11" width="96" height="22" />
+    <text class="badge-text" x="0" y="4">Trigger Wave</text>
+  </g>
 
-  <!-- Stage 2 -->
-  <div style="top: 170px; left: 500px; width: 350px;" class="chaos-stage">
-    <div class="stage-num">State 2.0</div>
-    <div class="stage-title">Snapshot & Backup</div>
-    <div class="stage-desc">
-      Deep clone captured into <code>chaosBackup</code>. Preserves baseline backend weights, effective weights, alive statuses, and latency baselines.
-    </div>
-    <div class="stage-badge"><span class="badge badge-blue">Atomic Snapshot Taken</span></div>
-  </div>
 
-  <!-- Stage 3 -->
-  <div style="top: 170px; left: 980px; width: 360px;" class="chaos-stage" style="border-color: #ef4444;">
-    <div class="stage-num" style="color: #ef4444;">State 3.0</div>
-    <div class="stage-title">Attack Wave Execution</div>
-    <div class="stage-desc">
-      64 Concurrent Goroutine workers dispatch Poisson-jittered requests. Injects targeted failure vector (DoS, Latency Spike, Outage, Canary, Bursts).
-    </div>
-    <div class="stage-badge"><span class="badge badge-red">64 Workers Active</span></div>
-  </div>
+  <!-- ==================== STATE 2.0: SNAPSHOT & BACKUP (X=600, Y=80, W=360, H=210) ==================== -->
+  <g transform="translate(600, 80)">
+    <rect class="state-box" x="0" y="0" width="360" height="210" />
+    <text class="state-title" x="180" y="28">State 2.0: Snapshot &amp; Backup</text>
+    <text class="state-sub" x="180" y="48">Pre-Fault State Serialization</text>
+    <line class="state-divider" x1="0" y1="58" x2="360" y2="58" />
 
-  <!-- Stage 4 -->
-  <div style="top: 480px; left: 540px; width: 350px;" class="chaos-stage" style="border-color: #16a34a;">
-    <div class="stage-num" style="color: #16a34a;">State 4.0</div>
-    <div class="stage-title">Atomic Rollback & Recovery</div>
-    <div class="stage-desc">
-      Executes <code>restoreChaos()</code> lock-guarded routine. Flushes injected artificial delays, clears error flags, and verifies pristine cluster health.
-    </div>
-    <div class="stage-badge"><span class="badge badge-green">Full Recovery Verified</span></div>
-  </div>
+    <text class="bullet-text" x="18" y="86">&bull; Deep copy clone to memory chaosBackup</text>
+    <text class="bullet-text" x="18" y="108">&bull; Locks pool mutex (sync.RWMutex)</text>
+    <text class="bullet-text" x="18" y="130">&bull; Captures active conns &amp; alive flags</text>
 
-  <div style="position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 12px; color: #94a3b8; font-weight: 500;">
-    NexusLB Autonomous Chaos & Resiliency Studio &bull; TIET UCS503 Software Engineering Capstone
-  </div>
+    <!-- Status Invariant Badge -->
+    <g transform="translate(180, 172)">
+      <rect class="status-pill-bg" x="-80" y="-11" width="160" height="22" />
+      <text class="status-pill-text" x="0" y="4">Atomic Snapshot Taken</text>
+    </g>
+  </g>
+
+  <!-- Connector: State 2.0 -> State 3.0 (Spans X=960 to X=1120, 160px clear gap) -->
+  <path class="conn-solid" d="M 960 185 L 1120 185" marker-end="url(#arrow)" />
+  <g transform="translate(1040, 185)">
+    <rect class="badge-bg" x="-52" y="-11" width="104" height="22" />
+    <text class="badge-text" x="0" y="4">Launch Workers</text>
+  </g>
+
+
+  <!-- ==================== STATE 3.0: ATTACK WAVE EXECUTION (X=1120, Y=80, W=360, H=210) ==================== -->
+  <g transform="translate(1120, 80)">
+    <rect class="state-box" x="0" y="0" width="360" height="210" />
+    <text class="state-title" x="180" y="28">State 3.0: Attack Wave Execution</text>
+    <text class="state-sub" x="180" y="48">Synthetic Stress &amp; Fault Injection</text>
+    <line class="state-divider" x1="0" y1="58" x2="360" y2="58" />
+
+    <text class="bullet-text" x="18" y="86">&bull; 64 Goroutine workers dispatch requests</text>
+    <text class="bullet-text" x="18" y="108">&bull; Poisson-jittered failure vector arrival</text>
+    <text class="bullet-text" x="18" y="130">&bull; Targets DoS, latency, outage &amp; bursts</text>
+
+    <!-- Status Invariant Badge -->
+    <g transform="translate(180, 172)">
+      <rect class="status-pill-bg" x="-68" y="-11" width="136" height="22" />
+      <text class="status-pill-text" x="0" y="4">64 Workers Active</text>
+    </g>
+  </g>
+
+
+  <!-- ==================== STATE 4.0: ATOMIC ROLLBACK (X=560, Y=480, W=440, H=210) ==================== -->
+  <g transform="translate(560, 480)">
+    <rect class="state-box" x="0" y="0" width="440" height="210" />
+    <text class="state-title" x="220" y="28">State 4.0: Atomic Rollback &amp; Recovery</text>
+    <text class="state-sub" x="220" y="48">Post-Attack Restorative Convergence</text>
+    <line class="state-divider" x1="0" y1="58" x2="440" y2="58" />
+
+    <text class="bullet-text" x="18" y="86">&bull; Executes restoreChaos() lock-guarded routine</text>
+    <text class="bullet-text" x="18" y="108">&bull; Flushes artificial delays &amp; clears error flags</text>
+    <text class="bullet-text" x="18" y="130">&bull; Atomically reapplies pre-fault baseline state</text>
+
+    <!-- Status Invariant Badge -->
+    <g transform="translate(220, 172)">
+      <rect class="status-pill-bg" x="-80" y="-11" width="160" height="22" />
+      <text class="status-pill-text" x="0" y="4">Full Recovery Verified</text>
+    </g>
+  </g>
+
+
+  <!-- ==================== SYMMETRICAL RETURN LOOP CONNECTORS ==================== -->
+  <!-- State 3.0 -> State 4.0 -->
+  <!-- Drops from bottom center of State 3.0 (X=1300, Y=290) to Y=585, then left into State 4.0 (X=1000) -->
+  <path class="conn-solid" d="M 1300 290 L 1300 585 L 1000 585" marker-end="url(#arrow)" />
+  <g transform="translate(1150, 585)">
+    <rect class="badge-bg" x="-90" y="-11" width="180" height="22" />
+    <text class="badge-text" x="0" y="4">Duration Elapsed / Stop Wave</text>
+  </g>
+
+  <!-- State 4.0 -> State 1.0 -->
+  <!-- Exits left of State 4.0 (X=560, Y=585) horizontally to X=260, then straight up into State 1.0 (Y=290) -->
+  <path class="conn-solid" d="M 560 585 L 260 585 L 260 290" marker-end="url(#arrow)" />
+  <g transform="translate(410, 585)">
+    <rect class="badge-bg" x="-85" y="-11" width="170" height="22" />
+    <text class="badge-text" x="0" y="4">Atomic Cluster Restoration</text>
+  </g>
+
+</svg>
 </div>
 </body>
 </html>

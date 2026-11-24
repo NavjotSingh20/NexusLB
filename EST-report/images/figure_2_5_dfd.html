@@ -1,295 +1,412 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-
+<meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #ffffff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #1e293b;
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #FFFFFF;
+    font-family: "Latin Modern Roman", "Computer Modern", "Times New Roman", Times, serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 36px;
+    width: 100%;
+    height: 100%;
   }
-  .card {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    border: 1px solid #e2e8f0;
-    padding: 28px;
+  .canvas {
+    width: 1520px;
+    height: 980px;
+    background: #FFFFFF;
     position: relative;
   }
-  .diagram-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: #0f172a;
-    text-align: center;
-    letter-spacing: -0.3px;
-    margin-bottom: 6px;
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
-  .diagram-subtitle {
-    font-size: 13px;
-    color: #64748b;
-    text-align: center;
-    margin-bottom: 24px;
-    font-weight: 500;
-  }
-  .entity-box {
-    background: #f8fafc;
-    border: 2px solid #334155;
-    border-radius: 8px;
-    padding: 14px 18px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 15px;
-    color: #0f172a;
-  }
-  .process-circle {
-    background: #eff6ff;
-    border: 2.5px solid #2563eb;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 12px;
-  }
-  .datastore-box {
-    background: #f0fdf4;
-    border: 2px solid #16a34a;
-    border-radius: 6px;
-    padding: 10px 14px;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: #166534;
-  }
-  .badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
+
+  /* Section Dividers */
+  .section-label {
+    font-size: 14.5px;
+    font-weight: bold;
+    fill: #000000;
     letter-spacing: 0.5px;
   }
-  .badge-blue { background: #dbeafe; color: #1e40af; }
-  .badge-green { background: #dcfce7; color: #166534; }
-  .badge-amber { background: #fef3c7; color: #92400e; }
-  .badge-red { background: #fee2e2; color: #991b1b; }
-  .badge-purple { background: #f3e8ff; color: #6b21a8; }
-</style>
+  .section-rule {
+    stroke: #000000;
+    stroke-width: 1.2px;
+  }
 
-<style>
-  .canvas {
-    width: 1400px;
-    height: 1200px;
-    position: relative;
-    background: #fafbfd;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 24px;
+  /* External Entities */
+  .entity-box {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.8px;
+    rx: 4px;
   }
-  .sec-header {
-    font-size: 16px;
-    font-weight: 800;
-    color: #1e3a8a;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
+  .entity-title {
+    font-size: 14.5px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
-  .sec-header::after {
-    content: "";
-    flex: 1;
-    height: 2px;
-    background: #cbd5e1;
+  .entity-sub {
+    font-size: 11.5px;
+    font-weight: normal;
+    fill: #111111;
+    text-anchor: middle;
+  }
+
+  /* Process Bubbles */
+  .process-bubble {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.8px;
+  }
+  .process-divider {
+    stroke: #000000;
+    stroke-width: 1px;
+  }
+  .process-id {
+    font-size: 12px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
+  }
+  .process-title {
+    font-size: 14px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
+  }
+  .process-desc {
+    font-size: 11.5px;
+    font-weight: normal;
+    fill: #111111;
+    text-anchor: middle;
+  }
+  .process-subdesc {
+    font-size: 10.5px;
+    font-weight: normal;
+    font-style: italic;
+    fill: #333333;
+    text-anchor: middle;
+  }
+
+  /* Data Store Boxes (Gane & Sarson DFD notation) */
+  .store-box {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.6px;
+    rx: 2px;
+  }
+  .store-divider {
+    stroke: #000000;
+    stroke-width: 1.4px;
+  }
+  .store-id {
+    font-size: 13.5px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
+  }
+  .store-title {
+    font-size: 13px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: start;
+  }
+  .store-sub {
+    font-size: 11px;
+    font-weight: normal;
+    fill: #222222;
+    text-anchor: start;
+  }
+
+  /* Flow Connectors */
+  .conn-flow {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 1.6px;
+  }
+  .conn-dash {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 1.6px;
+    stroke-dasharray: 6,4;
+  }
+
+  /* Badges & Labels */
+  .badge-bg {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1px;
+    rx: 3px;
+  }
+  .badge-text {
+    font-size: 11px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
 </style>
 </head>
 <body>
-<div class="card canvas">
-  <div class="diagram-title">Figure 2.5: Data Flow Diagrams (Context Level 0 & Functional Decomposition Level 1)</div>
-  <div class="diagram-subtitle">Structured Information Flow through Ingress Policing, Strategy Selection, Circuit Protection, and Resilient Proxying</div>
+<div class="canvas">
+<svg viewBox="0 0 1520 980" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#000000" />
+    </marker>
+  </defs>
 
-  <!-- LEVEL 0 SECTION -->
-  <div class="sec-header">DFD Level 0: Context Boundary</div>
-  <svg style="position: absolute; top: 120px; left: 30px; width: 1340px; height: 320px; pointer-events: none;">
-    <defs>
-      <marker id="arr-blue" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
-      </marker>
-      <marker id="arr-teal" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#0d9488" />
-      </marker>
-      <marker id="arr-purple" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#7c3aed" />
-      </marker>
-    </defs>
+  <!-- ==================== DFD LEVEL 0: CONTEXT BOUNDARY ==================== -->
+  <text class="section-label" x="40" y="32">DFD LEVEL 0: CONTEXT BOUNDARY</text>
+  <line class="section-rule" x1="40" y1="42" x2="1480" y2="42" />
 
-    <!-- Client to Gateway (top arrow) -->
-    <path d="M 230 110 L 530 110" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-blue)" fill="none" />
-    <text x="380" y="98" fill="#1e40af" font-size="13" font-weight="700" text-anchor="middle">HTTP Ingress Request (:8080)</text>
+  <!-- External Entity 1: External Client (X=60, Y=80, W=240, H=84) -->
+  <g transform="translate(60, 80)">
+    <rect class="entity-box" x="0" y="0" width="240" height="84" />
+    <text class="entity-title" x="120" y="36">External Client</text>
+    <text class="entity-sub" x="120" y="58">Web / Mobile / API Consumer</text>
+  </g>
 
-    <!-- Gateway to Client (bottom arrow) -->
-    <path d="M 530 150 L 230 150" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-blue)" fill="none" />
-    <text x="380" y="172" fill="#1e40af" font-size="13" font-weight="700" text-anchor="middle">HTTP Response (200 OK / 429 / 502)</text>
+  <!-- Process 0.0: NexusLB Gateway (Center X=760, Center Y=122, rx=135, ry=72) -->
+  <g transform="translate(760, 122)">
+    <ellipse class="process-bubble" cx="0" cy="0" rx="135" ry="72" />
+    <line class="process-divider" x1="-115" y1="-22" x2="115" y2="-22" />
+    <text class="process-id" x="0" y="-32">Process 0.0</text>
+    <text class="process-title" x="0" y="4">NexusLB Gateway</text>
+    <text class="process-desc" x="0" y="24">Unified Reverse Proxy &amp; Ingress Core</text>
+    <text class="process-subdesc" x="0" y="42">Data Plane &amp; Administrative Management</text>
+  </g>
 
-    <!-- Gateway to Upstream (top arrow) -->
-    <path d="M 810 110 L 1110 110" stroke="#0d9488" stroke-width="2.5" marker-end="url(#arr-teal)" fill="none" />
-    <text x="960" y="98" fill="#0f766e" font-size="13" font-weight="700" text-anchor="middle">Forward Proxy Request</text>
+  <!-- External Entity 2: Upstream Pool (X=1220, Y=80, W=240, H=84) -->
+  <g transform="translate(1220, 80)">
+    <rect class="entity-box" x="0" y="0" width="240" height="84" />
+    <text class="entity-title" x="120" y="36">Upstream Server Pool</text>
+    <text class="entity-sub" x="120" y="58">Backend Nodes :8001, :8002, :8003</text>
+  </g>
 
-    <!-- Upstream to Gateway (bottom arrow) -->
-    <path d="M 1110 150 L 810 150" stroke="#0d9488" stroke-width="2.5" marker-end="url(#arr-teal)" fill="none" />
-    <text x="960" y="172" fill="#0f766e" font-size="13" font-weight="700" text-anchor="middle">Upstream Node Response</text>
+  <!-- External Entity 3: DevOps / SRE Admin (X=640, Y=280, W=240, H=80) -->
+  <g transform="translate(640, 280)">
+    <rect class="entity-box" x="0" y="0" width="240" height="80" />
+    <text class="entity-title" x="120" y="34">DevOps / SRE Administrator</text>
+    <text class="entity-sub" x="120" y="56">Console Dashboard &amp; REST API (:8081)</text>
+  </g>
 
-    <!-- Admin to Gateway -->
-    <path d="M 670 290 L 670 245" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#arr-purple)" fill="none" />
-    <text x="610" y="275" fill="#6b21a8" font-size="12" font-weight="700" text-anchor="end">Policy Config & Swaps</text>
+  <!-- Connectors: Client <-> Process 0.0 -->
+  <!-- Top: Client -> Gateway (HTTP Ingress Request) -->
+  <path class="conn-flow" d="M 300 102 L 625 102" marker-end="url(#arrow)" />
+  <g transform="translate(462, 102)">
+    <rect class="badge-bg" x="-95" y="-11" width="190" height="22" />
+    <text class="badge-text" x="0" y="4">HTTP Ingress Request (:8080)</text>
+  </g>
 
-    <!-- Gateway to Admin -->
-    <path d="M 700 245 L 700 290" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#arr-purple)" fill="none" />
-    <text x="760" y="275" fill="#6b21a8" font-size="12" font-weight="700" text-anchor="start">1 Hz SSE Telemetry Feed</text>
-  </svg>
+  <!-- Bottom: Gateway -> Client (HTTP Response) -->
+  <path class="conn-flow" d="M 625 142 L 300 142" marker-end="url(#arrow)" />
+  <g transform="translate(462, 142)">
+    <rect class="badge-bg" x="-105" y="-11" width="210" height="22" />
+    <text class="badge-text" x="0" y="4">HTTP Response (200 OK / 429 / 502)</text>
+  </g>
 
-  <div style="position: absolute; top: 195px; left: 40px; width: 190px;" class="entity-box">
-    <div style="font-size: 16px;">External Client</div>
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 4px;">Web / Mobile / API</div>
-  </div>
+  <!-- Connectors: Process 0.0 <-> Upstream Pool -->
+  <!-- Top: Gateway -> Upstream (Forward Proxy Request) -->
+  <path class="conn-flow" d="M 895 102 L 1220 102" marker-end="url(#arrow)" />
+  <g transform="translate(1057, 102)">
+    <rect class="badge-bg" x="-75" y="-11" width="150" height="22" />
+    <text class="badge-text" x="0" y="4">Forward Proxy Request</text>
+  </g>
 
-  <div style="position: absolute; top: 155px; left: 540px; width: 260px; height: 160px;" class="process-circle">
-    <div class="badge badge-blue" style="margin-bottom: 6px;">Process 0.0</div>
-    <div style="font-size: 18px; font-weight: 800; color: #1e3a8a;">NexusLB Gateway</div>
-    <div style="font-size: 13px; font-weight: 600; color: #3b82f6; margin-top: 4px;">Unified Reverse Proxy</div>
-    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Data Plane + Management</div>
-  </div>
+  <!-- Bottom: Upstream -> Gateway (Upstream Response) -->
+  <path class="conn-flow" d="M 1220 142 L 895 142" marker-end="url(#arrow)" />
+  <g transform="translate(1057, 142)">
+    <rect class="badge-bg" x="-80" y="-11" width="160" height="22" />
+    <text class="badge-text" x="0" y="4">Upstream Node Response</text>
+  </g>
 
-  <div style="position: absolute; top: 195px; left: 1120px; width: 210px;" class="entity-box">
-    <div style="font-size: 16px;">Upstream Pool</div>
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 4px;">Nodes :8001, :8002, :8003</div>
-  </div>
+  <!-- Connectors: Process 0.0 <-> DevOps Admin (Vertical gap Y=194 to Y=280) -->
+  <!-- Admin -> Gateway (Upward at X=715) -->
+  <path class="conn-flow" d="M 715 280 L 715 194" marker-end="url(#arrow)" />
+  <g transform="translate(615, 237)">
+    <rect class="badge-bg" x="-80" y="-11" width="160" height="22" />
+    <text class="badge-text" x="0" y="4">Policy Config &amp; Swaps</text>
+  </g>
 
-  <div style="position: absolute; top: 380px; left: 565px; width: 210px;" class="entity-box">
-    <div style="font-size: 16px;">DevOps / SRE Admin</div>
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 4px;">Console Dashboard (:8081)</div>
-  </div>
+  <!-- Gateway -> Admin (Downward at X=805) -->
+  <path class="conn-flow" d="M 805 194 L 805 280" marker-end="url(#arrow)" />
+  <g transform="translate(905, 237)">
+    <rect class="badge-bg" x="-85" y="-11" width="170" height="22" />
+    <text class="badge-text" x="0" y="4">1 Hz SSE Telemetry Feed</text>
+  </g>
 
-  <!-- LEVEL 1 SECTION -->
-  <div style="position: absolute; top: 480px; left: 24px; right: 24px;" class="sec-header">DFD Level 1: Functional Decomposition & Data Stores</div>
 
-  <svg style="position: absolute; top: 520px; left: 30px; width: 1340px; height: 620px; pointer-events: none;">
-    <defs>
-      <marker id="arr-p1" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
-      </marker>
-      <marker id="arr-store" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a" />
-      </marker>
-    </defs>
+  <!-- ==================== DFD LEVEL 1: FUNCTIONAL DECOMPOSITION & DATA STORES ==================== -->
+  <text class="section-label" x="40" y="415">DFD LEVEL 1: FUNCTIONAL DECOMPOSITION &amp; DATA STORES</text>
+  <line class="section-rule" x1="40" y1="425" x2="1480" y2="425" />
 
-    <!-- Ingress into P1 -->
-    <path d="M 40 80 L 110 80" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-p1)" fill="none" />
-    <text x="75" y="68" fill="#1e40af" font-size="12" font-weight="700" text-anchor="middle">Request</text>
+  <!-- Process 1.0 (Center X=230, Center Y=580, rx=88, ry=64) -->
+  <g transform="translate(230, 580)">
+    <ellipse class="process-bubble" cx="0" cy="0" rx="88" ry="64" />
+    <line class="process-divider" x1="-75" y1="-20" x2="75" y2="-20" />
+    <text class="process-id" x="0" y="-30">Process 1.0</text>
+    <text class="process-title" x="0" y="2">Rate Policing</text>
+    <text class="process-desc" x="0" y="21">Edge Shield Limiter</text>
+    <text class="process-subdesc" x="0" y="38">Token Bucket Algorithm</text>
+  </g>
 
-    <!-- P1 to P2 -->
-    <path d="M 320 80 L 430 80" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-p1)" fill="none" />
-    <text x="375" y="68" fill="#1e40af" font-size="12" font-weight="700" text-anchor="middle">Token OK</text>
+  <!-- Process 2.0 (Center X=580, Center Y=580, rx=88, ry=64) -->
+  <g transform="translate(580, 580)">
+    <ellipse class="process-bubble" cx="0" cy="0" rx="88" ry="64" />
+    <line class="process-divider" x1="-75" y1="-20" x2="75" y2="-20" />
+    <text class="process-id" x="0" y="-30">Process 2.0</text>
+    <text class="process-title" x="0" y="2">Strategy Selector</text>
+    <text class="process-desc" x="0" y="21">Load Balancing Engine</text>
+    <text class="process-subdesc" x="0" y="38">RR / LC / IPHash / SWRR</text>
+  </g>
 
-    <!-- P2 to P3 -->
-    <path d="M 640 80 L 750 80" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-p1)" fill="none" />
-    <text x="695" y="68" fill="#1e40af" font-size="12" font-weight="700" text-anchor="middle">Target Node</text>
+  <!-- Process 3.0 (Center X=930, Center Y=580, rx=88, ry=64) -->
+  <g transform="translate(930, 580)">
+    <ellipse class="process-bubble" cx="0" cy="0" rx="88" ry="64" />
+    <line class="process-divider" x1="-75" y1="-20" x2="75" y2="-20" />
+    <text class="process-id" x="0" y="-30">Process 3.0</text>
+    <text class="process-title" x="0" y="2">Circuit Breaker</text>
+    <text class="process-desc" x="0" y="21">Health Guardian</text>
+    <text class="process-subdesc" x="0" y="38">Closed / Open / Half-Open</text>
+  </g>
 
-    <!-- P3 to P4 -->
-    <path d="M 960 80 L 1070 80" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-p1)" fill="none" />
-    <text x="1015" y="68" fill="#1e40af" font-size="12" font-weight="700" text-anchor="middle">Circuit Closed</text>
+  <!-- Process 4.0 (Center X=1280, Center Y=580, rx=88, ry=64) -->
+  <g transform="translate(1280, 580)">
+    <ellipse class="process-bubble" cx="0" cy="0" rx="88" ry="64" />
+    <line class="process-divider" x1="-75" y1="-20" x2="75" y2="-20" />
+    <text class="process-id" x="0" y="-30">Process 4.0</text>
+    <text class="process-title" x="0" y="2">Staged Proxy</text>
+    <text class="process-desc" x="0" y="21">Reverse Proxy Engine</text>
+    <text class="process-subdesc" x="0" y="38">Retry Buffer &amp; Failover</text>
+  </g>
 
-    <!-- P4 to Upstream -->
-    <path d="M 1280 80 L 1330 80" stroke="#0d9488" stroke-width="2.5" marker-end="url(#arr-p1)" fill="none" />
+  <!-- Main Pipeline Flows -->
+  <!-- Ingress -> Process 1.0 -->
+  <path class="conn-flow" d="M 50 580 L 142 580" marker-end="url(#arrow)" />
+  <g transform="translate(96, 555)">
+    <rect class="badge-bg" x="-32" y="-10" width="64" height="20" />
+    <text class="badge-text" x="0" y="4">Request</text>
+  </g>
 
-    <!-- Process to Data Stores (Vertical Down & Up) -->
-    <path d="M 215 160 L 215 260" stroke="#16a34a" stroke-width="2.2" stroke-dasharray="4 3" marker-end="url(#arr-store)" fill="none" />
-    <text x="225" y="215" fill="#166534" font-size="12" font-weight="600">Query / Decrement</text>
+  <!-- Process 1.0 -> Process 2.0 -->
+  <path class="conn-flow" d="M 318 580 L 492 580" marker-end="url(#arrow)" />
+  <g transform="translate(405, 580)">
+    <rect class="badge-bg" x="-36" y="-11" width="72" height="22" />
+    <text class="badge-text" x="0" y="4">Token OK</text>
+  </g>
 
-    <path d="M 535 160 L 535 260" stroke="#16a34a" stroke-width="2.2" stroke-dasharray="4 3" marker-end="url(#arr-store)" fill="none" />
-    <text x="545" y="215" fill="#166534" font-size="12" font-weight="600">Active Policy & Conns</text>
+  <!-- Process 2.0 -> Process 3.0 -->
+  <path class="conn-flow" d="M 668 580 L 842 580" marker-end="url(#arrow)" />
+  <g transform="translate(755, 580)">
+    <rect class="badge-bg" x="-46" y="-11" width="92" height="22" />
+    <text class="badge-text" x="0" y="4">Target Node</text>
+  </g>
 
-    <path d="M 855 160 L 855 260" stroke="#16a34a" stroke-width="2.2" stroke-dasharray="4 3" marker-end="url(#arr-store)" fill="none" />
-    <text x="865" y="215" fill="#166534" font-size="12" font-weight="600">Failure Counters</text>
+  <!-- Process 3.0 -> Process 4.0 -->
+  <path class="conn-flow" d="M 1018 580 L 1192 580" marker-end="url(#arrow)" />
+  <g transform="translate(1105, 580)">
+    <rect class="badge-bg" x="-48" y="-11" width="96" height="22" />
+    <text class="badge-text" x="0" y="4">Circuit Closed</text>
+  </g>
 
-    <path d="M 1175 160 L 1175 260" stroke="#16a34a" stroke-width="2.2" stroke-dasharray="4 3" marker-end="url(#arr-store)" fill="none" />
-    <text x="1185" y="215" fill="#166534" font-size="12" font-weight="600">Append Latency</text>
+  <!-- Process 4.0 -> Upstream Egress -->
+  <path class="conn-flow" d="M 1368 580 L 1460 580" marker-end="url(#arrow)" />
+  <g transform="translate(1414, 555)">
+    <rect class="badge-bg" x="-40" y="-10" width="80" height="20" />
+    <text class="badge-text" x="0" y="4">Upstream</text>
+  </g>
 
-    <!-- Fast-fail / Re-route loop from P3 back to P2 -->
-    <path d="M 855 20 C 855 -20, 535 -20, 535 10" stroke="#ef4444" stroke-width="2.2" stroke-dasharray="4 4" marker-end="url(#arr-p1)" fill="none" />
-    <text x="695" y="-5" fill="#dc2626" font-size="12" font-weight="700" text-anchor="middle">Trip Open: Fast-Fail Alternate Node</text>
+  <!-- Exception & Feedback Loops (Above Pipeline) -->
+  <!-- 429 Drop from Process 1.0 -->
+  <path class="conn-flow" d="M 230 516 L 230 465 L 120 465 L 120 516" marker-end="url(#arrow)" />
+  <g transform="translate(175, 465)">
+    <rect class="badge-bg" x="-35" y="-10" width="70" height="20" />
+    <text class="badge-text" x="0" y="4">429 Drop</text>
+  </g>
 
-    <!-- 429 Drop from P1 -->
-    <path d="M 215 20 C 215 -15, 120 -15, 120 10" stroke="#ef4444" stroke-width="2.2" marker-end="url(#arr-p1)" fill="none" />
-    <text x="165" y="-2" fill="#dc2626" font-size="12" font-weight="700" text-anchor="middle">429 Drop</text>
-  </svg>
+  <!-- Circuit Breaker Trip: Process 3.0 -> Process 2.0 (Dashed Re-Route Loop) -->
+  <path class="conn-dash" d="M 930 516 L 930 465 L 580 465 L 580 516" marker-end="url(#arrow)" />
+  <g transform="translate(755, 465)">
+    <rect class="badge-bg" x="-115" y="-11" width="230" height="22" />
+    <text class="badge-text" x="0" y="4">Trip Open: Fast-Fail / Alternate Node</text>
+  </g>
 
-  <!-- Process 1.0 -->
-  <div style="position: absolute; top: 540px; left: 110px; width: 210px; height: 140px;" class="process-circle">
-    <div class="badge badge-blue">Process 1.0</div>
-    <div style="font-size: 16px; font-weight: 800; color: #1e3a8a; margin-top: 4px;">Rate Policing</div>
-    <div style="font-size: 13px; font-weight: 600; color: #3b82f6;">Edge Shield Limiter</div>
-    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Token Bucket Algorithm</div>
-  </div>
 
-  <!-- Process 2.0 -->
-  <div style="position: absolute; top: 540px; left: 430px; width: 210px; height: 140px;" class="process-circle">
-    <div class="badge badge-purple">Process 2.0</div>
-    <div style="font-size: 16px; font-weight: 800; color: #581c87; margin-top: 4px;">Strategy Selector</div>
-    <div style="font-size: 13px; font-weight: 600; color: #7c3aed;">Load Balancing Engine</div>
-    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">RR / LC / IPHash / SWRR / Auto</div>
-  </div>
+  <!-- ==================== DATA STORES (D1 - D4) ==================== -->
+  <!-- D1: Token Bucket Registry (Center X=230, Y=820, W=260, H=74, X=100 to 360) -->
+  <g transform="translate(100, 820)">
+    <rect class="store-box" x="0" y="0" width="260" height="74" />
+    <line class="store-divider" x1="48" y1="0" x2="48" y2="74" />
+    <text class="store-id" x="24" y="43">D1</text>
+    <text class="store-title" x="62" y="32">Token Bucket Registry</text>
+    <text class="store-sub" x="62" y="54">Per-IP Token State &amp; 60s GC Sweeper</text>
+  </g>
 
-  <!-- Process 3.0 -->
-  <div style="position: absolute; top: 540px; left: 750px; width: 210px; height: 140px;" class="process-circle">
-    <div class="badge badge-amber">Process 3.0</div>
-    <div style="font-size: 16px; font-weight: 800; color: #78350f; margin-top: 4px;">Circuit Breaker</div>
-    <div style="font-size: 13px; font-weight: 600; color: #d97706;">Health Guardian</div>
-    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Closed / Open / Half-Open</div>
-  </div>
+  <!-- D2: Strategy State Table (Center X=580, Y=820, W=260, H=74, X=450 to 710) -->
+  <g transform="translate(450, 820)">
+    <rect class="store-box" x="0" y="0" width="260" height="74" />
+    <line class="store-divider" x1="48" y1="0" x2="48" y2="74" />
+    <text class="store-id" x="24" y="43">D2</text>
+    <text class="store-title" x="62" y="32">Strategy State Table</text>
+    <text class="store-sub" x="62" y="54">Weights, Canary Tags &amp; Active Conns</text>
+  </g>
 
-  <!-- Process 4.0 -->
-  <div style="position: absolute; top: 540px; left: 1070px; width: 210px; height: 140px;" class="process-circle">
-    <div class="badge badge-green">Process 4.0</div>
-    <div style="font-size: 16px; font-weight: 800; color: #14532d; margin-top: 4px;">Staged Proxy</div>
-    <div style="font-size: 13px; font-weight: 600; color: #16a34a;">Reverse Proxy Engine</div>
-    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Retry Buffer & Failover</div>
-  </div>
+  <!-- D3: Circuit Breaker State Table (Center X=930, Y=820, W=260, H=74, X=800 to 1060) -->
+  <g transform="translate(800, 820)">
+    <rect class="store-box" x="0" y="0" width="260" height="74" />
+    <line class="store-divider" x1="48" y1="0" x2="48" y2="74" />
+    <text class="store-id" x="24" y="43">D3</text>
+    <text class="store-title" x="62" y="32">Circuit Breaker State Table</text>
+    <text class="store-sub" x="62" y="54">Consecutive Errors, State &amp; Timers</text>
+  </g>
 
-  <!-- Data Stores -->
-  <div style="position: absolute; top: 780px; left: 95px; width: 240px;" class="datastore-box">
-    <div style="font-size: 15px; font-weight: 800;">D1: Token Bucket Registry</div>
-    <div style="font-size: 12px; color: #475569; margin-top: 3px;">Per-IP State & 60s GC Sweeper</div>
-  </div>
+  <!-- D4: Metrics Ring Buffer (Center X=1280, Y=820, W=260, H=74, X=1150 to 1410) -->
+  <g transform="translate(1150, 820)">
+    <rect class="store-box" x="0" y="0" width="260" height="74" />
+    <line class="store-divider" x1="48" y1="0" x2="48" y2="74" />
+    <text class="store-id" x="24" y="43">D4</text>
+    <text class="store-title" x="62" y="32">Metrics Ring Buffer</text>
+    <text class="store-sub" x="62" y="54">24-pt History &amp; 1 Hz SSE Broadcast</text>
+  </g>
 
-  <div style="position: absolute; top: 780px; left: 415px; width: 240px;" class="datastore-box">
-    <div style="font-size: 15px; font-weight: 800;">D2: Strategy State Table</div>
-    <div style="font-size: 12px; color: #475569; margin-top: 3px;">Weights, Canary Tags & Offsets</div>
-  </div>
+  <!-- Connectors: Processes -> Data Stores (Vertical Gap Y=644 to Y=820) -->
+  <!-- P1 <-> D1 -->
+  <path class="conn-dash" d="M 230 644 L 230 820" marker-end="url(#arrow)" />
+  <g transform="translate(230, 732)">
+    <rect class="badge-bg" x="-62" y="-11" width="124" height="22" />
+    <text class="badge-text" x="0" y="4">Query / Decrement</text>
+  </g>
 
-  <div style="position: absolute; top: 780px; left: 735px; width: 240px;" class="datastore-box">
-    <div style="font-size: 15px; font-weight: 800;">D3: Circuit Breaker State Table</div>
-    <div style="font-size: 12px; color: #475569; margin-top: 3px;">Consecutive Errors & Timers</div>
-  </div>
+  <!-- P2 <-> D2 -->
+  <path class="conn-dash" d="M 580 644 L 580 820" marker-end="url(#arrow)" />
+  <g transform="translate(580, 732)">
+    <rect class="badge-bg" x="-68" y="-11" width="136" height="22" />
+    <text class="badge-text" x="0" y="4">Active Policy &amp; Conns</text>
+  </g>
 
-  <div style="position: absolute; top: 780px; left: 1055px; width: 240px;" class="datastore-box">
-    <div style="font-size: 15px; font-weight: 800;">D4: Metrics Ring Buffer</div>
-    <div style="font-size: 12px; color: #475569; margin-top: 3px;">Ring Buffer & 1 Hz SSE Broadcast</div>
-  </div>
+  <!-- P3 <-> D3 -->
+  <path class="conn-dash" d="M 930 644 L 930 820" marker-end="url(#arrow)" />
+  <g transform="translate(930, 732)">
+    <rect class="badge-bg" x="-58" y="-11" width="116" height="22" />
+    <text class="badge-text" x="0" y="4">Failure Counters</text>
+  </g>
 
-  <div style="position: absolute; bottom: 15px; left: 0; right: 0; text-align: center; font-size: 12px; color: #94a3b8; font-weight: 500;">
-    NexusLB End-to-End Structured Data Flow Model &bull; TIET UCS503 Software Engineering Capstone
-  </div>
+  <!-- P4 <-> D4 -->
+  <path class="conn-dash" d="M 1280 644 L 1280 820" marker-end="url(#arrow)" />
+  <g transform="translate(1280, 732)">
+    <rect class="badge-bg" x="-54" y="-11" width="108" height="22" />
+    <text class="badge-text" x="0" y="4">Append Latency</text>
+  </g>
+
+</svg>
 </div>
 </body>
 </html>

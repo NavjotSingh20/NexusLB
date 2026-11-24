@@ -4,17 +4,21 @@
 <meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
     background-color: #FFFFFF;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Latin Modern Roman", "Computer Modern", "Times New Roman", Times, serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 30px;
+    width: 100%;
+    height: 100%;
   }
   .canvas {
-    width: 1560px;
-    height: 1180px;
+    width: 1520px;
+    height: 1060px;
     background: #FFFFFF;
     position: relative;
   }
@@ -27,261 +31,257 @@
   /* Structural Phase Boxes (Top & Bottom) */
   .phase-box {
     fill: #FFFFFF;
-    stroke: #0F172A;
-    stroke-width: 2px;
-    rx: 6px;
-    filter: drop-shadow(0 2px 5px rgba(15,23,42,0.06));
-  }
-  .phase-accent {
-    fill: #0F172A;
+    stroke: #000000;
+    stroke-width: 1.8px;
     rx: 4px;
   }
 
   /* Sprint Cards */
   .sprint-card {
     fill: #FFFFFF;
-    stroke: #334155;
-    stroke-width: 1.8px;
-    rx: 6px;
-    filter: drop-shadow(0 1px 4px rgba(51,65,85,0.06));
+    stroke: #000000;
+    stroke-width: 1.6px;
+    rx: 4px;
   }
 
   /* Gate Diamonds */
   .gate-poly {
     fill: #FFFFFF;
-    stroke: #0F172A;
-    stroke-width: 2px;
-    filter: drop-shadow(0 2px 6px rgba(15,23,42,0.08));
+    stroke: #000000;
+    stroke-width: 1.8px;
   }
 
   /* Typography */
   .title-main {
-    font-size: 15.5px;
-    font-weight: 700;
-    fill: #0F172A;
+    font-size: 15px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
   .title-sub {
-    font-size: 12.5px;
-    font-weight: 500;
-    fill: #475569;
+    font-size: 12px;
+    font-weight: normal;
+    fill: #111111;
+    text-anchor: middle;
   }
   .gate-title {
-    font-size: 14px;
-    font-weight: 700;
-    fill: #0F172A;
+    font-size: 13.5px;
+    font-weight: bold;
+    fill: #000000;
     text-anchor: middle;
   }
   .gate-sub {
-    font-size: 12px;
-    font-weight: 500;
-    fill: #475569;
+    font-size: 11.5px;
+    font-weight: normal;
+    font-style: italic;
+    fill: #111111;
     text-anchor: middle;
   }
 
   /* Connectors */
   .conn-forward {
     fill: none;
-    stroke: #0F172A;
-    stroke-width: 2.4px;
+    stroke: #000000;
+    stroke-width: 1.8px;
   }
   .conn-feedback {
     fill: none;
-    stroke: #991B1B;
-    stroke-width: 2.2px;
+    stroke: #000000;
+    stroke-width: 1.8px;
     stroke-dasharray: 6,4;
   }
 
-  /* Labels */
-  .pill-green {
+  /* Labels & Badges */
+  .badge-bg {
     fill: #FFFFFF;
-    stroke: #166534;
-    stroke-width: 1.5px;
-    rx: 5px;
-    filter: drop-shadow(0 1px 3px rgba(22,101,52,0.1));
+    stroke: #000000;
+    stroke-width: 1px;
+    rx: 3px;
   }
-  .text-green {
-    font-size: 12.5px;
-    font-weight: 700;
-    fill: #166534;
+  .badge-text {
+    font-size: 11.5px;
+    font-weight: bold;
+    fill: #000000;
     text-anchor: middle;
   }
-  .pill-red {
-    fill: #FFFFFF;
-    stroke: #991B1B;
-    stroke-width: 1.5px;
-    rx: 5px;
-    filter: drop-shadow(0 1px 3px rgba(153,27,27,0.1));
-  }
-  .text-red {
-    font-size: 12.5px;
-    font-weight: 700;
-    fill: #991B1B;
+  .gate-label-text {
+    font-size: 11px;
+    font-weight: bold;
+    fill: #000000;
     text-anchor: middle;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
-<svg viewBox="0 0 1560 1180" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1520 1060" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <marker id="arrow-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#0F172A" />
-    </marker>
-    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#991B1B" />
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#000000" />
     </marker>
   </defs>
 
-  <!-- ==================== PHASES 1 & 2 (CENTERED AT X = 780) ==================== -->
+  <!-- ==================== PHASES 1 & 2 (CENTERED AT X = 760) ==================== -->
   <!-- Phase 1: Requirements Analysis -->
-  <g transform="translate(520, 35)">
-    <rect class="phase-box" x="0" y="0" width="520" height="74" />
-    <rect class="phase-accent" x="0" y="0" width="6" height="74" />
-    <text class="title-main" x="260" y="32" text-anchor="middle">Phase 1: Requirements Analysis</text>
-    <text class="title-sub" x="260" y="54" text-anchor="middle">Protocol Standards, Latency Targets & Concurrency Budgets</text>
+  <g transform="translate(500, 30)">
+    <rect class="phase-box" x="0" y="0" width="520" height="70" />
+    <text class="title-main" x="260" y="30">Phase 1: Requirements Analysis</text>
+    <text class="title-sub" x="260" y="52">Protocol Standards, Latency Targets &amp; Concurrency Budgets</text>
   </g>
 
   <!-- Phase 2: Architectural Design -->
-  <g transform="translate(520, 145)">
-    <rect class="phase-box" x="0" y="0" width="520" height="74" />
-    <rect class="phase-accent" x="0" y="0" width="6" height="74" />
-    <text class="title-main" x="260" y="32" text-anchor="middle">Phase 2: Architectural Design</text>
-    <text class="title-sub" x="260" y="54" text-anchor="middle">Layered Pipelines, Subsystem Interfaces & Memory Models</text>
+  <g transform="translate(500, 140)">
+    <rect class="phase-box" x="0" y="0" width="520" height="70" />
+    <text class="title-main" x="260" y="30">Phase 2: Architectural Design</text>
+    <text class="title-sub" x="260" y="52">Layered Pipelines, Subsystem Interfaces &amp; Memory Models</text>
   </g>
 
   <!-- Connector: Phase 1 -> Phase 2 -->
-  <path class="conn-forward" d="M 780 109 L 780 145" marker-end="url(#arrow-dark)" />
+  <path class="conn-forward" d="M 760 100 L 760 140" marker-end="url(#arrow)" />
 
   <!-- Connector: Phase 2 -> Sprint 1 (Clean corridor, zero box overlap) -->
-  <path class="conn-forward" d="M 550 219 L 550 255 L 365 255 L 365 310" marker-end="url(#arrow-dark)" />
+  <path class="conn-forward" d="M 530 210 L 530 250 L 365 250 L 365 300" marker-end="url(#arrow)" />
 
   <!-- ==================== COLUMN 1: SPRINTS 1-4 & QUALITY GATE 1 ==================== -->
   <!-- Sprint 1 (X=180 to 550, Center X=365) -->
-  <g transform="translate(180, 310)">
-    <rect class="sprint-card" x="0" y="0" width="370" height="72" />
-    <text class="title-main" x="185" y="31" text-anchor="middle">Sprint 1: Ingress Proxy Core</text>
-    <text class="title-sub" x="185" y="52" text-anchor="middle">ReverseProxy, Buffer Reuse & Ingress Port :8080</text>
+  <g transform="translate(180, 300)">
+    <rect class="sprint-card" x="0" y="0" width="370" height="68" />
+    <text class="title-main" x="185" y="29">Sprint 1: Ingress Proxy Core</text>
+    <text class="title-sub" x="185" y="50">ReverseProxy, Buffer Reuse &amp; Ingress Port :8080</text>
   </g>
 
   <!-- Sprint 2 -->
-  <g transform="translate(180, 420)">
-    <rect class="sprint-card" x="0" y="0" width="370" height="72" />
-    <text class="title-main" x="185" y="31" text-anchor="middle">Sprint 2: Baseline Balancer Engine</text>
-    <text class="title-sub" x="185" y="52" text-anchor="middle">Balancer Interface, Round-Robin, LeastConn, IP Hash</text>
+  <g transform="translate(180, 400)">
+    <rect class="sprint-card" x="0" y="0" width="370" height="68" />
+    <text class="title-main" x="185" y="29">Sprint 2: Baseline Balancer Engine</text>
+    <text class="title-sub" x="185" y="50">Balancer Interface, Round-Robin, LeastConn, IP Hash</text>
   </g>
 
   <!-- Sprint 3 -->
-  <g transform="translate(180, 530)">
-    <rect class="sprint-card" x="0" y="0" width="370" height="72" />
-    <text class="title-main" x="185" y="31" text-anchor="middle">Sprint 3: Dual-Mode Health Checking</text>
-    <text class="title-sub" x="185" y="52" text-anchor="middle">Proactive 3s Polling & Reactive Socket Interception</text>
+  <g transform="translate(180, 500)">
+    <rect class="sprint-card" x="0" y="0" width="370" height="68" />
+    <text class="title-main" x="185" y="29">Sprint 3: Dual-Mode Health Checking</text>
+    <text class="title-sub" x="185" y="50">Proactive 3s Polling &amp; Reactive Socket Interception</text>
   </g>
 
   <!-- Sprint 4 -->
-  <g transform="translate(180, 640)">
-    <rect class="sprint-card" x="0" y="0" width="370" height="72" />
-    <text class="title-main" x="185" y="31" text-anchor="middle">Sprint 4: Prototype Telemetry</text>
-    <text class="title-sub" x="185" y="52" text-anchor="middle">1 Hz SSE Broadcast & Single-Binary embed.FS</text>
+  <g transform="translate(180, 600)">
+    <rect class="sprint-card" x="0" y="0" width="370" height="68" />
+    <text class="title-main" x="185" y="29">Sprint 4: Prototype Telemetry</text>
+    <text class="title-sub" x="185" y="50">1 Hz SSE Broadcast &amp; Single-Binary embed.FS</text>
   </g>
 
-  <!-- Quality Gate 1 (Diamond: center at X=365, Y=800, W=260, H=80) -->
-  <g transform="translate(235, 760)">
-    <polygon class="gate-poly" points="130,0 260,40 130,80 0,40" />
-    <text class="gate-title" x="130" y="36">Quality Gate 1</text>
-    <text class="gate-sub" x="130" y="54">go test -race Clean?</text>
+  <!-- Forward Connectors Column 1 -->
+  <path class="conn-forward" d="M 365 368 L 365 400" marker-end="url(#arrow)" />
+  <path class="conn-forward" d="M 365 468 L 365 500" marker-end="url(#arrow)" />
+  <path class="conn-forward" d="M 365 568 L 365 600" marker-end="url(#arrow)" />
+  <path class="conn-forward" d="M 365 668 L 365 712" marker-end="url(#arrow)" />
+
+  <!-- Quality Gate 1 Diamond (Center: 365, 750) -->
+  <g>
+    <polygon class="gate-poly" points="365,712 505,750 365,788 225,750" />
+    <text class="gate-title" x="365" y="745">Quality Gate 1</text>
+    <text class="gate-sub" x="365" y="763">go test -race Clean?</text>
   </g>
 
-  <!-- Column 1 Sequential Connectors -->
-  <path class="conn-forward" d="M 365 382 L 365 420" marker-end="url(#arrow-dark)" />
-  <path class="conn-forward" d="M 365 492 L 365 530" marker-end="url(#arrow-dark)" />
-  <path class="conn-forward" d="M 365 602 L 365 640" marker-end="url(#arrow-dark)" />
-  <path class="conn-forward" d="M 365 712 L 365 760" marker-end="url(#arrow-dark)" />
+  <!-- Feedback Connector: Quality Gate 1 (No) -> Sprint 2 -->
+  <path class="conn-feedback" d="M 225 750 L 90 750 L 90 434 L 180 434" marker-end="url(#arrow)" />
+  <!-- Gate 1 No Badge -->
+  <g transform="translate(145, 740)">
+    <rect class="badge-bg" x="-18" y="-10" width="36" height="20" />
+    <text class="gate-label-text" x="0" y="4">No</text>
+  </g>
+  <!-- Refactor Sprint Badge -->
+  <g transform="translate(90, 560)">
+    <rect class="badge-bg" x="-60" y="-12" width="120" height="24" />
+    <text class="badge-text" x="0" y="4">Refactor Sprint</text>
+  </g>
 
-  <!-- ==================== COLUMN 2: SPRINTS 5-8 & GATE 2 ==================== -->
-  <!-- Sprint 5 (X=730 to 1100, Center X=915) -->
-  <g transform="translate(730, 310)">
-    <rect class="sprint-card" x="0" y="0" width="370" height="72" />
-    <text class="title-main" x="185" y="31" text-anchor="middle">Sprint 5: SWRR & Canary Steering</text>
-    <text class="title-sub" x="185" y="52" text-anchor="middle">NGINX Smooth Weighted RR & L7 Tag Routing</text>
+  <!-- Forward Connector: Quality Gate 1 (Yes Clean) -> Sprint 5 -->
+  <path class="conn-forward" d="M 505 750 L 685 750 L 685 334 L 810 334" marker-end="url(#arrow)" />
+  <!-- Gate 1 Yes Badge -->
+  <g transform="translate(565, 750)">
+    <rect class="badge-bg" x="-42" y="-11" width="84" height="22" />
+    <text class="badge-text" x="0" y="4">Yes (Clean)</text>
+  </g>
+
+  <!-- ==================== COLUMN 2: SPRINTS 5-8 & CHAOS GATE ==================== -->
+  <!-- Sprint 5 (X=810 to 1180, Center X=995) -->
+  <g transform="translate(810, 300)">
+    <rect class="sprint-card" x="0" y="0" width="370" height="68" />
+    <text class="title-main" x="185" y="29">Sprint 5: SWRR &amp; Canary Steering</text>
+    <text class="title-sub" x="185" y="50">NGINX Smooth Weighted RR &amp; L7 Tag Routing</text>
   </g>
 
   <!-- Sprint 6 -->
-  <g transform="translate(730, 420)">
-    <rect class="sprint-card" x="0" y="0" width="370" height="72" />
-    <text class="title-main" x="185" y="31" text-anchor="middle">Sprint 6: Edge Shield & Circuit Breaker</text>
-    <text class="title-sub" x="185" y="52" text-anchor="middle">Per-IP Token Bucket (429) & 3-State Outlier Detection</text>
+  <g transform="translate(810, 400)">
+    <rect class="sprint-card" x="0" y="0" width="370" height="68" />
+    <text class="title-main" x="185" y="29">Sprint 6: Edge Shield &amp; Circuit Breaker</text>
+    <text class="title-sub" x="185" y="50">Per-IP Token Bucket (429) &amp; 3-State Outlier Detection</text>
   </g>
 
   <!-- Sprint 7 -->
-  <g transform="translate(730, 530)">
-    <rect class="sprint-card" x="0" y="0" width="370" height="72" />
-    <text class="title-main" x="185" y="31" text-anchor="middle">Sprint 7: Staged Retry & Smart Auto</text>
-    <text class="title-sub" x="185" y="52" text-anchor="middle">retryRecorder Replay & 4-Tier Adaptive Meta-Balancer</text>
+  <g transform="translate(810, 500)">
+    <rect class="sprint-card" x="0" y="0" width="370" height="68" />
+    <text class="title-main" x="185" y="29">Sprint 7: Staged Retry &amp; Smart Auto</text>
+    <text class="title-sub" x="185" y="50">retryRecorder Replay &amp; 4-Tier Adaptive Meta-Balancer</text>
   </g>
 
   <!-- Sprint 8 -->
-  <g transform="translate(730, 640)">
-    <rect class="sprint-card" x="0" y="0" width="370" height="72" />
-    <text class="title-main" x="185" y="31" text-anchor="middle">Sprint 8: Chaos Simulator & Data-Terminal</text>
-    <text class="title-sub" x="185" y="52" text-anchor="middle">64-Worker Chaos Studio, Rollback & Dark 4-View UI</text>
+  <g transform="translate(810, 600)">
+    <rect class="sprint-card" x="0" y="0" width="370" height="68" />
+    <text class="title-main" x="185" y="29">Sprint 8: Chaos Simulator &amp; Data-Terminal</text>
+    <text class="title-sub" x="185" y="50">64-Worker Chaos Studio, Rollback &amp; Dark 4-View UI</text>
   </g>
 
-  <!-- Chaos & Production Gate (Diamond: center at X=915, Y=800, W=260, H=80) -->
-  <g transform="translate(785, 760)">
-    <polygon class="gate-poly" points="130,0 260,40 130,80 0,40" />
-    <text class="gate-title" x="130" y="36">Chaos & Production Gate</text>
-    <text class="gate-sub" x="130" y="54">Zero Flapping & 0 Drops?</text>
+  <!-- Forward Connectors Column 2 -->
+  <path class="conn-forward" d="M 995 368 L 995 400" marker-end="url(#arrow)" />
+  <path class="conn-forward" d="M 995 468 L 995 500" marker-end="url(#arrow)" />
+  <path class="conn-forward" d="M 995 568 L 995 600" marker-end="url(#arrow)" />
+  <path class="conn-forward" d="M 995 668 L 995 712" marker-end="url(#arrow)" />
+
+  <!-- Chaos & Production Gate Diamond (Center: 995, 750) -->
+  <g>
+    <polygon class="gate-poly" points="995,712 1135,750 995,788 855,750" />
+    <text class="gate-title" x="995" y="745">Chaos &amp; Production Gate</text>
+    <text class="gate-sub" x="995" y="763">Zero Flapping &amp; 0 Drops?</text>
   </g>
 
-  <!-- Column 2 Sequential Connectors -->
-  <path class="conn-forward" d="M 915 382 L 915 420" marker-end="url(#arrow-dark)" />
-  <path class="conn-forward" d="M 915 492 L 915 530" marker-end="url(#arrow-dark)" />
-  <path class="conn-forward" d="M 915 602 L 915 640" marker-end="url(#arrow-dark)" />
-  <path class="conn-forward" d="M 915 712 L 915 760" marker-end="url(#arrow-dark)" />
-
-  <!-- ==================== PHASE 5 (BOTTOM) ==================== -->
-  <g transform="translate(655, 1030)">
-    <rect class="phase-box" x="0" y="0" width="520" height="74" />
-    <rect class="phase-accent" x="0" y="0" width="6" height="74" />
-    <text class="title-main" x="260" y="32" text-anchor="middle">Phase 5: Evaluation & Milestone Delivery</text>
-    <text class="title-sub" x="260" y="54" text-anchor="middle">1,500 RPS Stress Benchmark, Race Freedom & Academic Release</text>
+  <!-- Feedback Connector: Chaos Gate (No) -> Sprint 6 -->
+  <path class="conn-feedback" d="M 1135 750 L 1270 750 L 1270 434 L 1180 434" marker-end="url(#arrow)" />
+  <!-- Gate 2 No Badge -->
+  <g transform="translate(1175, 740)">
+    <rect class="badge-bg" x="-18" y="-10" width="36" height="20" />
+    <text class="gate-label-text" x="0" y="4">No</text>
+  </g>
+  <!-- Tuning Iteration Badge -->
+  <g transform="translate(1270, 560)">
+    <rect class="badge-bg" x="-60" y="-12" width="120" height="24" />
+    <text class="badge-text" x="0" y="4">Tuning Iteration</text>
   </g>
 
-  <!-- Connector: Gate 2 [Yes] -> Phase 5 -->
-  <path class="conn-forward" d="M 915 840 L 915 1030" marker-end="url(#arrow-dark)" />
-  <rect class="pill-green" x="890" y="920" width="50" height="28" />
-  <text class="text-green" x="915" y="939">Yes</text>
+  <!-- Forward Connector: Chaos Gate (Yes) -> Phase 5 -->
+  <path class="conn-forward" d="M 995 788 L 995 910" marker-end="url(#arrow)" />
+  <!-- Gate 2 Yes Badge -->
+  <g transform="translate(995, 845)">
+    <rect class="badge-bg" x="-22" y="-11" width="44" height="22" />
+    <text class="badge-text" x="0" y="4">Yes</text>
+  </g>
 
-  <!-- ==================== INTER-COLUMN TRANSITION (GATE 1 -> SPRINT 5) ==================== -->
-  <!-- Clean central highway along X=640 -->
-  <path class="conn-forward" d="M 495 800 L 640 800 L 640 346 L 730 346" marker-end="url(#arrow-dark)" />
-  <rect class="pill-green" x="525" y="786" width="95" height="28" />
-  <text class="text-green" x="572" y="805">Yes (Clean)</text>
+  <!-- ==================== PHASE 5: EVALUATION & MILESTONE DELIVERY ==================== -->
+  <g transform="translate(500, 910)">
+    <rect class="phase-box" x="0" y="0" width="520" height="70" />
+    <text class="title-main" x="260" y="30">Phase 5: Evaluation &amp; Milestone Delivery</text>
+    <text class="title-sub" x="260" y="52">1,500 RPS Stress Benchmark, Race Freedom &amp; Academic Release</text>
+  </g>
 
-  <!-- ==================== FEEDBACK LOOPS (CRIMSON DASHED) ==================== -->
-  <!-- LOOP 1: Gate 1 [No] -> Sprint 2 (Track X=70) -->
-  <path class="conn-feedback" d="M 235 800 L 70 800 L 70 456 L 180 456" marker-end="url(#arrow-red)" />
-  <rect class="pill-red" x="135" y="786" width="45" height="28" />
-  <text class="text-red" x="157" y="805">No</text>
-
-  <!-- Refactor Sprint Label (Horizontal, generous padding, zero line overlap) -->
-  <rect class="pill-red" x="10" y="590" width="120" height="30" />
-  <text class="text-red" x="70" y="610">Refactor Sprint</text>
-
-  <!-- LOOP 2: Gate 2 [No] -> Sprint 6 (Track X=1220) -->
-  <path class="conn-feedback" d="M 1045 800 L 1220 800 L 1220 456 L 1100 456" marker-end="url(#arrow-red)" />
-  <rect class="pill-red" x="1105" y="786" width="45" height="28" />
-  <text class="text-red" x="1127" y="805">No</text>
-
-  <!-- Tuning Iteration Label (Horizontal, generous padding, zero line overlap) -->
-  <rect class="pill-red" x="1155" y="560" width="130" height="30" />
-  <text class="text-red" x="1220" y="580">Tuning Iteration</text>
-
-  <!-- LOOP 3: Phase 5 Retrospective -> Phase 2 (Track X=1410) -->
-  <path class="conn-feedback" d="M 1175 1067 L 1410 1067 L 1410 182 L 1040 182" marker-end="url(#arrow-red)" />
-  <!-- Post-Sprint Retrospective Label (Horizontal, staggered at Y=680, generous padding) -->
-  <rect class="pill-red" x="1310" y="680" width="200" height="32" />
-  <text class="text-red" x="1410" y="701">Post-Sprint Retrospective</text>
+  <!-- Feedback Connector: Phase 5 -> Phase 2 (Outer Track X=1420) -->
+  <path class="conn-feedback" d="M 1020 945 L 1420 945 L 1420 175 L 1020 175" marker-end="url(#arrow)" />
+  <!-- Post-Sprint Retrospective Badge -->
+  <g transform="translate(1420, 560)">
+    <rect class="badge-bg" x="-85" y="-12" width="170" height="24" />
+    <text class="badge-text" x="0" y="4">Post-Sprint Retrospective</text>
+  </g>
 
 </svg>
 </div>

@@ -1,355 +1,303 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-
+<meta charset="UTF-8">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #ffffff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #1e293b;
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #FFFFFF;
+    font-family: "Latin Modern Roman", "Computer Modern", "Times New Roman", Times, serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 36px;
+    width: 100%;
+    height: 100%;
   }
-  .card {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    border: 1px solid #e2e8f0;
-    padding: 28px;
-    position: relative;
-  }
-  .diagram-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: #0f172a;
-    text-align: center;
-    letter-spacing: -0.3px;
-    margin-bottom: 6px;
-  }
-  .diagram-subtitle {
-    font-size: 13px;
-    color: #64748b;
-    text-align: center;
-    margin-bottom: 24px;
-    font-weight: 500;
-  }
-  .entity-box {
-    background: #f8fafc;
-    border: 2px solid #334155;
-    border-radius: 8px;
-    padding: 14px 18px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 15px;
-    color: #0f172a;
-  }
-  .process-circle {
-    background: #eff6ff;
-    border: 2.5px solid #2563eb;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 12px;
-  }
-  .datastore-box {
-    background: #f0fdf4;
-    border: 2px solid #16a34a;
-    border-radius: 6px;
-    padding: 10px 14px;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: #166534;
-  }
-  .badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .badge-blue { background: #dbeafe; color: #1e40af; }
-  .badge-green { background: #dcfce7; color: #166534; }
-  .badge-amber { background: #fef3c7; color: #92400e; }
-  .badge-red { background: #fee2e2; color: #991b1b; }
-  .badge-purple { background: #f3e8ff; color: #6b21a8; }
-</style>
-
-<style>
   .canvas {
-    width: 1400px;
-    height: 1950px;
+    width: 1320px;
+    height: 1370px;
+    background: #FFFFFF;
     position: relative;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 24px;
   }
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* Activity Action Nodes */
   .act-node {
-    background: #eff6ff;
-    border: 2px solid #2563eb;
-    border-radius: 8px;
-    padding: 14px 20px;
-    text-align: center;
-    font-size: 15px;
-    font-weight: 700;
-    color: #1e3a8a;
-    position: absolute;
-    box-shadow: 0 4px 10px rgba(37,99,235,0.08);
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.8px;
+    rx: 6px;
   }
-  .act-decision {
-    background: #fffbeb;
-    border: 2.5px solid #d97706;
-    border-radius: 8px;
-    padding: 12px 18px;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 800;
-    color: #92400e;
-    position: absolute;
-    box-shadow: 0 4px 10px rgba(217,119,6,0.1);
+  .node-title {
+    font-size: 13.5px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
-  .act-branch {
-    background: #fef2f2;
-    border: 2px solid #ef4444;
-    border-radius: 8px;
-    padding: 12px 16px;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 700;
-    color: #991b1b;
-    position: absolute;
+  .node-sub {
+    font-size: 11px;
+    font-weight: normal;
+    fill: #222222;
+    text-anchor: middle;
   }
-  .act-canary {
-    background: #fdf4ff;
-    border: 2px solid #a855f7;
-    border-radius: 8px;
-    padding: 12px 16px;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 700;
-    color: #6b21a8;
-    position: absolute;
+
+  /* Decision Diamonds */
+  .decision-poly {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.8px;
   }
-  .start-circle {
-    width: 32px;
-    height: 32px;
-    background: #0f172a;
-    border-radius: 50%;
-    position: absolute;
+  .decision-text {
+    font-size: 11.5px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
-  .end-bullseye {
-    width: 38px;
-    height: 38px;
-    border: 3px solid #0f172a;
-    border-radius: 50%;
-    position: absolute;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+
+  /* Initial and Final Nodes */
+  .initial-node {
+    fill: #000000;
   }
-  .end-bullseye::after {
-    content: "";
-    width: 22px;
-    height: 22px;
-    background: #0f172a;
-    border-radius: 50%;
+  .final-outer {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 2px;
+  }
+  .final-inner {
+    fill: #000000;
+  }
+
+  /* Connectors */
+  .conn-solid {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 1.8px;
+  }
+  .conn-dash {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 1.6px;
+    stroke-dasharray: 6,4;
+  }
+
+  /* Badges & Labels */
+  .badge-bg {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1px;
+    rx: 3px;
+  }
+  .badge-text {
+    font-size: 11px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
   }
 </style>
 </head>
 <body>
-<div class="card canvas">
-  <div class="diagram-title">Figure 2.7: UML Activity Diagram & Request Execution Flow</div>
-  <div class="diagram-subtitle">End-to-End Ingress Hot-Path: Rate Shielding, Canary Routing, Health Gates, Staged Retry, and SSE Dispatch</div>
+<div class="canvas">
+<svg viewBox="0 0 1320 1370" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#000000" />
+    </marker>
+  </defs>
 
-  <!-- SVG Connectors -->
-  <svg style="position: absolute; top: 0; left: 0; width: 1400px; height: 1950px; pointer-events: none;">
-    <defs>
-      <marker id="arr-spine" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
-      </marker>
-      <marker id="arr-red" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626" />
-      </marker>
-      <marker id="arr-purple" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#9333ea" />
-      </marker>
-      <marker id="arr-green" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
-        <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a" />
-      </marker>
-    </defs>
+  <!-- ==================== INITIAL NODE ==================== -->
+  <circle class="initial-node" cx="650" cy="40" r="13" />
+  <path class="conn-solid" d="M 650 53 L 650 85" marker-end="url(#arrow)" />
 
-    <!-- Start to A1 -->
-    <path d="M 700 132 L 700 180" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+  <!-- ==================== STEP 1: INGRESS RECEIVES REQUEST ==================== -->
+  <g transform="translate(450, 85)">
+    <rect class="act-node" x="0" y="0" width="400" height="56" />
+    <text class="node-title" x="200" y="24">1. Ingress Receives HTTP Request (:8080)</text>
+    <text class="node-sub" x="200" y="44">Extract Client IP, Headers &amp; Ingress Port</text>
+  </g>
+  <path class="conn-solid" d="M 650 141 L 650 175" marker-end="url(#arrow)" />
 
-    <!-- A1 to D1 -->
-    <path d="M 700 250 L 700 300" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+  <!-- ==================== DECISION 1: RATE GATE (EDGE SHIELD) ==================== -->
+  <!-- Diamond Center: (650, 210), W=220, H=70 -->
+  <polygon class="decision-poly" points="650,175 760,210 650,245 540,210" />
+  <text class="decision-text" x="650" y="206">Tokens</text>
+  <text class="decision-text" x="650" y="222">Available?</text>
 
-    <!-- D1 to D2 (Tokens Available = YES) -->
-    <path d="M 700 390 L 700 460" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arr-green)" fill="none" />
-    <text x="715" y="430" fill="#15803d" font-size="13" font-weight="800">[Tokens Available: YES]</text>
+  <!-- Decision 1 -> Branch Left (Tokens Exceeded / 429) -->
+  <path class="conn-solid" d="M 540 210 L 350 210" marker-end="url(#arrow)" />
+  <g transform="translate(445, 210)">
+    <rect class="badge-bg" x="-50" y="-11" width="100" height="22" />
+    <text class="badge-text" x="0" y="4">[Exceeded: No]</text>
+  </g>
 
-    <!-- D1 to Drop 429 (Tokens Available = NO) -->
-    <path d="M 500 345 L 360 345" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arr-red)" fill="none" />
-    <text x="430" y="335" fill="#dc2626" font-size="13" font-weight="800" text-anchor="middle">[Exceeded: NO]</text>
+  <!-- 429 Rejection Box (X=130, Y=182, W=220, H=56) -->
+  <g transform="translate(130, 182)">
+    <rect class="act-node" x="0" y="0" width="220" height="56" />
+    <text class="node-title" x="110" y="24">Return HTTP 429</text>
+    <text class="node-sub" x="110" y="44">Inject Retry-After &amp; Drop Conn</text>
+  </g>
 
-    <!-- Drop 429 to end point -->
-    <path d="M 220 385 L 220 440" stroke="#dc2626" stroke-width="2.2" marker-end="url(#arr-red)" fill="none" />
+  <!-- 429 Box to Terminal End Node -->
+  <path class="conn-solid" d="M 240 238 L 240 275" marker-end="url(#arrow)" />
+  <circle class="final-outer" cx="240" cy="289" r="14" />
+  <circle class="final-inner" cx="240" cy="289" r="8" />
 
-    <!-- D2 to A2 (Canary Header Present = NO) -->
-    <path d="M 700 550 L 700 620" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
-    <text x="715" y="590" fill="#1d4ed8" font-size="13" font-weight="800">[Canary Present: NO]</text>
+  <!-- Decision 1 -> Downward Spine [Tokens Available: Yes] -->
+  <path class="conn-solid" d="M 650 245 L 650 335" marker-end="url(#arrow)" />
+  <g transform="translate(650, 290)">
+    <rect class="badge-bg" x="-72" y="-11" width="144" height="22" />
+    <text class="badge-text" x="0" y="4">[Tokens Available: Yes]</text>
+  </g>
 
-    <!-- D2 to Canary Pool (Canary Header Present = YES) -->
-    <path d="M 900 505 L 1040 505" stroke="#9333ea" stroke-width="2.5" marker-end="url(#arr-purple)" fill="none" />
-    <text x="970" y="495" fill="#9333ea" font-size="13" font-weight="800" text-anchor="middle">[Match: YES]</text>
+  <!-- ==================== DECISION 2: CANARY TRAFFIC STEERING ==================== -->
+  <!-- Diamond Center: (650, 370), W=220, H=70 -->
+  <polygon class="decision-poly" points="650,335 760,370 650,405 540,370" />
+  <text class="decision-text" x="650" y="366">Canary Tag</text>
+  <text class="decision-text" x="650" y="382">Present?</text>
 
-    <!-- Canary Route re-enters spine at A3 -->
-    <path d="M 1190 555 L 1190 970 L 930 970" stroke="#9333ea" stroke-width="2.2" marker-end="url(#arr-purple)" fill="none" />
+  <!-- Decision 2 -> Branch Right [Match: Yes] -->
+  <path class="conn-solid" d="M 760 370 L 960 370" marker-end="url(#arrow)" />
+  <g transform="translate(860, 370)">
+    <rect class="badge-bg" x="-45" y="-11" width="90" height="22" />
+    <text class="badge-text" x="0" y="4">[Match: Yes]</text>
+  </g>
 
-    <!-- A2 to D3 -->
-    <path d="M 700 690 L 700 760" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+  <!-- Canary Selection Box (X=960, Y=342, W=240, H=56) -->
+  <g transform="translate(960, 342)">
+    <rect class="act-node" x="0" y="0" width="240" height="56" />
+    <text class="node-title" x="120" y="24">Route to Canary Pool</text>
+    <text class="node-sub" x="120" y="44">Select Backend Node (L7 Rule)</text>
+  </g>
 
-    <!-- D3 to A3 (Circuit State = CLOSED / HEALTHY) -->
-    <path d="M 700 850 L 700 930" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arr-green)" fill="none" />
-    <text x="715" y="895" fill="#15803d" font-size="13" font-weight="800">[Circuit State: CLOSED]</text>
+  <!-- Canary Flow Re-joins Spine at Step 3 (Drops on track X=1080) -->
+  <path class="conn-solid" d="M 1080 398 L 1080 778 L 850 778" marker-end="url(#arrow)" />
 
-    <!-- D3 to Fast Fail (Circuit State = OPEN) -->
-    <path d="M 500 805 L 360 805" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arr-red)" fill="none" />
-    <text x="430" y="795" fill="#dc2626" font-size="13" font-weight="800" text-anchor="middle">[State: OPEN]</text>
+  <!-- Decision 2 -> Downward Spine [Canary Present: No] -->
+  <path class="conn-solid" d="M 650 405 L 650 495" marker-end="url(#arrow)" />
+  <g transform="translate(650, 450)">
+    <rect class="badge-bg" x="-68" y="-11" width="136" height="22" />
+    <text class="badge-text" x="0" y="4">[Canary Present: No]</text>
+  </g>
 
-    <!-- Fast Fail loops back to A2 -->
-    <path d="M 220 765 L 220 655 L 470 655" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="5 3" marker-end="url(#arr-red)" fill="none" />
-    <text x="320" y="645" fill="#dc2626" font-size="12" font-weight="700">Evict & Re-evaluate Sibling</text>
+  <!-- ==================== STEP 2: EVALUATE BALANCING ALGORITHM ==================== -->
+  <g transform="translate(450, 495)">
+    <rect class="act-node" x="0" y="0" width="400" height="56" />
+    <text class="node-title" x="200" y="24">2. Evaluate Active Balancing Algorithm</text>
+    <text class="node-sub" x="200" y="44">Smart Auto / Round-Robin / LeastConn / SWRR / IPHash</text>
+  </g>
+  <path class="conn-solid" d="M 650 551 L 650 590" marker-end="url(#arrow)" />
 
-    <!-- A3 to A4 -->
-    <path d="M 700 1010 L 700 1080" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+  <!-- ==================== DECISION 3: CIRCUIT BREAKER HEALTH ==================== -->
+  <!-- Diamond Center: (650, 625), W=220, H=70 -->
+  <polygon class="decision-poly" points="650,590 760,625 650,660 540,625" />
+  <text class="decision-text" x="650" y="621">Target Node</text>
+  <text class="decision-text" x="650" y="637">Closed?</text>
 
-    <!-- A4 to D4 -->
-    <path d="M 700 1150 L 700 1220" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+  <!-- Decision 3 -> Branch Left [State: Open / Tripped] -->
+  <path class="conn-solid" d="M 540 625 L 350 625" marker-end="url(#arrow)" />
+  <g transform="translate(445, 625)">
+    <rect class="badge-bg" x="-45" y="-11" width="90" height="22" />
+    <text class="badge-text" x="0" y="4">[State: Open]</text>
+  </g>
 
-    <!-- D4 to A5 (Socket Reset or 5xx = NO / SUCCESS) -->
-    <path d="M 700 1310 L 700 1390" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arr-green)" fill="none" />
-    <text x="715" y="1355" fill="#15803d" font-size="13" font-weight="800">[HTTP 200 OK / No Error]</text>
+  <!-- Fast Fail Box (X=130, Y=597, W=220, H=56) -->
+  <g transform="translate(130, 597)">
+    <rect class="act-node" x="0" y="0" width="220" height="56" />
+    <text class="node-title" x="110" y="24">Trip Fast-Fail Rejection</text>
+    <text class="node-sub" x="110" y="44">Evict Target from Active Pool</text>
+  </g>
 
-    <!-- D4 to Staged Retry (Socket Reset or 5xx = YES) -->
-    <path d="M 900 1265 L 1040 1265" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arr-red)" fill="none" />
-    <text x="970" y="1255" fill="#dc2626" font-size="13" font-weight="800" text-anchor="middle">[Socket Reset / 5xx]</text>
+  <!-- Fast Fail Loop back up to Step 2 (Outer Track X=65) -->
+  <path class="conn-dash" d="M 130 625 L 65 625 L 65 523 L 450 523" marker-end="url(#arrow)" />
+  <g transform="translate(255, 523)">
+    <rect class="badge-bg" x="-85" y="-11" width="170" height="22" />
+    <text class="badge-text" x="0" y="4">Evict &amp; Re-evaluate Sibling</text>
+  </g>
 
-    <!-- Staged Retry replays buffer to A4 -->
-    <path d="M 1190 1225 L 1190 1115 L 930 1115" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="5 3" marker-end="url(#arr-red)" fill="none" />
-    <text x="1060" y="1105" fill="#dc2626" font-size="12" font-weight="700">Replay Body Buffer</text>
+  <!-- Decision 3 -> Downward Spine [Circuit State: Closed] -->
+  <path class="conn-solid" d="M 650 660 L 650 750" marker-end="url(#arrow)" />
+  <g transform="translate(650, 705)">
+    <rect class="badge-bg" x="-72" y="-11" width="144" height="22" />
+    <text class="badge-text" x="0" y="4">[Circuit State: Closed]</text>
+  </g>
 
-    <!-- A5 to A6 -->
-    <path d="M 700 1460 L 700 1530" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+  <!-- ==================== STEP 3: BUFFER REQUEST BODY ==================== -->
+  <g transform="translate(450, 750)">
+    <rect class="act-node" x="0" y="0" width="400" height="56" />
+    <text class="node-title" x="200" y="24">3. Buffer Request Body in Staged retryRecorder</text>
+    <text class="node-sub" x="200" y="44">Preserve Body for Idempotent Retry Safety</text>
+  </g>
+  <path class="conn-solid" d="M 650 806 L 650 845" marker-end="url(#arrow)" />
 
-    <!-- A6 to End -->
-    <path d="M 700 1600 L 700 1680" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
-  </svg>
+  <!-- ==================== STEP 4: FORWARD REQUEST TO TARGET ==================== -->
+  <g transform="translate(450, 845)">
+    <rect class="act-node" x="0" y="0" width="400" height="56" />
+    <text class="node-title" x="200" y="24">4. Forward Request to Selected Target Node</text>
+    <text class="node-sub" x="200" y="44">Execute Staged Reverse Proxy Socket Dispatch</text>
+  </g>
+  <path class="conn-solid" d="M 650 901 L 650 940" marker-end="url(#arrow)" />
 
-  <!-- Initial Start Node -->
-  <div style="top: 100px; left: 684px;" class="start-circle"></div>
+  <!-- ==================== DECISION 4: PROXY RESPONSE INSPECTION ==================== -->
+  <!-- Diamond Center: (650, 975), W=220, H=70 -->
+  <polygon class="decision-poly" points="650,940 760,975 650,1010 540,975" />
+  <text class="decision-text" x="650" y="971">Response</text>
+  <text class="decision-text" x="650" y="987">Success?</text>
 
-  <!-- A1 -->
-  <div style="top: 180px; left: 470px; width: 460px;" class="act-node">
-    1. Ingress Receives HTTP Request (:8080)
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Extract Client IP, Headers, and Ingress Port</div>
-  </div>
+  <!-- Decision 4 -> Branch Right [Socket Reset / 5xx] -->
+  <path class="conn-solid" d="M 760 975 L 960 975" marker-end="url(#arrow)" />
+  <g transform="translate(860, 975)">
+    <rect class="badge-bg" x="-62" y="-11" width="124" height="22" />
+    <text class="badge-text" x="0" y="4">[Socket Reset / 5xx]</text>
+  </g>
 
-  <!-- D1 Decision -->
-  <div style="top: 300px; left: 500px; width: 400px;" class="act-decision">
-    Edge Shield Limiter:
-    <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">Tokens Available in IP Bucket?</div>
-  </div>
+  <!-- Circuit Breaker Failures Box (X=960, Y=947, W=240, H=56) -->
+  <g transform="translate(960, 947)">
+    <rect class="act-node" x="0" y="0" width="240" height="56" />
+    <text class="node-title" x="120" y="24">Increment Breaker Failures</text>
+    <text class="node-sub" x="120" y="44">Stage Replay to Alternate Node</text>
+  </g>
 
-  <!-- Branch: 429 -->
-  <div style="top: 315px; left: 80px; width: 280px;" class="act-branch">
-    Return HTTP 429 Too Many Requests
-    <div style="font-size: 12px; color: #7f1d1d; margin-top: 3px;">Inject Retry-After Header & Drop Conn</div>
-  </div>
-  <div style="top: 440px; left: 201px;" class="end-bullseye"></div>
+  <!-- Replay Loop back up to Step 4 (Outer Track X=1240) -->
+  <path class="conn-dash" d="M 1200 975 L 1240 975 L 1240 873 L 850 873" marker-end="url(#arrow)" />
+  <g transform="translate(1045, 873)">
+    <rect class="badge-bg" x="-68" y="-11" width="136" height="22" />
+    <text class="badge-text" x="0" y="4">Replay Body Buffer</text>
+  </g>
 
-  <!-- D2 Decision -->
-  <div style="top: 460px; left: 500px; width: 400px;" class="act-decision">
-    Layer 7 Canary Traffic Steering:
-    <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">X-Canary Header or Cookie Present?</div>
-  </div>
+  <!-- Decision 4 -> Downward Spine [HTTP 200 OK / Success] -->
+  <path class="conn-solid" d="M 650 1010 L 650 1100" marker-end="url(#arrow)" />
+  <g transform="translate(650, 1055)">
+    <rect class="badge-bg" x="-72" y="-11" width="144" height="22" />
+    <text class="badge-text" x="0" y="4">[HTTP 200 OK / Success]</text>
+  </g>
 
-  <!-- Branch: Canary Pool -->
-  <div style="top: 475px; left: 1040px; width: 300px;" class="act-canary">
-    Route to Dedicated Canary Pool
-    <div style="font-size: 12px; color: #581c87; margin-top: 3px;">Select Backend Node with Fallback Guard</div>
-  </div>
+  <!-- ==================== STEP 5: COMMIT STAGED RESPONSE ==================== -->
+  <g transform="translate(450, 1100)">
+    <rect class="act-node" x="0" y="0" width="400" height="56" />
+    <text class="node-title" x="200" y="24">5. Commit Staged Response to Client</text>
+    <text class="node-sub" x="200" y="44">Flush Headers, Status Code &amp; Stream Body</text>
+  </g>
+  <path class="conn-solid" d="M 650 1156 L 650 1195" marker-end="url(#arrow)" />
 
-  <!-- A2 -->
-  <div style="top: 620px; left: 470px; width: 460px;" class="act-node">
-    2. Evaluate Active Balancing Algorithm
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Execute Smart Auto / Round-Robin / LeastConn / SWRR / IPHash</div>
-  </div>
+  <!-- ==================== STEP 6: PUSH TELEMETRY & SSE ==================== -->
+  <g transform="translate(450, 1195)">
+    <rect class="act-node" x="0" y="0" width="400" height="56" />
+    <text class="node-title" x="200" y="24">6. Push Telemetry to Ring Buffer &amp; Dispatch SSE</text>
+    <text class="node-sub" x="200" y="44">Update Percentiles &amp; Broadcast 1 Hz Stream (:8081)</text>
+  </g>
+  <path class="conn-solid" d="M 650 1251 L 650 1290" marker-end="url(#arrow)" />
 
-  <!-- D3 Decision -->
-  <div style="top: 760px; left: 500px; width: 400px;" class="act-decision">
-    Circuit Breaker Health Guardian:
-    <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">Is Selected Target Backend CLOSED?</div>
-  </div>
+  <!-- ==================== FINAL NODE ==================== -->
+  <circle class="final-outer" cx="650" cy="1306" r="16" />
+  <circle class="final-inner" cx="650" cy="1306" r="9" />
 
-  <!-- Branch: Fast Fail -->
-  <div style="top: 775px; left: 80px; width: 280px;" class="act-branch">
-    Trip Fast-Fail Rejection
-    <div style="font-size: 12px; color: #7f1d1d; margin-top: 3px;">Evict Target from In-Flight Pool</div>
-  </div>
-
-  <!-- A3 -->
-  <div style="top: 930px; left: 470px; width: 460px;" class="act-node">
-    3. Buffer Request Body in Staged retryRecorder
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Preserve POST/PUT Payload for Idempotent Retry Safety</div>
-  </div>
-
-  <!-- A4 -->
-  <div style="top: 1080px; left: 470px; width: 460px;" class="act-node">
-    4. Forward Request to Selected Target Node
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Execute Staged Reverse Proxy Socket Dispatch</div>
-  </div>
-
-  <!-- D4 Decision -->
-  <div style="top: 1220px; left: 500px; width: 400px;" class="act-decision">
-    Proxy Response Inspection:
-    <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">Upstream Socket Reset, Timeout or 5xx Error?</div>
-  </div>
-
-  <!-- Branch: Staged Retry -->
-  <div style="top: 1235px; left: 1040px; width: 300px;" class="act-branch">
-    Increment Circuit Breaker Failures
-    <div style="font-size: 12px; color: #7f1d1d; margin-top: 3px;">Replay Staged Body to Alternate Healthy Node</div>
-  </div>
-
-  <!-- A5 -->
-  <div style="top: 1390px; left: 470px; width: 460px;" class="act-node">
-    5. Commit Staged Response to Client
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Flush Headers, Status Code, and Stream Body Payloads</div>
-  </div>
-
-  <!-- A6 -->
-  <div style="top: 1530px; left: 470px; width: 460px;" class="act-node">
-    6. Push Telemetry to Ring Buffer & Dispatch SSE
-    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Update Latency Percentiles & Broadcast 1 Hz Stream (:8081)</div>
-  </div>
-
-  <!-- Final End Node -->
-  <div style="top: 1680px; left: 681px;" class="end-bullseye"></div>
-
-  <div style="position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 12px; color: #94a3b8; font-weight: 500;">
-    NexusLB End-to-End Activity Flow &bull; Resilient Ingress Pipeline &bull; TIET UCS503 Software Engineering
-  </div>
+</svg>
 </div>
 </body>
 </html>
