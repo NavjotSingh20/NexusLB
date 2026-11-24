@@ -108,13 +108,11 @@
     </marker>
   </defs>
 
-  <!-- ==================== INITIAL PSEUDO-STATE ==================== -->
-  <circle class="init-node" cx="130" cy="180" r="10" />
-  <path class="conn-solid" d="M 140 180 L 225 215" marker-end="url(#arrow)" />
-  <g transform="translate(155, 160)">
-    <rect class="badge-bg" x="-38" y="-10" width="76" height="20" />
-    <text class="badge-text" x="0" y="4">Initialize</text>
-  </g>
+  <!-- ==================== INITIAL PSEUDO-STATE (UML 2.5 STANDARD) ==================== -->
+  <!-- Clean vertical entry from top directly into StateClosed apex (X=320) -->
+  <circle class="init-node" cx="320" cy="100" r="9" />
+  <path class="conn-solid" d="M 320 109 L 320 160" marker-end="url(#arrow)" />
+
 
   <!-- ==================== STATE 1: StateClosed (Center X=320, Y=280, R=120) ==================== -->
   <g>
@@ -127,9 +125,10 @@
     <text class="state-footer-text" x="320" y="338">Upstream healthy &amp; active</text>
   </g>
 
-  <!-- Self-Loop on StateClosed (Success / Reset) -->
-  <path class="conn-solid" d="M 235 340 C 90 410, 90 150, 235 220" marker-end="url(#arrow)" />
-  <g transform="translate(95, 280)">
+  <!-- Self-Loop on StateClosed (Success / Reset) - Symmetrically Isolated on Left -->
+  <!-- Exits at (220, 230), loops out to X=85, re-enters cleanly at (220, 330) -->
+  <path class="conn-solid" d="M 220 230 C 85 190, 85 370, 220 330" marker-end="url(#arrow)" />
+  <g transform="translate(85, 280)">
     <rect class="badge-bg" x="-75" y="-11" width="150" height="22" />
     <text class="badge-text" x="0" y="4">Success: failures = 0</text>
   </g>

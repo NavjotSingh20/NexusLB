@@ -289,10 +289,10 @@
   </g>
 
   <!-- Main Pipeline Flows -->
-  <!-- Ingress -> Process 1.0 -->
+  <!-- Ingress -> Process 1.0 (Enters from External Client at X=50) -->
   <path class="conn-flow" d="M 50 580 L 142 580" marker-end="url(#arrow)" />
-  <g transform="translate(96, 555)">
-    <rect class="badge-bg" x="-32" y="-10" width="64" height="20" />
+  <g transform="translate(96, 580)">
+    <rect class="badge-bg" x="-32" y="-11" width="64" height="22" />
     <text class="badge-text" x="0" y="4">Request</text>
   </g>
 
@@ -317,24 +317,24 @@
     <text class="badge-text" x="0" y="4">Circuit Closed</text>
   </g>
 
-  <!-- Process 4.0 -> Upstream Egress -->
-  <path class="conn-flow" d="M 1368 580 L 1460 580" marker-end="url(#arrow)" />
-  <g transform="translate(1414, 555)">
-    <rect class="badge-bg" x="-40" y="-10" width="80" height="20" />
+  <!-- Process 4.0 -> Upstream Egress (Exits to Upstream Server Pool at X=1480) -->
+  <path class="conn-flow" d="M 1368 580 L 1480 580" marker-end="url(#arrow)" />
+  <g transform="translate(1424, 580)">
+    <rect class="badge-bg" x="-36" y="-11" width="72" height="22" />
     <text class="badge-text" x="0" y="4">Upstream</text>
   </g>
 
-  <!-- Exception & Feedback Loops (Above Pipeline) -->
-  <!-- 429 Drop from Process 1.0 -->
-  <path class="conn-flow" d="M 230 516 L 230 465 L 120 465 L 120 516" marker-end="url(#arrow)" />
-  <g transform="translate(175, 465)">
-    <rect class="badge-bg" x="-35" y="-10" width="70" height="20" />
-    <text class="badge-text" x="0" y="4">429 Drop</text>
+  <!-- Egress & Feedback Flows (Above Pipeline) -->
+  <!-- 429 Too Many Requests: Exits Process 1.0 apex (Y=516), goes to Y=475, and returns LEFT to External Client (X=50) -->
+  <path class="conn-flow" d="M 230 516 L 230 475 L 50 475" marker-end="url(#arrow)" />
+  <g transform="translate(140, 475)">
+    <rect class="badge-bg" x="-75" y="-11" width="150" height="22" />
+    <text class="badge-text" x="0" y="4">429 Too Many Requests</text>
   </g>
 
   <!-- Circuit Breaker Trip: Process 3.0 -> Process 2.0 (Dashed Re-Route Loop) -->
-  <path class="conn-dash" d="M 930 516 L 930 465 L 580 465 L 580 516" marker-end="url(#arrow)" />
-  <g transform="translate(755, 465)">
+  <path class="conn-dash" d="M 930 516 L 930 475 L 580 475 L 580 516" marker-end="url(#arrow)" />
+  <g transform="translate(755, 475)">
     <rect class="badge-bg" x="-115" y="-11" width="230" height="22" />
     <text class="badge-text" x="0" y="4">Trip Open: Fast-Fail / Alternate Node</text>
   </g>
