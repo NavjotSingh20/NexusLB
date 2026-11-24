@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1e293b;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 36px;
+  }
+  .card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    border: 1px solid #e2e8f0;
+    padding: 28px;
+    position: relative;
+  }
+  .diagram-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    text-align: center;
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+  }
+  .diagram-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    text-align: center;
+    margin-bottom: 24px;
+    font-weight: 500;
+  }
+  .entity-box {
+    background: #f8fafc;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    padding: 14px 18px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 15px;
+    color: #0f172a;
+  }
+  .process-circle {
+    background: #eff6ff;
+    border: 2.5px solid #2563eb;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 12px;
+  }
+  .datastore-box {
+    background: #f0fdf4;
+    border: 2px solid #16a34a;
+    border-radius: 6px;
+    padding: 10px 14px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #166534;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+</style>
+
+<style>
+  .canvas {
+    width: 1450px;
+    height: 900px;
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 30px;
+  }
+  .chaos-stage {
+    background: #ffffff;
+    border: 2.5px solid #0d9488;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(13,148,136,0.08);
+    position: absolute;
+    padding: 20px;
+    text-align: left;
+  }
+  .stage-num {
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #0d9488;
+    margin-bottom: 4px;
+  }
+  .stage-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 8px;
+  }
+  .stage-desc {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.5;
+  }
+  .stage-badge {
+    margin-top: 10px;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+<div class="card canvas">
+  <div class="diagram-title">Figure 2.11: Autonomous Chaos Simulation Engine State Lifecycle</div>
+  <div class="diagram-subtitle">Baseline Capture, Synthetic Stress Wave Execution, and Zero-Downtime Atomic Rollback</div>
+
+  <!-- SVG Connectors -->
+  <svg style="position: absolute; top: 0; left: 0; width: 1450px; height: 900px; pointer-events: none;">
+    <defs>
+      <marker id="arr-teal" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#0d9488" />
+      </marker>
+      <marker id="arr-red" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626" />
+      </marker>
+      <marker id="arr-green" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a" />
+      </marker>
+    </defs>
+
+    <!-- Stage 1 to Stage 2 -->
+    <path d="M 370 280 L 490 280" stroke="#0d9488" stroke-width="3" marker-end="url(#arr-teal)" fill="none" />
+    <text x="430" y="270" fill="#0f766e" font-size="13" font-weight="800" text-anchor="middle">Trigger Wave</text>
+
+    <!-- Stage 2 to Stage 3 -->
+    <path d="M 850 280 L 970 280" stroke="#0d9488" stroke-width="3" marker-end="url(#arr-teal)" fill="none" />
+    <text x="910" y="270" fill="#0f766e" font-size="13" font-weight="800" text-anchor="middle">Launch Workers</text>
+
+    <!-- Stage 3 to Stage 4 (Diagonal Down-Left) -->
+    <path d="M 1150 400 L 1150 560 L 890 560" stroke="#dc2626" stroke-width="3" marker-end="url(#arr-red)" fill="none" />
+    <rect x="940" y="542" width="220" height="34" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5" />
+    <text x="1050" y="564" fill="#991b1b" font-size="13" font-weight="800" text-anchor="middle">Duration Elapsed / Stop Wave</text>
+
+    <!-- Stage 4 to Stage 1 (Diagonal Up-Left) -->
+    <path d="M 530 560 L 220 560 L 220 400" stroke="#16a34a" stroke-width="3" marker-end="url(#arr-green)" fill="none" />
+    <rect x="270" y="542" width="220" height="34" rx="6" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5" />
+    <text x="380" y="564" fill="#166534" font-size="13" font-weight="800" text-anchor="middle">Atomic Cluster Restoration</text>
+  </svg>
+
+  <!-- Stage 1 -->
+  <div style="top: 170px; left: 50px; width: 320px;" class="chaos-stage">
+    <div class="stage-num">State 1.0</div>
+    <div class="stage-title">Pristine Baseline</div>
+    <div class="stage-desc">
+      All 3 upstream backends healthy (:8001, :8002, :8003). Injected latency = 0ms, packet drops = 0%, clean connection pools.
+    </div>
+    <div class="stage-badge"><span class="badge badge-green">Pristine Cluster</span></div>
+  </div>
+
+  <!-- Stage 2 -->
+  <div style="top: 170px; left: 500px; width: 350px;" class="chaos-stage">
+    <div class="stage-num">State 2.0</div>
+    <div class="stage-title">Snapshot & Backup</div>
+    <div class="stage-desc">
+      Deep clone captured into <code>chaosBackup</code>. Preserves baseline backend weights, effective weights, alive statuses, and latency baselines.
+    </div>
+    <div class="stage-badge"><span class="badge badge-blue">Atomic Snapshot Taken</span></div>
+  </div>
+
+  <!-- Stage 3 -->
+  <div style="top: 170px; left: 980px; width: 360px;" class="chaos-stage" style="border-color: #ef4444;">
+    <div class="stage-num" style="color: #ef4444;">State 3.0</div>
+    <div class="stage-title">Attack Wave Execution</div>
+    <div class="stage-desc">
+      64 Concurrent Goroutine workers dispatch Poisson-jittered requests. Injects targeted failure vector (DoS, Latency Spike, Outage, Canary, Bursts).
+    </div>
+    <div class="stage-badge"><span class="badge badge-red">64 Workers Active</span></div>
+  </div>
+
+  <!-- Stage 4 -->
+  <div style="top: 480px; left: 540px; width: 350px;" class="chaos-stage" style="border-color: #16a34a;">
+    <div class="stage-num" style="color: #16a34a;">State 4.0</div>
+    <div class="stage-title">Atomic Rollback & Recovery</div>
+    <div class="stage-desc">
+      Executes <code>restoreChaos()</code> lock-guarded routine. Flushes injected artificial delays, clears error flags, and verifies pristine cluster health.
+    </div>
+    <div class="stage-badge"><span class="badge badge-green">Full Recovery Verified</span></div>
+  </div>
+
+  <div style="position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 12px; color: #94a3b8; font-weight: 500;">
+    NexusLB Autonomous Chaos & Resiliency Studio &bull; TIET UCS503 Software Engineering Capstone
+  </div>
+</div>
+</body>
+</html>

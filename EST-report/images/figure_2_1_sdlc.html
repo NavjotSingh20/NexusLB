@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: #FFFFFF;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+  }
+  .canvas {
+    width: 1360px;
+    height: 1560px;
+    background: #FFFFFF;
+    position: relative;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .phase-box {
+    fill: #EFF6FF;
+    stroke: #2563EB;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 2px 4px rgba(37,99,235,0.08));
+  }
+  .sprint-alpha {
+    fill: #F0FDF4;
+    stroke: #059669;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 2px 4px rgba(5,150,105,0.08));
+  }
+  .sprint-beta {
+    fill: #FAF5FF;
+    stroke: #7C3AED;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 2px 4px rgba(124,58,237,0.08));
+  }
+  .gate-poly {
+    fill: #FFFBEB;
+    stroke: #D97706;
+    stroke-width: 2.5px;
+    filter: drop-shadow(0 2px 4px rgba(217,119,6,0.1));
+  }
+  .eval-box {
+    fill: #F0F9FF;
+    stroke: #0284C7;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 2px 4px rgba(2,132,199,0.08));
+  }
+  .group-container-alpha {
+    fill: #F8FAFC;
+    stroke: #CBD5E1;
+    stroke-width: 1.5px;
+    stroke-dasharray: 6,4;
+    rx: 12px;
+  }
+  .group-container-beta {
+    fill: #FDF4FF;
+    stroke: #E9D5FF;
+    stroke-width: 1.5px;
+    stroke-dasharray: 6,4;
+    rx: 12px;
+  }
+  .title-main {
+    font-size: 15px;
+    font-weight: 700;
+    fill: #0F172A;
+  }
+  .title-sub {
+    font-size: 12px;
+    font-weight: 500;
+    fill: #475569;
+  }
+  .gate-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    fill: #92400E;
+    text-anchor: middle;
+  }
+  .gate-sub {
+    font-size: 11.5px;
+    font-weight: 500;
+    fill: #B45309;
+    text-anchor: middle;
+  }
+  .group-badge {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-alpha { fill: #047857; }
+  .badge-beta { fill: #6D28D9; }
+  
+  .conn-arrow {
+    fill: none;
+    stroke: #2563EB;
+    stroke-width: 2.5px;
+  }
+  .conn-forward {
+    fill: none;
+    stroke: #0284C7;
+    stroke-width: 3px;
+  }
+  .conn-feedback {
+    fill: none;
+    stroke: #DC2626;
+    stroke-width: 2.5px;
+    stroke-dasharray: 6,4;
+  }
+  .label-pill {
+    fill: #FFFFFF;
+    stroke: #CBD5E1;
+    stroke-width: 1px;
+    rx: 4px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.05));
+  }
+  .label-text-blue {
+    font-size: 12px;
+    font-weight: 700;
+    fill: #0369A1;
+    text-anchor: middle;
+  }
+  .label-text-red {
+    font-size: 11px;
+    font-weight: 700;
+    fill: #DC2626;
+    text-anchor: middle;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+<svg viewBox="0 0 1360 1560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Arrowhead Markers -->
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563EB" />
+    </marker>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284C7" />
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#DC2626" />
+    </marker>
+  </defs>
+
+  <!-- ==================== BACKGROUND GROUP CONTAINERS ==================== -->
+  <!-- Sprint Group Alpha Container -->
+  <rect class="group-container-alpha" x="120" y="270" width="410" height="770" />
+  <text class="group-badge badge-alpha" x="145" y="305">Sprint Group Alpha (MST Baseline)</text>
+
+  <!-- Sprint Group Beta Container -->
+  <rect class="group-container-beta" x="690" y="270" width="410" height="770" />
+  <text class="group-badge badge-beta" x="715" y="305">Sprint Group Beta (Resilience & Chaos)</text>
+
+  <!-- ==================== PHASES 1 & 2 (CENTERED AT X = 600) ==================== -->
+  <!-- Phase 1: Requirements -->
+  <g transform="translate(360, 40)">
+    <rect class="phase-box" x="0" y="0" width="480" height="75" />
+    <text class="title-main" x="240" y="32" text-anchor="middle">Phase 1: Requirements Analysis</text>
+    <text class="title-sub" x="240" y="55" text-anchor="middle">Protocol Standards, Latency Targets & Concurrency Budgets</text>
+  </g>
+
+  <!-- Phase 2: Architectural Design -->
+  <g transform="translate(360, 150)">
+    <rect class="phase-box" x="0" y="0" width="480" height="75" />
+    <text class="title-main" x="240" y="32" text-anchor="middle">Phase 2: Architectural Design</text>
+    <text class="title-sub" x="240" y="55" text-anchor="middle">Layered Pipelines, Subsystem Interfaces & Memory Models</text>
+  </g>
+
+  <!-- Connector: Phase 1 -> Phase 2 -->
+  <path class="conn-arrow" d="M 600 115 L 600 150" marker-end="url(#arrow-blue)" />
+
+  <!-- Connector: Phase 2 -> Sprint 1 (Orthogonal down to Col 1) -->
+  <path class="conn-arrow" d="M 450 225 L 450 250 L 325 250 L 325 330" marker-end="url(#arrow-blue)" />
+
+  <!-- ==================== COLUMN 1: SPRINTS 1-4 & QUALITY GATE 1 ==================== -->
+  <!-- Sprint 1 -->
+  <g transform="translate(145, 330)">
+    <rect class="sprint-alpha" x="0" y="0" width="360" height="72" />
+    <text class="title-main" x="180" y="31" text-anchor="middle">Sprint 1: Ingress Proxy Core</text>
+    <text class="title-sub" x="180" y="52" text-anchor="middle">ReverseProxy, Buffer Reuse & Ingress Port :8080</text>
+  </g>
+
+  <!-- Sprint 2 -->
+  <g transform="translate(145, 440)">
+    <rect class="sprint-alpha" x="0" y="0" width="360" height="72" />
+    <text class="title-main" x="180" y="31" text-anchor="middle">Sprint 2: Baseline Balancer Engine</text>
+    <text class="title-sub" x="180" y="52" text-anchor="middle">Balancer Interface, Round-Robin, LeastConn, IP Hash</text>
+  </g>
+
+  <!-- Sprint 3 -->
+  <g transform="translate(145, 550)">
+    <rect class="sprint-alpha" x="0" y="0" width="360" height="72" />
+    <text class="title-main" x="180" y="31" text-anchor="middle">Sprint 3: Dual-Mode Health Checking</text>
+    <text class="title-sub" x="180" y="52" text-anchor="middle">Proactive 3s Polling & Reactive Socket Interception</text>
+  </g>
+
+  <!-- Sprint 4 -->
+  <g transform="translate(145, 660)">
+    <rect class="sprint-alpha" x="0" y="0" width="360" height="72" />
+    <text class="title-main" x="180" y="31" text-anchor="middle">Sprint 4: Prototype Telemetry</text>
+    <text class="title-sub" x="180" y="52" text-anchor="middle">1 Hz SSE Broadcast & Single-Binary embed.FS</text>
+  </g>
+
+  <!-- Quality Gate 1 (Diamond: center at 325, 830, width=280, height=100) -->
+  <g transform="translate(185, 780)">
+    <polygon class="gate-poly" points="140,0 280,50 140,100 0,50" />
+    <text class="gate-title" x="140" y="46">Quality Gate 1</text>
+    <text class="gate-sub" x="140" y="66">go test -race Clean?</text>
+  </g>
+
+  <!-- Column 1 Sequential Connectors -->
+  <path class="conn-arrow" d="M 325 402 L 325 440" marker-end="url(#arrow-blue)" />
+  <path class="conn-arrow" d="M 325 512 L 325 550" marker-end="url(#arrow-blue)" />
+  <path class="conn-arrow" d="M 325 622 L 325 660" marker-end="url(#arrow-blue)" />
+  <path class="conn-arrow" d="M 325 732 L 325 780" marker-end="url(#arrow-blue)" />
+
+  <!-- ==================== COLUMN 2: SPRINTS 5-8, GATE 2 & PHASE 5 ==================== -->
+  <!-- Sprint 5 -->
+  <g transform="translate(715, 330)">
+    <rect class="sprint-beta" x="0" y="0" width="360" height="72" />
+    <text class="title-main" x="180" y="31" text-anchor="middle">Sprint 5: SWRR & Canary Steering</text>
+    <text class="title-sub" x="180" y="52" text-anchor="middle">NGINX Smooth Weighted RR & L7 Tag Routing</text>
+  </g>
+
+  <!-- Sprint 6 -->
+  <g transform="translate(715, 440)">
+    <rect class="sprint-beta" x="0" y="0" width="360" height="72" />
+    <text class="title-main" x="180" y="31" text-anchor="middle">Sprint 6: Edge Shield & Circuit Breaker</text>
+    <text class="title-sub" x="180" y="52" text-anchor="middle">Per-IP Token Bucket (429) & 3-State Outlier Detection</text>
+  </g>
+
+  <!-- Sprint 7 -->
+  <g transform="translate(715, 550)">
+    <rect class="sprint-beta" x="0" y="0" width="360" height="72" />
+    <text class="title-main" x="180" y="31" text-anchor="middle">Sprint 7: Staged Retry & Smart Auto</text>
+    <text class="title-sub" x="180" y="52" text-anchor="middle">retryRecorder Replay & 4-Tier Adaptive Meta-Balancer</text>
+  </g>
+
+  <!-- Sprint 8 -->
+  <g transform="translate(715, 660)">
+    <rect class="sprint-beta" x="0" y="0" width="360" height="72" />
+    <text class="title-main" x="180" y="31" text-anchor="middle">Sprint 8: Chaos Simulator & Data-Terminal</text>
+    <text class="title-sub" x="180" y="52" text-anchor="middle">64-Worker Chaos Studio, Rollback & Dark 4-View UI</text>
+  </g>
+
+  <!-- Chaos & Production Gate 2 (Diamond: center at 895, 830, width=280, height=100) -->
+  <g transform="translate(755, 780)">
+    <polygon class="gate-poly" points="140,0 280,50 140,100 0,50" />
+    <text class="gate-title" x="140" y="46">Chaos & Production Gate</text>
+    <text class="gate-sub" x="140" y="66">Zero Flapping & 0 Drops?</text>
+  </g>
+
+  <!-- Column 2 Sequential Connectors -->
+  <path class="conn-arrow" d="M 895 402 L 895 440" marker-end="url(#arrow-blue)" />
+  <path class="conn-arrow" d="M 895 512 L 895 550" marker-end="url(#arrow-blue)" />
+  <path class="conn-arrow" d="M 895 622 L 895 660" marker-end="url(#arrow-blue)" />
+  <path class="conn-arrow" d="M 895 732 L 895 780" marker-end="url(#arrow-blue)" />
+
+  <!-- Phase 5: Evaluation & Milestone Delivery -->
+  <g transform="translate(655, 1100)">
+    <rect class="eval-box" x="0" y="0" width="480" height="80" />
+    <text class="title-main" x="240" y="35" text-anchor="middle">Phase 5: Evaluation & Milestone Delivery</text>
+    <text class="title-sub" x="240" y="58" text-anchor="middle">1,500 RPS Stress Benchmark, Race Freedom & Academic Release</text>
+  </g>
+
+  <!-- Connector: Gate 2 [Yes] -> Phase 5 -->
+  <path class="conn-forward" d="M 895 880 L 895 1100" marker-end="url(#arrow-sky)" />
+  <rect class="label-pill" x="905" y="975" width="48" height="26" />
+  <text class="label-text-blue" x="929" y="992">Yes</text>
+
+  <!-- ==================== INTER-COLUMN TRANSITION (GATE 1 -> SPRINT 5) ==================== -->
+  <!-- Clear central highway along X = 600, turning into Sprint 5 at Y = 366 -->
+  <path class="conn-forward" d="M 465 830 L 600 830 L 600 366 L 715 366" marker-end="url(#arrow-sky)" />
+  <!-- Label Badge on horizontal segment -->
+  <rect class="label-pill" x="500" y="816" width="85" height="28" />
+  <text class="label-text-blue" x="542" y="835">Yes (Clean)</text>
+
+  <!-- ==================== FEEDBACK GUTTERS ==================== -->
+  <!-- GUTTER 1: Gate 1 [No] -> Sprint 2 (Outer Left Track at X = 50) -->
+  <path class="conn-feedback" d="M 185 830 L 55 830 L 55 476 L 145 476" marker-end="url(#arrow-red)" />
+  <rect class="label-pill" x="120" y="817" width="38" height="26" />
+  <text class="label-text-red" x="139" y="834">No</text>
+  <rect class="label-pill" x="15" y="630" width="80" height="26" transform="rotate(-90 55 643)" />
+  <text class="label-text-red" x="55" y="647" transform="rotate(-90 55 643)">Refactor Sprint</text>
+
+  <!-- GUTTER 2: Gate 2 [No] -> Sprint 6 (Inner Right Track at X = 1170) -->
+  <path class="conn-feedback" d="M 1035 830 L 1170 830 L 1170 476 L 1075 476" marker-end="url(#arrow-red)" />
+  <rect class="label-pill" x="1070" y="817" width="38" height="26" />
+  <text class="label-text-red" x="1089" y="834">No</text>
+  <rect class="label-pill" x="1130" y="630" width="80" height="26" transform="rotate(90 1170 643)" />
+  <text class="label-text-red" x="1170" y="647" transform="rotate(90 1170 643)">Tuning Iteration</text>
+
+  <!-- GUTTER 3: Phase 5 Retrospective -> Phase 2 (Outer Right Track at X = 1270) -->
+  <path class="conn-feedback" d="M 1135 1140 L 1270 1140 L 1270 187 L 840 187" marker-end="url(#arrow-red)" />
+  <rect class="label-pill" x="1200" y="610" width="140" height="28" transform="rotate(90 1270 624)" />
+  <text class="label-text-red" x="1270" y="629" transform="rotate(90 1270 624)">Post-Sprint Retrospective</text>
+
+</svg>
+</div>
+</body>
+</html>

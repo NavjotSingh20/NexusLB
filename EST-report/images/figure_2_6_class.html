@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1e293b;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 36px;
+  }
+  .card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    border: 1px solid #e2e8f0;
+    padding: 28px;
+    position: relative;
+  }
+  .diagram-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    text-align: center;
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+  }
+  .diagram-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    text-align: center;
+    margin-bottom: 24px;
+    font-weight: 500;
+  }
+  .entity-box {
+    background: #f8fafc;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    padding: 14px 18px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 15px;
+    color: #0f172a;
+  }
+  .process-circle {
+    background: #eff6ff;
+    border: 2.5px solid #2563eb;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 12px;
+  }
+  .datastore-box {
+    background: #f0fdf4;
+    border: 2px solid #16a34a;
+    border-radius: 6px;
+    padding: 10px 14px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #166534;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+</style>
+
+<style>
+  .canvas {
+    width: 1540px;
+    height: 1280px;
+    position: relative;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .uml-class {
+    background: #ffffff;
+    border: 2px solid #2563eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.08);
+    position: absolute;
+    font-size: 13px;
+  }
+  .uml-class-header {
+    background: #eff6ff;
+    padding: 10px 14px;
+    border-bottom: 2px solid #2563eb;
+    text-align: center;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+  }
+  .uml-class-name {
+    font-size: 16px;
+    font-weight: 800;
+    color: #1e3a8a;
+  }
+  .uml-interface {
+    border-color: #0d9488;
+    box-shadow: 0 4px 12px rgba(13,148,136,0.08);
+  }
+  .uml-interface .uml-class-header {
+    background: #f0fdfa;
+    border-bottom-color: #0d9488;
+  }
+  .uml-interface .uml-class-name {
+    color: #0f766e;
+  }
+  .uml-subclass {
+    border-color: #6366f1;
+    box-shadow: 0 4px 12px rgba(99,102,241,0.08);
+  }
+  .uml-subclass .uml-class-header {
+    background: #eef2ff;
+    border-bottom-color: #6366f1;
+  }
+  .uml-subclass .uml-class-name {
+    color: #4338ca;
+  }
+  .uml-section {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    color: #334155;
+    line-height: 1.5;
+  }
+  .uml-section:last-child {
+    border-bottom: none;
+  }
+</style>
+</head>
+<body>
+<div class="card canvas">
+  <div class="diagram-title">Figure 2.6: UML Class Diagram & Go Structural Design</div>
+  <div class="diagram-subtitle">Object-Oriented Decomposition, Interfaces, Aggregations, and Dynamic Strategy Realizations</div>
+
+  <!-- SVG Connectors -->
+  <svg style="position: absolute; top: 0; left: 0; width: 1540px; height: 1280px; pointer-events: none;">
+    <defs>
+      <marker id="uml-rel" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
+      </marker>
+      <marker id="uml-aggr" markerWidth="16" markerHeight="10" refX="1" refY="5" orient="auto">
+        <polygon points="1 5, 8 1, 15 5, 8 9" fill="#ffffff" stroke="#7c3aed" stroke-width="1.8" />
+      </marker>
+      <marker id="uml-impl" markerWidth="14" markerHeight="12" refX="13" refY="6" orient="auto">
+        <polygon points="1 1, 13 6, 1 11" fill="#ffffff" stroke="#0d9488" stroke-width="1.8" />
+      </marker>
+    </defs>
+
+    <!-- ReverseProxy to StrategyManager -->
+    <path d="M 430 220 L 580 220" stroke="#2563eb" stroke-width="2.5" marker-end="url(#uml-rel)" fill="none" />
+    <text x="505" y="210" fill="#1e40af" font-size="12" font-weight="700" text-anchor="middle">routes to</text>
+
+    <!-- ReverseProxy to Limiter -->
+    <path d="M 240 370 L 240 470" stroke="#7c3aed" stroke-width="2.2" marker-start="url(#uml-aggr)" fill="none" />
+    <text x="250" y="420" fill="#6b21a8" font-size="12" font-weight="700">enforces</text>
+
+    <!-- StrategyManager to Balancer Interface -->
+    <path d="M 770 370 L 770 470" stroke="#7c3aed" stroke-width="2.2" marker-start="url(#uml-aggr)" fill="none" />
+    <text x="780" y="420" fill="#6b21a8" font-size="12" font-weight="700">manages</text>
+
+    <!-- StrategyManager to Backend -->
+    <path d="M 960 220 L 1110 220" stroke="#2563eb" stroke-width="2.5" marker-end="url(#uml-rel)" fill="none" />
+    <text x="1035" y="210" fill="#1e40af" font-size="12" font-weight="700" text-anchor="middle">dispatches</text>
+
+    <!-- Backend to CircuitBreaker -->
+    <path d="M 1300 370 L 1300 470" stroke="#7c3aed" stroke-width="2.2" marker-start="url(#uml-aggr)" fill="none" />
+    <text x="1310" y="420" fill="#6b21a8" font-size="12" font-weight="700">monitored by</text>
+
+    <!-- Implementations of Balancer Interface from Row 3 subclasses -->
+    <!-- Bus line at Y=740 -->
+    <path d="M 770 660 L 770 730" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" marker-start="url(#uml-impl)" fill="none" />
+    <path d="M 140 730 L 1400 730" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
+
+    <path d="M 140 730 L 140 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
+    <path d="M 455 730 L 455 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
+    <path d="M 770 730 L 770 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
+    <path d="M 1085 730 L 1085 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
+    <path d="M 1400 730 L 1400 810" stroke="#0d9488" stroke-width="2.2" stroke-dasharray="6 4" fill="none" />
+    <text x="770" y="720" fill="#0f766e" font-size="12" font-weight="700" text-anchor="middle">&laquo;realizes Balancer interface&raquo;</text>
+  </svg>
+
+  <!-- ROW 1 -->
+  <!-- ReverseProxy -->
+  <div style="top: 90px; left: 50px; width: 380px;" class="uml-class">
+    <div class="uml-class-header">
+      <div class="uml-class-name">ReverseProxy</div>
+      <div style="font-size: 11px; color: #64748b;">pkg/proxy/proxy.go</div>
+    </div>
+    <div class="uml-section">
+      - proxy : *httputil.ReverseProxy<br>
+      - manager : *StrategyManager<br>
+      - limiter : *Limiter<br>
+      - metrics : *MetricsCollector<br>
+      - maxRetries : int
+    </div>
+    <div class="uml-section">
+      + ServeHTTP(w ResponseWriter, r *Request)<br>
+      + ErrorHandler(w, r, err error)<br>
+      + ModifyResponse(resp *Response) error<br>
+      + replayRequest(r *Request, b *Backend)
+    </div>
+  </div>
+
+  <!-- StrategyManager -->
+  <div style="top: 90px; left: 580px; width: 380px;" class="uml-class">
+    <div class="uml-class-header">
+      <div class="uml-class-name">StrategyManager</div>
+      <div style="font-size: 11px; color: #64748b;">pkg/strategy/manager.go</div>
+    </div>
+    <div class="uml-section">
+      - current : Balancer<br>
+      - strategies : map[string]Balancer<br>
+      - canaryPool : []*Backend<br>
+      - mu : sync.RWMutex<br>
+      - canaryRatio : float64
+    </div>
+    <div class="uml-section">
+      + SetStrategy(name string) error<br>
+      + NextBackend(b []*Backend, r *Request) (*Backend, error)<br>
+      + GetCurrentName() string<br>
+      + RegisterStrategy(name string, b Balancer)
+    </div>
+  </div>
+
+  <!-- Backend -->
+  <div style="top: 90px; left: 1110px; width: 380px;" class="uml-class">
+    <div class="uml-class-header">
+      <div class="uml-class-name">Backend</div>
+      <div style="font-size: 11px; color: #64748b;">pkg/proxy/backend.go</div>
+    </div>
+    <div class="uml-section">
+      - URL : *url.URL<br>
+      - Alive : bool<br>
+      - Weight : int<br>
+      - EffectiveWeight : int<br>
+      - ActiveConns : int64<br>
+      - CB : *CircuitBreaker
+    </div>
+    <div class="uml-section">
+      + IsAlive() bool<br>
+      + SetAlive(alive bool)<br>
+      + IncConns() / DecConns()<br>
+      + GetActiveConns() int64<br>
+      + GetURL() *url.URL
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <!-- Limiter -->
+  <div style="top: 470px; left: 50px; width: 380px;" class="uml-class">
+    <div class="uml-class-header">
+      <div class="uml-class-name">Limiter (Edge Shield)</div>
+      <div style="font-size: 11px; color: #64748b;">pkg/limiter/limiter.go</div>
+    </div>
+    <div class="uml-section">
+      - buckets : sync.Map<br>
+      - rate : float64 (tokens/sec)<br>
+      - burst : int<br>
+      - ttl : time.Duration (60s)
+    </div>
+    <div class="uml-section">
+      + Allow(ip string) bool<br>
+      + StartSweeper(ctx context.Context)<br>
+      + getBucket(ip string) *tokenBucket<br>
+      + GetActiveIPCount() int
+    </div>
+  </div>
+
+  <!-- Interface Balancer -->
+  <div style="top: 470px; left: 580px; width: 380px;" class="uml-class uml-interface">
+    <div class="uml-class-header">
+      <div style="font-size: 12px; font-weight: 700; color: #0d9488;">&laquo;interface&raquo;</div>
+      <div class="uml-class-name">Balancer</div>
+      <div style="font-size: 11px; color: #64748b;">pkg/strategy/strategy.go</div>
+    </div>
+    <div class="uml-section" style="text-align: center; color: #64748b; font-style: italic;">
+      Polymorphic Strategy Contract
+    </div>
+    <div class="uml-section">
+      + NextBackend(backends []*Backend, r *Request) (*Backend, error)<br>
+      + Name() string<br>
+      + Reset()
+    </div>
+  </div>
+
+  <!-- CircuitBreaker -->
+  <div style="top: 470px; left: 1110px; width: 380px;" class="uml-class">
+    <div class="uml-class-header">
+      <div class="uml-class-name">CircuitBreaker</div>
+      <div style="font-size: 11px; color: #64748b;">pkg/breaker/breaker.go</div>
+    </div>
+    <div class="uml-section">
+      - state : CircuitState (Closed/Open/HalfOpen)<br>
+      - failures : uint32<br>
+      - cooldown : time.Duration (10s)<br>
+      - lastTripped : time.Time<br>
+      - mu : sync.Mutex
+    </div>
+    <div class="uml-section">
+      + Allow() bool<br>
+      + RecordResult(err error)<br>
+      + GetState() CircuitState<br>
+      + Trip() / Reset()
+    </div>
+  </div>
+
+  <!-- ROW 3 (5 Realizations) -->
+  <!-- 1. RoundRobin -->
+  <div style="top: 810px; left: 20px; width: 240px;" class="uml-class uml-subclass">
+    <div class="uml-class-header">
+      <div class="uml-class-name" style="font-size: 14px;">RoundRobin</div>
+      <div style="font-size: 10px; color: #64748b;">atomic pointer</div>
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      - current : uint64
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      + NextBackend(...)<br>
+      + Name(): "round_robin"
+    </div>
+  </div>
+
+  <!-- 2. LeastConn -->
+  <div style="top: 810px; left: 335px; width: 240px;" class="uml-class uml-subclass">
+    <div class="uml-class-header">
+      <div class="uml-class-name" style="font-size: 14px;">LeastConn</div>
+      <div style="font-size: 10px; color: #64748b;">rotating tiebreaker</div>
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      - offset : uint64
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      + NextBackend(...)<br>
+      + Name(): "least_conn"
+    </div>
+  </div>
+
+  <!-- 3. IPHash -->
+  <div style="top: 810px; left: 650px; width: 240px;" class="uml-class uml-subclass">
+    <div class="uml-class-header">
+      <div class="uml-class-name" style="font-size: 14px;">IPHash</div>
+      <div style="font-size: 10px; color: #64748b;">fnv-1a deterministic</div>
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      - hashFn : HashFunc
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      + NextBackend(...)<br>
+      + Name(): "ip_hash"
+    </div>
+  </div>
+
+  <!-- 4. SmoothWRR -->
+  <div style="top: 810px; left: 965px; width: 240px;" class="uml-class uml-subclass">
+    <div class="uml-class-header">
+      <div class="uml-class-name" style="font-size: 14px;">SmoothWRR</div>
+      <div style="font-size: 10px; color: #64748b;">nginx smooth interleaving</div>
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      - curWeights : []int<br>
+      - totalWeight : int
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      + NextBackend(...)<br>
+      + Name(): "smooth_wrr"
+    </div>
+  </div>
+
+  <!-- 5. Adaptive -->
+  <div style="top: 810px; left: 1280px; width: 240px;" class="uml-class uml-subclass">
+    <div class="uml-class-header">
+      <div class="uml-class-name" style="font-size: 14px;">Adaptive</div>
+      <div style="font-size: 10px; color: #64748b;">4-tier priority cascade</div>
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      - history : []Event<br>
+      - lastSwitch : time.Time
+    </div>
+    <div class="uml-section" style="font-size: 11px;">
+      + NextBackend(...)<br>
+      + Name(): "smart_auto"
+    </div>
+  </div>
+
+  <div style="position: absolute; bottom: 15px; left: 0; right: 0; text-align: center; font-size: 12px; color: #94a3b8; font-weight: 500;">
+    NexusLB Go Structural Architecture &bull; Standard Library Concurrency &bull; TIET UCS503 Software Engineering
+  </div>
+</div>
+</body>
+</html>

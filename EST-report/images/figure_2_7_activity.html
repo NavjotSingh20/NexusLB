@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #1e293b;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 36px;
+  }
+  .card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    border: 1px solid #e2e8f0;
+    padding: 28px;
+    position: relative;
+  }
+  .diagram-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    text-align: center;
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+  }
+  .diagram-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    text-align: center;
+    margin-bottom: 24px;
+    font-weight: 500;
+  }
+  .entity-box {
+    background: #f8fafc;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    padding: 14px 18px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 15px;
+    color: #0f172a;
+  }
+  .process-circle {
+    background: #eff6ff;
+    border: 2.5px solid #2563eb;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 12px;
+  }
+  .datastore-box {
+    background: #f0fdf4;
+    border: 2px solid #16a34a;
+    border-radius: 6px;
+    padding: 10px 14px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #166534;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
+</style>
+
+<style>
+  .canvas {
+    width: 1400px;
+    height: 1950px;
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .act-node {
+    background: #eff6ff;
+    border: 2px solid #2563eb;
+    border-radius: 8px;
+    padding: 14px 20px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e3a8a;
+    position: absolute;
+    box-shadow: 0 4px 10px rgba(37,99,235,0.08);
+  }
+  .act-decision {
+    background: #fffbeb;
+    border: 2.5px solid #d97706;
+    border-radius: 8px;
+    padding: 12px 18px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 800;
+    color: #92400e;
+    position: absolute;
+    box-shadow: 0 4px 10px rgba(217,119,6,0.1);
+  }
+  .act-branch {
+    background: #fef2f2;
+    border: 2px solid #ef4444;
+    border-radius: 8px;
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #991b1b;
+    position: absolute;
+  }
+  .act-canary {
+    background: #fdf4ff;
+    border: 2px solid #a855f7;
+    border-radius: 8px;
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #6b21a8;
+    position: absolute;
+  }
+  .start-circle {
+    width: 32px;
+    height: 32px;
+    background: #0f172a;
+    border-radius: 50%;
+    position: absolute;
+  }
+  .end-bullseye {
+    width: 38px;
+    height: 38px;
+    border: 3px solid #0f172a;
+    border-radius: 50%;
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .end-bullseye::after {
+    content: "";
+    width: 22px;
+    height: 22px;
+    background: #0f172a;
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+<div class="card canvas">
+  <div class="diagram-title">Figure 2.7: UML Activity Diagram & Request Execution Flow</div>
+  <div class="diagram-subtitle">End-to-End Ingress Hot-Path: Rate Shielding, Canary Routing, Health Gates, Staged Retry, and SSE Dispatch</div>
+
+  <!-- SVG Connectors -->
+  <svg style="position: absolute; top: 0; left: 0; width: 1400px; height: 1950px; pointer-events: none;">
+    <defs>
+      <marker id="arr-spine" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
+      </marker>
+      <marker id="arr-red" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626" />
+      </marker>
+      <marker id="arr-purple" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#9333ea" />
+      </marker>
+      <marker id="arr-green" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a" />
+      </marker>
+    </defs>
+
+    <!-- Start to A1 -->
+    <path d="M 700 132 L 700 180" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+
+    <!-- A1 to D1 -->
+    <path d="M 700 250 L 700 300" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+
+    <!-- D1 to D2 (Tokens Available = YES) -->
+    <path d="M 700 390 L 700 460" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arr-green)" fill="none" />
+    <text x="715" y="430" fill="#15803d" font-size="13" font-weight="800">[Tokens Available: YES]</text>
+
+    <!-- D1 to Drop 429 (Tokens Available = NO) -->
+    <path d="M 500 345 L 360 345" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arr-red)" fill="none" />
+    <text x="430" y="335" fill="#dc2626" font-size="13" font-weight="800" text-anchor="middle">[Exceeded: NO]</text>
+
+    <!-- Drop 429 to end point -->
+    <path d="M 220 385 L 220 440" stroke="#dc2626" stroke-width="2.2" marker-end="url(#arr-red)" fill="none" />
+
+    <!-- D2 to A2 (Canary Header Present = NO) -->
+    <path d="M 700 550 L 700 620" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+    <text x="715" y="590" fill="#1d4ed8" font-size="13" font-weight="800">[Canary Present: NO]</text>
+
+    <!-- D2 to Canary Pool (Canary Header Present = YES) -->
+    <path d="M 900 505 L 1040 505" stroke="#9333ea" stroke-width="2.5" marker-end="url(#arr-purple)" fill="none" />
+    <text x="970" y="495" fill="#9333ea" font-size="13" font-weight="800" text-anchor="middle">[Match: YES]</text>
+
+    <!-- Canary Route re-enters spine at A3 -->
+    <path d="M 1190 555 L 1190 970 L 930 970" stroke="#9333ea" stroke-width="2.2" marker-end="url(#arr-purple)" fill="none" />
+
+    <!-- A2 to D3 -->
+    <path d="M 700 690 L 700 760" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+
+    <!-- D3 to A3 (Circuit State = CLOSED / HEALTHY) -->
+    <path d="M 700 850 L 700 930" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arr-green)" fill="none" />
+    <text x="715" y="895" fill="#15803d" font-size="13" font-weight="800">[Circuit State: CLOSED]</text>
+
+    <!-- D3 to Fast Fail (Circuit State = OPEN) -->
+    <path d="M 500 805 L 360 805" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arr-red)" fill="none" />
+    <text x="430" y="795" fill="#dc2626" font-size="13" font-weight="800" text-anchor="middle">[State: OPEN]</text>
+
+    <!-- Fast Fail loops back to A2 -->
+    <path d="M 220 765 L 220 655 L 470 655" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="5 3" marker-end="url(#arr-red)" fill="none" />
+    <text x="320" y="645" fill="#dc2626" font-size="12" font-weight="700">Evict & Re-evaluate Sibling</text>
+
+    <!-- A3 to A4 -->
+    <path d="M 700 1010 L 700 1080" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+
+    <!-- A4 to D4 -->
+    <path d="M 700 1150 L 700 1220" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+
+    <!-- D4 to A5 (Socket Reset or 5xx = NO / SUCCESS) -->
+    <path d="M 700 1310 L 700 1390" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arr-green)" fill="none" />
+    <text x="715" y="1355" fill="#15803d" font-size="13" font-weight="800">[HTTP 200 OK / No Error]</text>
+
+    <!-- D4 to Staged Retry (Socket Reset or 5xx = YES) -->
+    <path d="M 900 1265 L 1040 1265" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arr-red)" fill="none" />
+    <text x="970" y="1255" fill="#dc2626" font-size="13" font-weight="800" text-anchor="middle">[Socket Reset / 5xx]</text>
+
+    <!-- Staged Retry replays buffer to A4 -->
+    <path d="M 1190 1225 L 1190 1115 L 930 1115" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="5 3" marker-end="url(#arr-red)" fill="none" />
+    <text x="1060" y="1105" fill="#dc2626" font-size="12" font-weight="700">Replay Body Buffer</text>
+
+    <!-- A5 to A6 -->
+    <path d="M 700 1460 L 700 1530" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+
+    <!-- A6 to End -->
+    <path d="M 700 1600 L 700 1680" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arr-spine)" fill="none" />
+  </svg>
+
+  <!-- Initial Start Node -->
+  <div style="top: 100px; left: 684px;" class="start-circle"></div>
+
+  <!-- A1 -->
+  <div style="top: 180px; left: 470px; width: 460px;" class="act-node">
+    1. Ingress Receives HTTP Request (:8080)
+    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Extract Client IP, Headers, and Ingress Port</div>
+  </div>
+
+  <!-- D1 Decision -->
+  <div style="top: 300px; left: 500px; width: 400px;" class="act-decision">
+    Edge Shield Limiter:
+    <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">Tokens Available in IP Bucket?</div>
+  </div>
+
+  <!-- Branch: 429 -->
+  <div style="top: 315px; left: 80px; width: 280px;" class="act-branch">
+    Return HTTP 429 Too Many Requests
+    <div style="font-size: 12px; color: #7f1d1d; margin-top: 3px;">Inject Retry-After Header & Drop Conn</div>
+  </div>
+  <div style="top: 440px; left: 201px;" class="end-bullseye"></div>
+
+  <!-- D2 Decision -->
+  <div style="top: 460px; left: 500px; width: 400px;" class="act-decision">
+    Layer 7 Canary Traffic Steering:
+    <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">X-Canary Header or Cookie Present?</div>
+  </div>
+
+  <!-- Branch: Canary Pool -->
+  <div style="top: 475px; left: 1040px; width: 300px;" class="act-canary">
+    Route to Dedicated Canary Pool
+    <div style="font-size: 12px; color: #581c87; margin-top: 3px;">Select Backend Node with Fallback Guard</div>
+  </div>
+
+  <!-- A2 -->
+  <div style="top: 620px; left: 470px; width: 460px;" class="act-node">
+    2. Evaluate Active Balancing Algorithm
+    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Execute Smart Auto / Round-Robin / LeastConn / SWRR / IPHash</div>
+  </div>
+
+  <!-- D3 Decision -->
+  <div style="top: 760px; left: 500px; width: 400px;" class="act-decision">
+    Circuit Breaker Health Guardian:
+    <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">Is Selected Target Backend CLOSED?</div>
+  </div>
+
+  <!-- Branch: Fast Fail -->
+  <div style="top: 775px; left: 80px; width: 280px;" class="act-branch">
+    Trip Fast-Fail Rejection
+    <div style="font-size: 12px; color: #7f1d1d; margin-top: 3px;">Evict Target from In-Flight Pool</div>
+  </div>
+
+  <!-- A3 -->
+  <div style="top: 930px; left: 470px; width: 460px;" class="act-node">
+    3. Buffer Request Body in Staged retryRecorder
+    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Preserve POST/PUT Payload for Idempotent Retry Safety</div>
+  </div>
+
+  <!-- A4 -->
+  <div style="top: 1080px; left: 470px; width: 460px;" class="act-node">
+    4. Forward Request to Selected Target Node
+    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Execute Staged Reverse Proxy Socket Dispatch</div>
+  </div>
+
+  <!-- D4 Decision -->
+  <div style="top: 1220px; left: 500px; width: 400px;" class="act-decision">
+    Proxy Response Inspection:
+    <div style="font-size: 15px; font-weight: 800; margin-top: 2px;">Upstream Socket Reset, Timeout or 5xx Error?</div>
+  </div>
+
+  <!-- Branch: Staged Retry -->
+  <div style="top: 1235px; left: 1040px; width: 300px;" class="act-branch">
+    Increment Circuit Breaker Failures
+    <div style="font-size: 12px; color: #7f1d1d; margin-top: 3px;">Replay Staged Body to Alternate Healthy Node</div>
+  </div>
+
+  <!-- A5 -->
+  <div style="top: 1390px; left: 470px; width: 460px;" class="act-node">
+    5. Commit Staged Response to Client
+    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Flush Headers, Status Code, and Stream Body Payloads</div>
+  </div>
+
+  <!-- A6 -->
+  <div style="top: 1530px; left: 470px; width: 460px;" class="act-node">
+    6. Push Telemetry to Ring Buffer & Dispatch SSE
+    <div style="font-size: 12px; color: #64748b; font-weight: 500; margin-top: 3px;">Update Latency Percentiles & Broadcast 1 Hz Stream (:8081)</div>
+  </div>
+
+  <!-- Final End Node -->
+  <div style="top: 1680px; left: 681px;" class="end-bullseye"></div>
+
+  <div style="position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 12px; color: #94a3b8; font-weight: 500;">
+    NexusLB End-to-End Activity Flow &bull; Resilient Ingress Pipeline &bull; TIET UCS503 Software Engineering
+  </div>
+</div>
+</body>
+</html>

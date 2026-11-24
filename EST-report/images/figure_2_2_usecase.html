@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: #FFFFFF;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+  }
+  .canvas {
+    width: 1500px;
+    height: 1650px;
+    background: #FFFFFF;
+    position: relative;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .system-boundary {
+    fill: #F8FAFC;
+    stroke: #94A3B8;
+    stroke-width: 2.5px;
+    stroke-dasharray: 8,6;
+    rx: 16px;
+  }
+  .system-title {
+    font-size: 20px;
+    font-weight: 800;
+    fill: #334155;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .actor-card {
+    fill: #EFF6FF;
+    stroke: #1D4ED8;
+    stroke-width: 2.5px;
+    rx: 10px;
+    filter: drop-shadow(0 4px 6px rgba(29, 78, 216, 0.12));
+  }
+  .actor-title {
+    font-size: 16px;
+    font-weight: 800;
+    fill: #1E3A8A;
+    text-anchor: middle;
+  }
+  .actor-sub {
+    font-size: 13px;
+    font-weight: 600;
+    fill: #3B82F6;
+    text-anchor: middle;
+  }
+  .usecase-left {
+    fill: #F0FDF4;
+    stroke: #059669;
+    stroke-width: 2.5px;
+    filter: drop-shadow(0 2px 4px rgba(5, 150, 105, 0.1));
+  }
+  .usecase-right {
+    fill: #FAF5FF;
+    stroke: #7C3AED;
+    stroke-width: 2.5px;
+    filter: drop-shadow(0 2px 4px rgba(124, 58, 237, 0.1));
+  }
+  .uc-title {
+    font-size: 15px;
+    font-weight: 700;
+    text-anchor: middle;
+  }
+  .uc-title-left { fill: #064E3B; }
+  .uc-title-right { fill: #4C1D95; }
+  .uc-sub {
+    font-size: 12.5px;
+    font-weight: 500;
+    text-anchor: middle;
+  }
+  .uc-sub-left { fill: #047857; }
+  .uc-sub-right { fill: #6D28D9; }
+
+  .assoc-link {
+    fill: none;
+    stroke: #334155;
+    stroke-width: 2.5px;
+  }
+  .rel-include {
+    fill: none;
+    stroke: #2563EB;
+    stroke-width: 2.2px;
+    stroke-dasharray: 6,4;
+  }
+  .rel-extend {
+    fill: none;
+    stroke: #D97706;
+    stroke-width: 2.2px;
+    stroke-dasharray: 6,4;
+  }
+  .pill-inc {
+    fill: #EFF6FF;
+    stroke: #93C5FD;
+    stroke-width: 1px;
+    rx: 5px;
+  }
+  .text-inc {
+    font-size: 11.5px;
+    font-weight: 800;
+    fill: #1D4ED8;
+    text-anchor: middle;
+  }
+  .pill-ext {
+    fill: #FFFBEB;
+    stroke: #FCD34D;
+    stroke-width: 1px;
+    rx: 5px;
+  }
+  .text-ext {
+    font-size: 11.5px;
+    font-weight: 800;
+    fill: #B45309;
+    text-anchor: middle;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+<svg viewBox="0 0 1500 1650" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow-inc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563EB" />
+    </marker>
+    <marker id="arrow-ext" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#D97706" />
+    </marker>
+  </defs>
+
+  <!-- ==================== SYSTEM BOUNDARY ==================== -->
+  <rect class="system-boundary" x="250" y="40" width="980" height="1560" />
+  <text class="system-title" x="740" y="85" text-anchor="middle">NexusLB Ingress & Reliability System Boundary</text>
+
+  <!-- Column Header Badges -->
+  <text x="475" y="125" text-anchor="middle" font-size="14px" font-weight="800" fill="#047857" letter-spacing="0.5px">INGRESS, SECURITY & RELIABILITY</text>
+  <text x="1005" y="125" text-anchor="middle" font-size="14px" font-weight="800" fill="#6D28D9" letter-spacing="0.5px">CONTROL PLANE, CHAOS & TELEMETRY</text>
+
+  <!-- ==================== LEFT ACTORS ==================== -->
+  <!-- Client / Consumer Actor Card -->
+  <g transform="translate(30, 200)">
+    <rect class="actor-card" x="0" y="0" width="180" height="90" />
+    <text class="actor-title" x="90" y="40">Client / Consumer</text>
+    <text class="actor-sub" x="90" y="65">HTTP User / Browser</text>
+  </g>
+
+  <!-- Upstream Backend Pool Actor Card -->
+  <g transform="translate(30, 1150)">
+    <rect class="actor-card" x="0" y="0" width="180" height="90" />
+    <text class="actor-title" x="90" y="40">Upstream Cluster</text>
+    <text class="actor-sub" x="90" y="65">Nodes :8001 – :8003</text>
+  </g>
+
+  <!-- ==================== RIGHT ACTOR ==================== -->
+  <!-- DevOps / Administrator Actor Card -->
+  <g transform="translate(1270, 750)">
+    <rect class="actor-card" x="0" y="0" width="195" height="95" />
+    <text class="actor-title" x="97" y="42">DevOps / Admin</text>
+    <text class="actor-sub" x="97" y="68">Operations Console</text>
+  </g>
+
+  <!-- ==================== LEFT COLUMN USE CASES (Center X = 475) ==================== -->
+  <!-- UC1: Send HTTP Request (Y = 195) -->
+  <ellipse class="usecase-left" cx="475" cy="195" rx="180" ry="44" />
+  <text class="uc-title uc-title-left" x="475" y="190">Send HTTP Request</text>
+  <text class="uc-sub uc-sub-left" x="475" y="210">Ingress Gateway Traffic (:8080)</text>
+
+  <!-- UC2: Edge Shield Rate Police (Y = 360) -->
+  <ellipse class="usecase-left" cx="475" cy="360" rx="185" ry="45" />
+  <text class="uc-title uc-title-left" x="475" y="353">Edge Shield Rate Policing</text>
+  <text class="uc-sub uc-sub-left" x="475" y="375">Per-IP Token Bucket & 429 Rejection</text>
+
+  <!-- UC3: Inspect Canary Tags (Y = 525) -->
+  <ellipse class="usecase-left" cx="475" cy="525" rx="185" ry="45" />
+  <text class="uc-title uc-title-left" x="475" y="518">Inspect Layer 7 Canary Tags</text>
+  <text class="uc-sub uc-sub-left" x="475" y="540">X-Canary, Cookie & Query Parser</text>
+
+  <!-- UC4: Select Routing Algorithm (Y = 690) -->
+  <ellipse class="usecase-left" cx="475" cy="690" rx="190" ry="46" />
+  <text class="uc-title uc-title-left" x="475" y="683">Select Routing Algorithm</text>
+  <text class="uc-sub uc-sub-left" x="475" y="705">Round-Robin, LeastConn, IP Hash, SWRR, Auto</text>
+
+  <!-- UC5: Outlier Detection Check (Y = 855) -->
+  <ellipse class="usecase-left" cx="475" cy="855" rx="185" ry="45" />
+  <text class="uc-title uc-title-left" x="475" y="848">Outlier Detection Check</text>
+  <text class="uc-sub uc-sub-left" x="475" y="870">Circuit Breaker State (Closed / Open / Half)</text>
+
+  <!-- UC6: Staged Response Forwarding (Y = 1020) -->
+  <ellipse class="usecase-left" cx="475" cy="1020" rx="190" ry="46" />
+  <text class="uc-title uc-title-left" x="475" y="1013">Staged Response Forwarding</text>
+  <text class="uc-sub uc-sub-left" x="475" y="1035">retryRecorder In-Memory Buffer Replay</text>
+
+  <!-- UC7: Dual-Mode Health Verification (Y = 1185) -->
+  <ellipse class="usecase-left" cx="475" cy="1185" rx="190" ry="46" />
+  <text class="uc-title uc-title-left" x="475" y="1178">Dual-Mode Health Verification</text>
+  <text class="uc-sub uc-sub-left" x="475" y="1200">Proactive 3s Polling & Reactive Catch</text>
+
+  <!-- UC8: Transparent Retry Failover (Y = 1350) -->
+  <ellipse class="usecase-left" cx="475" cy="1350" rx="185" ry="45" />
+  <text class="uc-title uc-title-left" x="475" y="1343">Transparent Retry Failover</text>
+  <text class="uc-sub uc-sub-left" x="475" y="1365">Idempotent Body Replay to Alt Node</text>
+
+  <!-- Left Column Include Dependencies -->
+  <path class="rel-include" d="M 475 239 L 475 315" marker-end="url(#arrow-inc)" />
+  <rect class="pill-inc" x="440" y="265" width="70" height="24" />
+  <text class="text-inc" x="475" y="281">&laquo;include&raquo;</text>
+
+  <path class="rel-include" d="M 475 405 L 475 480" marker-end="url(#arrow-inc)" />
+  <rect class="pill-inc" x="440" y="430" width="70" height="24" />
+  <text class="text-inc" x="475" y="446">&laquo;include&raquo;</text>
+
+  <path class="rel-include" d="M 475 570 L 475 644" marker-end="url(#arrow-inc)" />
+  <rect class="pill-inc" x="440" y="595" width="70" height="24" />
+  <text class="text-inc" x="475" y="611">&laquo;include&raquo;</text>
+
+  <path class="rel-include" d="M 475 736 L 475 810" marker-end="url(#arrow-inc)" />
+  <rect class="pill-inc" x="440" y="760" width="70" height="24" />
+  <text class="text-inc" x="475" y="776">&laquo;include&raquo;</text>
+
+  <path class="rel-include" d="M 475 900 L 475 974" marker-end="url(#arrow-inc)" />
+  <rect class="pill-inc" x="440" y="925" width="70" height="24" />
+  <text class="text-inc" x="475" y="941">&laquo;include&raquo;</text>
+
+  <!-- Left Column Extend Dependencies -->
+  <path class="rel-extend" d="M 475 1066 L 475 1305" marker-end="url(#arrow-ext)" />
+  <rect class="pill-ext" x="442" y="1170" width="66" height="24" />
+  <text class="text-ext" x="475" y="1186">&laquo;extend&raquo;</text>
+
+  <!-- Health extend to Circuit Breaker (Orthogonal) -->
+  <path class="rel-extend" d="M 285 1185 L 265 1185 L 265 855 L 290 855" marker-end="url(#arrow-ext)" />
+  <rect class="pill-ext" x="232" y="1010" width="66" height="24" transform="rotate(-90 265 1022)" />
+  <text class="text-ext" x="265" y="1026" transform="rotate(-90 265 1022)">&laquo;extend&raquo;</text>
+
+  <!-- ==================== RIGHT COLUMN USE CASES (Center X = 1005) ==================== -->
+  <!-- UC9: View Live Telemetry (Y = 195) -->
+  <ellipse class="usecase-right" cx="1005" cy="195" rx="180" ry="44" />
+  <text class="uc-title uc-title-right" x="1005" y="190">View Live Telemetry</text>
+  <text class="uc-sub uc-sub-right" x="1005" y="210">1 Hz SSE Stream &amp; 24-pt Sliding Charts</text>
+
+  <!-- UC10: Hot-Swap Balancer Policy (Y = 370) -->
+  <ellipse class="usecase-right" cx="1005" cy="370" rx="185" ry="44" />
+  <text class="uc-title uc-title-right" x="1005" y="363">Hot-Swap Balancer Policy</text>
+  <text class="uc-sub uc-sub-right" x="1005" y="383">Zero-Downtime REST API Control</text>
+
+  <!-- UC11: Inspect Heuristic Explainability (Y = 545) -->
+  <ellipse class="usecase-right" cx="1005" cy="545" rx="190" ry="45" />
+  <text class="uc-title uc-title-right" x="1005" y="538">Inspect Heuristic Explainability</text>
+  <text class="uc-sub uc-sub-right" x="1005" y="558">Adaptive Decision Snapshots &amp; Audit Log</text>
+
+  <!-- UC12: Dispatch Chaos Waves (Y = 720) -->
+  <ellipse class="usecase-right" cx="1005" cy="720" rx="185" ry="44" />
+  <text class="uc-title uc-title-right" x="1005" y="713">Dispatch Chaos Waves</text>
+  <text class="uc-sub uc-sub-right" x="1005" y="733">6 Attack Vectors (64 Worker Threads)</text>
+
+  <!-- UC13: Inject Latency / Outages (Y = 895) -->
+  <ellipse class="usecase-right" cx="1005" cy="895" rx="185" ry="44" />
+  <text class="uc-title uc-title-right" x="1005" y="888">Inject Latency &amp; Node Outages</text>
+  <text class="uc-sub uc-sub-right" x="1005" y="908">Live Server Toggling &amp; Failure Injection</text>
+
+  <!-- UC14: Configure Rate Limit Rules (Y = 1070) -->
+  <ellipse class="usecase-right" cx="1005" cy="1070" rx="185" ry="44" />
+  <text class="uc-title uc-title-right" x="1005" y="1063">Configure Rate Limit Rules</text>
+  <text class="uc-sub uc-sub-right" x="1005" y="1083">Burst Thresholds &amp; 60s Memory Sweeper</text>
+
+  <!-- UC15: Revert Cluster Baseline (Y = 1245) -->
+  <ellipse class="usecase-right" cx="1005" cy="1245" rx="185" ry="44" />
+  <text class="uc-title uc-title-right" x="1005" y="1238">Revert Cluster Baseline</text>
+  <text class="uc-sub uc-sub-right" x="1005" y="1258">Atomic Rollback via chaosBackup</text>
+
+  <!-- ==================== ACTOR CONNECTORS ==================== -->
+  <!-- Client -> UC1 -->
+  <path class="assoc-link" d="M 210 245 L 295 205" />
+
+  <!-- Upstream Backend -> UC7 -->
+  <path class="assoc-link" d="M 210 1195 L 285 1185" />
+
+  <!-- DevOps Admin -> Right Column UCs (Distributed Fan-out) -->
+  <path class="assoc-link" d="M 1270 760 L 1230 760 L 1230 195 L 1185 195" />
+  <path class="assoc-link" d="M 1270 775 L 1210 775 L 1210 370 L 1190 370" />
+  <path class="assoc-link" d="M 1270 790 L 1195 790 L 1195 545" />
+  <path class="assoc-link" d="M 1270 800 L 1190 735" />
+  <path class="assoc-link" d="M 1270 810 L 1190 890" />
+  <path class="assoc-link" d="M 1270 825 L 1210 825 L 1210 1070 L 1190 1070" />
+  <path class="assoc-link" d="M 1270 840 L 1230 840 L 1230 1245 L 1190 1245" />
+
+</svg>
+</div>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: #FFFFFF;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+  }
+  .canvas {
+    width: 1560px;
+    height: 1620px;
+    background: #FFFFFF;
+    position: relative;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .tier-container {
+    fill: #F8FAFC;
+    stroke: #CBD5E1;
+    stroke-width: 1.5px;
+    rx: 10px;
+  }
+  .tier-label {
+    font-size: 13.5px;
+    font-weight: 800;
+    fill: #64748B;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+  .comp-blue {
+    fill: #EFF6FF;
+    stroke: #2563EB;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 2px 4px rgba(37,99,235,0.1));
+  }
+  .comp-red {
+    fill: #FEF2F2;
+    stroke: #DC2626;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 2px 4px rgba(220,38,38,0.1));
+  }
+  .comp-teal {
+    fill: #F0FDF4;
+    stroke: #059669;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 2px 4px rgba(5,150,105,0.1));
+  }
+  .comp-purple {
+    fill: #FAF5FF;
+    stroke: #7C3AED;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 2px 4px rgba(124,58,237,0.1));
+  }
+  .subcomp-box {
+    fill: #FFFFFF;
+    stroke: #475569;
+    stroke-width: 2px;
+    rx: 6px;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06));
+  }
+  .title-lg {
+    font-size: 16px;
+    font-weight: 800;
+    text-anchor: middle;
+  }
+  .sub-lg {
+    font-size: 13px;
+    font-weight: 500;
+    text-anchor: middle;
+  }
+  .c-blue { fill: #1E40AF; }
+  .c-red { fill: #991B1B; }
+  .c-teal { fill: #065F46; }
+  .c-purple { fill: #5B21B6; }
+  .c-sub { fill: #475569; }
+
+  .sub-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    fill: #0F172A;
+    text-anchor: middle;
+  }
+  .sub-desc {
+    font-size: 12px;
+    font-weight: 600;
+    fill: #64748B;
+    text-anchor: middle;
+  }
+
+  .pipe-arrow {
+    fill: none;
+    stroke: #2563EB;
+    stroke-width: 3px;
+  }
+  .dash-arrow {
+    fill: none;
+    stroke: #7C3AED;
+    stroke-width: 2.5px;
+    stroke-dasharray: 6,4;
+  }
+  .bi-arrow {
+    fill: none;
+    stroke: #059669;
+    stroke-width: 2.5px;
+  }
+  .badge-label {
+    fill: #FFFFFF;
+    stroke: #CBD5E1;
+    stroke-width: 1px;
+    rx: 4px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.05));
+  }
+  .badge-text {
+    font-size: 12px;
+    font-weight: 700;
+    fill: #1E293B;
+    text-anchor: middle;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+<svg viewBox="0 0 1560 1620" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ar-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563EB" />
+    </marker>
+    <marker id="ar-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7C3AED" />
+    </marker>
+    <marker id="ar-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669" />
+    </marker>
+    <marker id="ar-teal-rev" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 10 1 L 0 5 L 10 9 z" fill="#059669" />
+    </marker>
+  </defs>
+
+  <!-- ==================== LEFT COLUMN: MAIN INGRESS PIPELINE (Center X = 420) ==================== -->
+  <!-- 1. Client Layer -->
+  <g transform="translate(195, 40)">
+    <rect class="comp-blue" x="0" y="0" width="450" height="75" />
+    <text class="title-lg c-blue" x="225" y="32">Client Ingress Tier</text>
+    <text class="sub-lg c-sub" x="225" y="55">HTTP/1.1 &amp; HTTP/2 Web Clients / Automated Traffic</text>
+  </g>
+
+  <!-- 2. Edge Shield Rate Limiter -->
+  <g transform="translate(195, 180)">
+    <rect class="comp-red" x="0" y="0" width="450" height="80" />
+    <text class="title-lg c-red" x="225" y="33">Ingress Edge Shield Rate Limiter</text>
+    <text class="sub-lg c-sub" x="225" y="58">Per-IP Token Bucket Engine (HTTP 429 &amp; 60s TTL Sweeper)</text>
+  </g>
+
+  <!-- 3. Canary Tag Classifier -->
+  <g transform="translate(195, 330)">
+    <rect class="comp-blue" x="0" y="0" width="450" height="80" />
+    <text class="title-lg c-blue" x="225" y="33">Layer 7 Canary Tag Classifier</text>
+    <text class="sub-lg c-sub" x="225" y="58">X-Canary, Cookie &amp; Query Traffic Segmentation</text>
+  </g>
+
+  <!-- 4. Strategy Manager -->
+  <g transform="translate(195, 480)">
+    <rect class="comp-purple" x="0" y="0" width="450" height="80" />
+    <text class="title-lg c-purple" x="225" y="33">Strategy Manager (Routing Core)</text>
+    <text class="sub-lg c-sub" x="225" y="58">Pluggable Balancer Interface &amp; Dynamic Zero-Downtime Swapping</text>
+  </g>
+
+  <!-- Fan-out container for 5 Algorithms -->
+  <rect class="tier-container" x="40" y="615" width="760" height="110" />
+  <text class="tier-label" x="65" y="640">5 Active Routing Algorithms</text>
+
+  <!-- Subcomponent 1: Round-Robin -->
+  <g transform="translate(60, 655)">
+    <rect class="subcomp-box" x="0" y="0" width="130" height="55" />
+    <text class="sub-title" x="65" y="25">Round-Robin</text>
+    <text class="sub-desc" x="65" y="44">Atomic Index</text>
+  </g>
+
+  <!-- Subcomponent 2: Least Connections -->
+  <g transform="translate(205, 655)">
+    <rect class="subcomp-box" x="0" y="0" width="135" height="55" />
+    <text class="sub-title" x="67" y="25">LeastConn</text>
+    <text class="sub-desc" x="67" y="44">Offset Tiebreak</text>
+  </g>
+
+  <!-- Subcomponent 3: IP Hash -->
+  <g transform="translate(355, 655)">
+    <rect class="subcomp-box" x="0" y="0" width="130" height="55" />
+    <text class="sub-title" x="65" y="25">IP Hash</text>
+    <text class="sub-desc" x="65" y="44">Port Sanitation</text>
+  </g>
+
+  <!-- Subcomponent 4: Smooth Weighted RR -->
+  <g transform="translate(500, 655)">
+    <rect class="subcomp-box" x="0" y="0" width="135" height="55" />
+    <text class="sub-title" x="67" y="25">Smooth SWRR</text>
+    <text class="sub-desc" x="67" y="44">NGINX Formula</text>
+  </g>
+
+  <!-- Subcomponent 5: Smart Auto (Adaptive) -->
+  <g transform="translate(650, 655)">
+    <rect class="subcomp-box" x="0" y="0" width="135" height="55" />
+    <text class="sub-title" x="67" y="25">Smart Auto</text>
+    <text class="sub-desc" x="67" y="44">4-Tier Adaptive</text>
+  </g>
+
+  <!-- 5. Resilience Proxy Pipeline -->
+  <g transform="translate(195, 780)">
+    <rect class="comp-teal" x="0" y="0" width="450" height="85" />
+    <text class="title-lg c-teal" x="225" y="34">Resilience Proxy Pipeline</text>
+    <text class="sub-lg c-sub" x="225" y="60">retryRecorder Staged Buffer &amp; 3-State Circuit Breakers</text>
+  </g>
+
+  <!-- 6. Backend Server Registry & Pool -->
+  <g transform="translate(195, 935)">
+    <rect class="comp-blue" x="0" y="0" width="450" height="80" />
+    <text class="title-lg c-blue" x="225" y="33">Backend Server Registry &amp; Pool</text>
+    <text class="sub-lg c-sub" x="225" y="58">Thread-Safe Node Pointers (sync.RWMutex) &amp; Dynamic Weights</text>
+  </g>
+
+  <!-- Upstream Instances (3 Servers) -->
+  <g transform="translate(70, 1075)">
+    <rect class="subcomp-box" x="0" y="0" width="200" height="70" />
+    <text class="sub-title" x="100" y="28">Backend 1 (:8001)</text>
+    <text class="sub-desc" x="100" y="50">Weight: 5 | ActiveConns</text>
+  </g>
+
+  <g transform="translate(320, 1075)">
+    <rect class="subcomp-box" x="0" y="0" width="200" height="70" />
+    <text class="sub-title" x="100" y="28">Backend 2 (:8002)</text>
+    <text class="sub-desc" x="100" y="50">Weight: 3 | ActiveConns</text>
+  </g>
+
+  <g transform="translate(570, 1075)">
+    <rect class="subcomp-box" x="0" y="0" width="200" height="70" />
+    <text class="sub-title" x="100" y="28">Backend 3 (:8003)</text>
+    <text class="sub-desc" x="100" y="50">Weight: 1 | ActiveConns</text>
+  </g>
+
+  <!-- Vertical Connectors along Ingress Pipeline -->
+  <path class="pipe-arrow" d="M 420 115 L 420 180" marker-end="url(#ar-blue)" />
+  <rect class="badge-label" x="375" y="135" width="90" height="24" />
+  <text class="badge-text" x="420" y="151">Port :8080</text>
+
+  <path class="pipe-arrow" d="M 420 260 L 420 330" marker-end="url(#ar-blue)" />
+  <path class="pipe-arrow" d="M 420 410 L 420 480" marker-end="url(#ar-blue)" />
+
+  <!-- Fan-out from Manager to Algorithms -->
+  <path class="dash-arrow" d="M 420 560 L 420 615" />
+  <path class="dash-arrow" d="M 420 585 L 125 585 L 125 655" marker-end="url(#ar-purple)" />
+  <path class="dash-arrow" d="M 420 585 L 272 585 L 272 655" marker-end="url(#ar-purple)" />
+  <path class="dash-arrow" d="M 420 585 L 420 655" marker-end="url(#ar-purple)" />
+  <path class="dash-arrow" d="M 420 585 L 567 585 L 567 655" marker-end="url(#ar-purple)" />
+  <path class="dash-arrow" d="M 420 585 L 717 585 L 717 655" marker-end="url(#ar-purple)" />
+
+  <!-- Convergence from Algorithms to Resilience Proxy -->
+  <path class="pipe-arrow" d="M 420 725 L 420 780" marker-end="url(#ar-blue)" />
+
+  <!-- Proxy to Pool -->
+  <path class="pipe-arrow" d="M 420 865 L 420 935" marker-end="url(#ar-blue)" />
+
+  <!-- Pool to 3 Instances -->
+  <path class="pipe-arrow" d="M 420 1015 L 420 1045" />
+  <path class="pipe-arrow" d="M 420 1045 L 170 1045 L 170 1075" marker-end="url(#ar-blue)" />
+  <path class="pipe-arrow" d="M 420 1045 L 420 1075" marker-end="url(#ar-blue)" />
+  <path class="pipe-arrow" d="M 420 1045 L 670 1045 L 670 1075" marker-end="url(#ar-blue)" />
+
+  <!-- ==================== RIGHT COLUMN: OBSERVABILITY & CHAOS (Center X = 1180) ==================== -->
+  <!-- 1. Data-Terminal Console -->
+  <g transform="translate(955, 180)">
+    <rect class="comp-blue" x="0" y="0" width="450" height="85" />
+    <text class="title-lg c-blue" x="225" y="34">Data-Terminal Console (Port :8081)</text>
+    <text class="sub-lg c-sub" x="225" y="60">Dark 4-View UI (Overview, Pool, Lab, Trace) &amp; embed.FS</text>
+  </g>
+
+  <!-- 2. Metrics Collector -->
+  <g transform="translate(955, 330)">
+    <rect class="comp-purple" x="0" y="0" width="450" height="85" />
+    <text class="title-lg c-purple" x="225" y="34">Metrics Collector &amp; Telemetry Broadcaster</text>
+    <text class="sub-lg c-sub" x="225" y="60">24-Point Ring Buffer &amp; 1 Hz Server-Sent Events (SSE)</text>
+  </g>
+
+  <!-- 3. Autonomous Chaos Simulator -->
+  <g transform="translate(955, 520)">
+    <rect class="comp-red" x="0" y="0" width="450" height="90" />
+    <text class="title-lg c-red" x="225" y="35">Autonomous Chaos Simulator Studio</text>
+    <text class="sub-lg c-sub" x="225" y="62">64 Worker Threads, Poisson Arrival Jitter &amp; chaosBackup</text>
+  </g>
+
+  <!-- 4. Dual-Mode Health Engine -->
+  <g transform="translate(955, 935)">
+    <rect class="comp-teal" x="0" y="0" width="450" height="85" />
+    <text class="title-lg c-teal" x="225" y="34">Dual-Mode Health Surveillance Engine</text>
+    <text class="sub-lg c-sub" x="225" y="60">Proactive Jittered 3s Ping &amp; Zero-Latency Socket Catch</text>
+  </g>
+
+  <!-- ==================== CROSS-COLUMN CHANNELS ==================== -->
+  <!-- Metrics -> Dashboard (SSE) -->
+  <path class="pipe-arrow" d="M 1180 330 L 1180 265" marker-end="url(#ar-blue)" />
+  <rect class="badge-label" x="1115" y="285" width="130" height="26" />
+  <text class="badge-text" x="1180" y="302">1 Hz SSE Stream</text>
+
+  <!-- Dashboard -> Strategy Manager (Hot-Swap API) -->
+  <path class="dash-arrow" d="M 955 220 L 780 220 L 780 520 L 645 520" marker-end="url(#ar-purple)" />
+  <rect class="badge-label" x="710" y="360" width="140" height="26" />
+  <text class="badge-text" x="780" y="377">Hot-Swap Policy API</text>
+
+  <!-- Proxy Pipeline -> Metrics Collector (Record Latency) -->
+  <path class="pipe-arrow" d="M 645 822 L 870 822 L 870 372 L 955 372" marker-end="url(#ar-blue)" />
+  <rect class="badge-label" x="790" y="795" width="160" height="26" />
+  <text class="badge-text" x="870" y="812">Record Transaction KPI</text>
+
+  <!-- Chaos Simulator -> Backend Pool (Chaos Injection Hooks) -->
+  <path class="bi-arrow" d="M 955 580 L 820 580 L 820 975 L 645 975" marker-end="url(#ar-teal)" />
+  <rect class="badge-label" x="750" y="760" width="140" height="26" />
+  <text class="badge-text" x="820" y="777">Chaos Fault Hooks</text>
+
+  <!-- Backend Pool -> Dual-Mode Health Engine (Active 3s Polling) -->
+  <path class="bi-arrow" d="M 645 955 L 955 955" marker-end="url(#ar-teal)" marker-start="url(#ar-teal-rev)" />
+  <rect class="badge-label" x="750" y="942" width="140" height="26" />
+  <text class="badge-text" x="820" y="959">3s Health Surveillance</text>
+
+  <!-- Health Engine -> Metrics Collector (Health Telemetry via Eastern Track) -->
+  <path class="pipe-arrow" d="M 1405 977 L 1480 977 L 1480 372 L 1405 372" marker-end="url(#ar-blue)" />
+  <rect class="badge-label" x="1400" y="660" width="155" height="26" transform="rotate(90 1477 673)" />
+  <text class="badge-text" x="1477" y="678" transform="rotate(90 1477 673)">Health Status Feed</text>
+
+</svg>
+</div>
+</body>
+</html>

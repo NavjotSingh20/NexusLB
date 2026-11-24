@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: #FFFFFF;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+  }
+  .canvas {
+    width: 1540px;
+    height: 1200px;
+    background: #FFFFFF;
+    position: relative;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .host-box {
+    fill: #F8FAFC;
+    stroke: #64748B;
+    stroke-width: 2.5px;
+    rx: 16px;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.04));
+  }
+  .host-title {
+    font-size: 19px;
+    font-weight: 800;
+    fill: #1E293B;
+  }
+  .host-sub {
+    font-size: 13.5px;
+    font-weight: 600;
+    fill: #64748B;
+  }
+  .ext-box {
+    fill: #EFF6FF;
+    stroke: #2563EB;
+    stroke-width: 2.5px;
+    rx: 10px;
+    filter: drop-shadow(0 4px 6px rgba(37,99,235,0.12));
+  }
+  .node-core {
+    fill: #FFFFFF;
+    stroke: #0284C7;
+    stroke-width: 2.5px;
+    rx: 10px;
+    filter: drop-shadow(0 3px 6px rgba(2,132,199,0.1));
+  }
+  .node-mgmt {
+    fill: #FFFFFF;
+    stroke: #7C3AED;
+    stroke-width: 2.5px;
+    rx: 10px;
+    filter: drop-shadow(0 3px 6px rgba(124,58,237,0.1));
+  }
+  .node-backend {
+    fill: #F0FDF4;
+    stroke: #059669;
+    stroke-width: 2.5px;
+    rx: 8px;
+    filter: drop-shadow(0 3px 6px rgba(5,150,105,0.1));
+  }
+  .node-sim {
+    fill: #FEF2F2;
+    stroke: #DC2626;
+    stroke-width: 2.5px;
+    rx: 10px;
+    filter: drop-shadow(0 3px 6px rgba(220,38,38,0.1));
+  }
+  .title-lg {
+    font-size: 16.5px;
+    font-weight: 800;
+    text-anchor: middle;
+  }
+  .sub-lg {
+    font-size: 13px;
+    font-weight: 600;
+    text-anchor: middle;
+  }
+  .c-blue { fill: #1D4ED8; }
+  .c-cyan { fill: #0369A1; }
+  .c-purple { fill: #6D28D9; }
+  .c-teal { fill: #065F46; }
+  .c-red { fill: #B91C1C; }
+  .c-muted { fill: #475569; }
+
+  .net-pipe {
+    fill: none;
+    stroke: #2563EB;
+    stroke-width: 3px;
+  }
+  .proxy-pipe {
+    fill: none;
+    stroke: #059669;
+    stroke-width: 2.8px;
+  }
+  .stress-pipe {
+    fill: none;
+    stroke: #DC2626;
+    stroke-width: 2.8px;
+    stroke-dasharray: 6,4;
+  }
+  .shared-ipc {
+    fill: none;
+    stroke: #7C3AED;
+    stroke-width: 3.5px;
+  }
+  .badge-label {
+    fill: #FFFFFF;
+    stroke: #CBD5E1;
+    stroke-width: 1px;
+    rx: 5px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.05));
+  }
+  .badge-text {
+    font-size: 12.5px;
+    font-weight: 800;
+    fill: #0F172A;
+    text-anchor: middle;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+<svg viewBox="0 0 1540 1200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ar-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563EB" />
+    </marker>
+    <marker id="ar-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669" />
+    </marker>
+    <marker id="ar-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#DC2626" />
+    </marker>
+    <marker id="ar-ipc-top" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 10 1 L 0 5 L 10 9 z" fill="#7C3AED" />
+    </marker>
+    <marker id="ar-ipc-bot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#7C3AED" />
+    </marker>
+  </defs>
+
+  <!-- ==================== EXTERNAL CLIENTS (OUTSIDE HOST) ==================== -->
+  <!-- External HTTP Web Clients -->
+  <g transform="translate(30, 210)">
+    <rect class="ext-box" x="0" y="0" width="280" height="100" />
+    <text class="title-lg c-blue" x="140" y="42">External HTTP Clients</text>
+    <text class="sub-lg c-muted" x="140" y="68">Web Browsers / Load Generators</text>
+    <text class="sub-lg c-muted" x="140" y="88">Public Internet / Local Intranet</text>
+  </g>
+
+  <!-- External DevOps Admin Console -->
+  <g transform="translate(30, 780)">
+    <rect class="ext-box" x="0" y="0" width="280" height="100" />
+    <text class="title-lg c-blue" x="140" y="42">DevOps Administrator</text>
+    <text class="sub-lg c-muted" x="140" y="68">Real-Time Observability UI</text>
+    <text class="sub-lg c-muted" x="140" y="88">Port :8081 Management Session</text>
+  </g>
+
+  <!-- ==================== PHYSICAL / VIRTUAL HOST BOUNDARY ==================== -->
+  <rect class="host-box" x="380" y="40" width="1120" height="1100" />
+  <text class="host-title" x="420" y="85">Physical / Virtual Host Node (Single-Host Deployment Environment)</text>
+  <text class="host-sub" x="420" y="110">Linux (Kernel 5.15+ / WSL2) / Windows 11 Enterprise (x86_64)</text>
+
+  <!-- 1. NexusLB Ingress Gateway (Port :8080) -->
+  <g transform="translate(430, 200)">
+    <rect class="node-core" x="0" y="0" width="440" height="120" />
+    <text class="title-lg c-cyan" x="220" y="42">NexusLB Ingress Gateway (:8080)</text>
+    <text class="sub-lg c-muted" x="220" y="68">Edge Shield Token Bucket Rate Limiter</text>
+    <text class="sub-lg c-muted" x="220" y="90">Canary Classifier &amp; 5-Strategy Router</text>
+    <text class="sub-lg c-muted" x="220" y="108">retryRecorder Staged Failover Engine</text>
+  </g>
+
+  <!-- 2. NexusLB Management Server (Port :8081) -->
+  <g transform="translate(430, 770)">
+    <rect class="node-mgmt" x="0" y="0" width="440" height="120" />
+    <text class="title-lg c-purple" x="220" y="42">Management Server (:8081)</text>
+    <text class="sub-lg c-muted" x="220" y="68">Embedded Dark Data-Terminal Dashboard</text>
+    <text class="sub-lg c-muted" x="220" y="90">1 Hz Server-Sent Events (SSE) Stream</text>
+    <text class="sub-lg c-muted" x="220" y="108">Policy Hot-Swap REST API Handlers</text>
+  </g>
+
+  <!-- Shared Memory IPC Link between Gateway and Mgmt Server -->
+  <path class="shared-ipc" d="M 650 320 L 650 770" marker-start="url(#ar-ipc-top)" marker-end="url(#ar-ipc-bot)" />
+  <rect class="badge-label" x="510" y="525" width="280" height="34" />
+  <text class="badge-text" x="650" y="547">Shared In-Memory State &amp; Ring Buffer</text>
+
+  <!-- 3. Upstream Server Cluster (3 Instances) -->
+  <!-- Backend 1 -->
+  <g transform="translate(1080, 160)">
+    <rect class="node-backend" x="0" y="0" width="370" height="95" />
+    <text class="title-lg c-teal" x="185" y="38">Upstream Backend 1 (:8001)</text>
+    <text class="sub-lg c-muted" x="185" y="62">Weight: 5 | Health: Proactive &amp; Circuit Breaker</text>
+    <text class="sub-lg c-muted" x="185" y="82">Mock Worker: Fast Compute Profile</text>
+  </g>
+
+  <!-- Backend 2 -->
+  <g transform="translate(1080, 290)">
+    <rect class="node-backend" x="0" y="0" width="370" height="95" />
+    <text class="title-lg c-teal" x="185" y="38">Upstream Backend 2 (:8002)</text>
+    <text class="sub-lg c-muted" x="185" y="62">Weight: 3 | Health: Proactive &amp; Circuit Breaker</text>
+    <text class="sub-lg c-muted" x="185" y="82">Mock Worker: Medium I/O Profile (Chaos Target)</text>
+  </g>
+
+  <!-- Backend 3 -->
+  <g transform="translate(1080, 420)">
+    <rect class="node-backend" x="0" y="0" width="370" height="95" />
+    <text class="title-lg c-teal" x="185" y="38">Upstream Backend 3 (:8003)</text>
+    <text class="sub-lg c-muted" x="185" y="62">Weight: 1 | Health: Proactive &amp; Circuit Breaker</text>
+    <text class="sub-lg c-muted" x="185" y="82">Mock Worker: Heavy Database Query Profile</text>
+  </g>
+
+  <!-- 4. Chaos Simulator Engine (Inside Host) -->
+  <g transform="translate(1080, 770)">
+    <rect class="node-sim" x="0" y="0" width="370" height="120" />
+    <text class="title-lg c-red" x="185" y="42">Autonomous Chaos Simulator</text>
+    <text class="sub-lg c-muted" x="185" y="68">64 Goroutine Worker Thread Pool</text>
+    <text class="sub-lg c-muted" x="185" y="90">Poisson Jitter Generator &amp; 6 Attack Waves</text>
+    <text class="sub-lg c-muted" x="185" y="108">In-Memory chaosBackup &amp; Atomic Rollback</text>
+  </g>
+
+  <!-- ==================== NETWORK & ROUTING CONNECTORS ==================== -->
+  <!-- Client -> Gateway (TCP :8080) -->
+  <path class="net-pipe" d="M 310 260 L 430 260" marker-end="url(#ar-blue)" />
+  <rect class="badge-label" x="325" y="235" width="90" height="26" />
+  <text class="badge-text" x="370" y="253">TCP :8080</text>
+
+  <!-- Admin -> Mgmt Server (HTTP :8081) -->
+  <path class="net-pipe" d="M 310 830 L 430 830" marker-end="url(#ar-blue)" />
+  <rect class="badge-label" x="320" y="805" width="100" height="26" />
+  <text class="badge-text" x="370" y="823">HTTP :8081</text>
+
+  <!-- Gateway -> Upstream Backends (Reverse Proxy Fan-out) -->
+  <path class="proxy-pipe" d="M 870 240 L 980 240 L 980 205 L 1080 205" marker-end="url(#ar-teal)" />
+  <path class="proxy-pipe" d="M 870 260 L 1080 335" marker-end="url(#ar-teal)" />
+  <path class="proxy-pipe" d="M 870 280 L 980 280 L 980 465 L 1080 465" marker-end="url(#ar-teal)" />
+  <rect class="badge-label" x="910" y="248" width="140" height="26" />
+  <text class="badge-text" x="980" y="266">Reverse Proxy Pipe</text>
+
+  <!-- Simulator -> Gateway (Inject Stress via Western Corridor) -->
+  <path class="stress-pipe" d="M 1080 840 L 950 840 L 950 295 L 870 295" marker-end="url(#ar-red)" />
+  <rect class="badge-label" x="870" y="580" width="160" height="28" />
+  <text class="badge-text" x="950" y="599">Simulated Traffic Waves</text>
+
+</svg>
+</div>
+</body>
+</html>
