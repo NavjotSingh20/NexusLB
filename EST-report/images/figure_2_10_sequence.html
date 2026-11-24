@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #FFFFFF;
+    font-family: "Latin Modern Roman", "Computer Modern", "Times New Roman", Times, serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+  }
+  .canvas {
+    width: 1560px;
+    height: 980px;
+    background: #FFFFFF;
+    position: relative;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* Participant Headers & Footers */
+  .participant-box {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.8px;
+  }
+  .participant-title {
+    font-size: 15px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
+  }
+  .participant-sub {
+    font-size: 11px;
+    font-style: italic;
+    fill: #222222;
+    text-anchor: middle;
+  }
+
+  /* Lifelines & Activations */
+  .lifeline {
+    stroke: #000000;
+    stroke-width: 1.4px;
+    stroke-dasharray: 6 6;
+  }
+  .activation {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.5px;
+  }
+
+  /* Messages & Arrows */
+  .msg-solid {
+    stroke: #000000;
+    stroke-width: 1.6px;
+    fill: none;
+  }
+  .msg-dash {
+    stroke: #000000;
+    stroke-width: 1.6px;
+    stroke-dasharray: 6 4;
+    fill: none;
+  }
+  .self-loop {
+    stroke: #000000;
+    stroke-width: 1.5px;
+    fill: none;
+  }
+
+  /* Labels & Badges */
+  .badge-bg {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 0.9px;
+    rx: 2px;
+  }
+  .badge-bg-fault {
+    fill: #FFFFFF;
+    stroke: #000000;
+    stroke-width: 1.5px;
+    rx: 2px;
+  }
+  .msg-text {
+    font-size: 11.5px;
+    font-weight: 500;
+    fill: #000000;
+    text-anchor: middle;
+  }
+  .msg-text-bold {
+    font-size: 11.5px;
+    font-weight: bold;
+    fill: #000000;
+    text-anchor: middle;
+  }
+  .self-text {
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 600;
+    fill: #000000;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+<svg viewBox="0 0 1560 980" width="1560" height="980">
+  <defs>
+    <!-- Solid filled arrow for synchronous calls and one-way messages (travels with orient="auto") -->
+    <marker id="arrow-solid" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#000000" />
+    </marker>
+    <!-- Open stick arrow for UML return messages (travels with orient="auto") -->
+    <marker id="arrow-return" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M 1 1.5 L 8 5 L 1 8.5" fill="none" stroke="#000000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+  </defs>
+
+  <!-- ==================== PARTICIPANTS SETUP ==================== -->
+  <!-- X coordinates:
+       Client: X = 130
+       ReverseProxy: X = 390
+       EdgeShield: X = 650
+       StrategyMgr: X = 910
+       Backend 2 (:8002): X = 1170
+       Backend 3 (:8003): X = 1420
+  -->
+
+  <!-- Lifelines -->
+  <line class="lifeline" x1="130" y1="105" x2="130" y2="915" />
+  <line class="lifeline" x1="390" y1="105" x2="390" y2="915" />
+  <line class="lifeline" x1="650" y1="105" x2="650" y2="915" />
+  <line class="lifeline" x1="910" y1="105" x2="910" y2="915" />
+  <line class="lifeline" x1="1170" y1="105" x2="1170" y2="915" />
+  <line class="lifeline" x1="1420" y1="105" x2="1420" y2="915" />
+
+  <!-- Activation Bars (width=14, x = center - 7) -->
+  <!-- Client: active full sequence -->
+  <rect class="activation" x="123" y="150" width="14" height="740" />
+  <!-- ReverseProxy: active full sequence -->
+  <rect class="activation" x="383" y="155" width="14" height="730" />
+  <!-- EdgeShield: active during Allow(IP) -->
+  <rect class="activation" x="643" y="215" width="14" height="75" />
+  <!-- StrategyMgr: active during initial pick and failover pick -->
+  <rect class="activation" x="903" y="325" width="14" height="70" />
+  <rect class="activation" x="903" y="595" width="14" height="75" />
+  <!-- Backend 2: active during attempt 1 until socket drop -->
+  <rect class="activation" x="1163" y="465" width="14" height="85" />
+  <!-- Backend 3: active during replay until 200 OK response -->
+  <rect class="activation" x="1413" y="715" width="14" height="80" />
+
+  <!-- Top Participant Header Boxes -->
+  <!-- 1. Client -->
+  <g transform="translate(130, 75)">
+    <rect class="participant-box" x="-85" y="-30" width="170" height="60" />
+    <text class="participant-title" x="0" y="-8">Client</text>
+    <text class="participant-sub" x="0" y="12">External HTTP Client</text>
+  </g>
+
+  <!-- 2. ReverseProxy -->
+  <g transform="translate(390, 75)">
+    <rect class="participant-box" x="-95" y="-30" width="190" height="60" />
+    <text class="participant-title" x="0" y="-8">ReverseProxy</text>
+    <text class="participant-sub" x="0" y="12">pkg/proxy (retryRecorder)</text>
+  </g>
+
+  <!-- 3. EdgeShield -->
+  <g transform="translate(650, 75)">
+    <rect class="participant-box" x="-90" y="-30" width="180" height="60" />
+    <text class="participant-title" x="0" y="-8">EdgeShield</text>
+    <text class="participant-sub" x="0" y="12">pkg/ratelimit (Token Bucket)</text>
+  </g>
+
+  <!-- 4. StrategyMgr -->
+  <g transform="translate(910, 75)">
+    <rect class="participant-box" x="-90" y="-30" width="180" height="60" />
+    <text class="participant-title" x="0" y="-8">StrategyMgr</text>
+    <text class="participant-sub" x="0" y="12">pkg/balancer &amp; CB Registry</text>
+  </g>
+
+  <!-- 5. Backend 2 (:8002) -->
+  <g transform="translate(1170, 75)">
+    <rect class="participant-box" x="-95" y="-30" width="190" height="60" />
+    <text class="participant-title" x="0" y="-8">Backend 2 (:8002)</text>
+    <text class="participant-sub" x="0" y="12">Target Instance (Faulty)</text>
+  </g>
+
+  <!-- 6. Backend 3 (:8003) -->
+  <g transform="translate(1420, 75)">
+    <rect class="participant-box" x="-95" y="-30" width="190" height="60" />
+    <text class="participant-title" x="0" y="-8">Backend 3 (:8003)</text>
+    <text class="participant-sub" x="0" y="12">Alternate Instance (Healthy)</text>
+  </g>
+
+
+  <!-- ==================== MESSAGE INTERACTIONS ==================== -->
+
+  <!-- Message 1: Client -> ReverseProxy (GET /api/data) -->
+  <!-- Y = 165 -->
+  <line class="msg-solid" x1="137" y1="165" x2="383" y2="165" marker-end="url(#arrow-solid)" />
+  <g transform="translate(260, 165)">
+    <rect class="badge-bg" x="-95" y="-12" width="190" height="20" />
+    <text class="msg-text" x="0" y="2">1: GET /api/data (Port :8080)</text>
+  </g>
+
+  <!-- Message 2: ReverseProxy -> EdgeShield (Allow(IP)?) -->
+  <!-- Y = 225 -->
+  <line class="msg-solid" x1="397" y1="225" x2="643" y2="225" marker-end="url(#arrow-solid)" />
+  <g transform="translate(520, 225)">
+    <rect class="badge-bg" x="-75" y="-12" width="150" height="20" />
+    <text class="msg-text" x="0" y="2">2: Allow(clientIP)?</text>
+  </g>
+
+  <!-- Message 3: EdgeShield -> ReverseProxy (True / Token OK) -->
+  <!-- Y = 280 -->
+  <line class="msg-dash" x1="643" y1="280" x2="397" y2="280" marker-end="url(#arrow-return)" />
+  <g transform="translate(520, 280)">
+    <rect class="badge-bg" x="-95" y="-12" width="190" height="20" />
+    <text class="msg-text" x="0" y="2">3: return true (Quota OK, Tokens -1)</text>
+  </g>
+
+  <!-- Message 4: ReverseProxy -> StrategyMgr (NextBackend()) -->
+  <!-- Y = 335 -->
+  <line class="msg-solid" x1="397" y1="335" x2="903" y2="335" marker-end="url(#arrow-solid)" />
+  <g transform="translate(650, 335)">
+    <rect class="badge-bg" x="-90" y="-12" width="180" height="20" />
+    <text class="msg-text" x="0" y="2">4: NextBackend(r *http.Request)</text>
+  </g>
+
+  <!-- Message 5: StrategyMgr -> ReverseProxy (Select :8002) -->
+  <!-- Y = 385 -->
+  <line class="msg-dash" x1="903" y1="385" x2="397" y2="385" marker-end="url(#arrow-return)" />
+  <g transform="translate(650, 385)">
+    <rect class="badge-bg" x="-95" y="-12" width="190" height="20" />
+    <text class="msg-text" x="0" y="2">5: return target Backend 2 (:8002)</text>
+  </g>
+
+  <!-- Self-Call 1: ReverseProxy Buffers Request Body -->
+  <!-- Y = 415 to 435 -->
+  <path class="self-loop" d="M 397 415 L 435 415 L 435 435 L 397 435" marker-end="url(#arrow-solid)" />
+  <text class="self-text" x="445" y="429">stageBodyBuffer(r *http.Request)</text>
+
+  <!-- Message 6: ReverseProxy -> Backend 2 (Forward Request) -->
+  <!-- Y = 475 -->
+  <!-- Midpoint is 780; badge width 220 -> X from 670 to 890 (20px clear from 650 & 910) -->
+  <line class="msg-solid" x1="397" y1="475" x2="1163" y2="475" marker-end="url(#arrow-solid)" />
+  <g transform="translate(780, 475)">
+    <rect class="badge-bg" x="-110" y="-12" width="220" height="20" />
+    <text class="msg-text" x="0" y="2">6: Forward Request (Staged Socket Dispatch)</text>
+  </g>
+
+  <!-- Message 7: Backend 2 -> ReverseProxy (TCP Reset / In-Flight Socket Drop) -->
+  <!-- Y = 540 -->
+  <!-- Midpoint is 780; badge width 220 -> X from 670 to 890 (20px clear from 650 & 910) -->
+  <line class="msg-solid" x1="1163" y1="540" x2="397" y2="540" marker-end="url(#arrow-solid)" />
+  <g transform="translate(780, 540)">
+    <rect class="badge-bg-fault" x="-110" y="-13" width="220" height="22" />
+    <text class="msg-text-bold" x="0" y="2">&#10006; 7: TCP Reset / Socket Drop (EOF / 502)</text>
+  </g>
+
+  <!-- Message 8: ReverseProxy -> StrategyMgr (RecordFail(:8002) & NextBackend()) -->
+  <!-- Y = 605 -->
+  <line class="msg-solid" x1="397" y1="605" x2="903" y2="605" marker-end="url(#arrow-solid)" />
+  <g transform="translate(650, 605)">
+    <rect class="badge-bg" x="-135" y="-12" width="270" height="20" />
+    <text class="msg-text" x="0" y="2">8: RecordFailure(:8002) &amp; Request Failover Node</text>
+  </g>
+
+  <!-- Message 9: StrategyMgr -> ReverseProxy (Select Backend 3 (:8003)) -->
+  <!-- Y = 660 -->
+  <line class="msg-dash" x1="903" y1="660" x2="397" y2="660" marker-end="url(#arrow-return)" />
+  <g transform="translate(650, 660)">
+    <rect class="badge-bg" x="-110" y="-12" width="220" height="20" />
+    <text class="msg-text" x="0" y="2">9: return alternate Backend 3 (:8003)</text>
+  </g>
+
+  <!-- Message 10: ReverseProxy -> Backend 3 (Replay Request Buffer) -->
+  <!-- Y = 725 -->
+  <!-- Midpoint is 905 (directly over StrategyMgr 910) -> badge masks lifeline cleanly -->
+  <line class="msg-solid" x1="397" y1="725" x2="1413" y2="725" marker-end="url(#arrow-solid)" />
+  <g transform="translate(905, 725)">
+    <rect class="badge-bg" x="-130" y="-12" width="260" height="20" />
+    <text class="msg-text" x="0" y="2">10: Transparent Replay (Idempotent Buffered Body)</text>
+  </g>
+
+  <!-- Message 11: Backend 3 -> ReverseProxy (200 OK Response) -->
+  <!-- Y = 785 -->
+  <line class="msg-dash" x1="1413" y1="785" x2="397" y2="785" marker-end="url(#arrow-return)" />
+  <g transform="translate(905, 785)">
+    <rect class="badge-bg" x="-115" y="-12" width="230" height="20" />
+    <text class="msg-text" x="0" y="2">11: HTTP 200 OK (Staged Body &amp; Headers)</text>
+  </g>
+
+  <!-- Self-Call 2: ReverseProxy Commits Headers and Records Telemetry -->
+  <!-- Y = 815 to 835 -->
+  <path class="self-loop" d="M 397 815 L 435 815 L 435 835 L 397 835" marker-end="url(#arrow-solid)" />
+  <text class="self-text" x="445" y="829">rec.Commit() &amp; recordTelemetry()</text>
+
+  <!-- Message 12: ReverseProxy -> Client (Commit 200 OK) -->
+  <!-- Y = 875 -->
+  <line class="msg-dash" x1="383" y1="875" x2="137" y2="875" marker-end="url(#arrow-return)" />
+  <g transform="translate(260, 875)">
+    <rect class="badge-bg" x="-105" y="-12" width="210" height="20" />
+    <text class="msg-text" x="0" y="2">12: Flush HTTP 200 OK (Clean Egress)</text>
+  </g>
+
+  <!-- Bottom Participant Footers (UML Lifeline Terminators) -->
+  <g transform="translate(130, 935)">
+    <rect class="participant-box" x="-70" y="-15" width="140" height="30" />
+    <text class="participant-title" x="0" y="5" style="font-size: 13px;">Client</text>
+  </g>
+  <g transform="translate(390, 935)">
+    <rect class="participant-box" x="-75" y="-15" width="150" height="30" />
+    <text class="participant-title" x="0" y="5" style="font-size: 13px;">ReverseProxy</text>
+  </g>
+  <g transform="translate(650, 935)">
+    <rect class="participant-box" x="-70" y="-15" width="140" height="30" />
+    <text class="participant-title" x="0" y="5" style="font-size: 13px;">EdgeShield</text>
+  </g>
+  <g transform="translate(910, 935)">
+    <rect class="participant-box" x="-70" y="-15" width="140" height="30" />
+    <text class="participant-title" x="0" y="5" style="font-size: 13px;">StrategyMgr</text>
+  </g>
+  <g transform="translate(1170, 935)">
+    <rect class="participant-box" x="-75" y="-15" width="150" height="30" />
+    <text class="participant-title" x="0" y="5" style="font-size: 13px;">Backend 2 (:8002)</text>
+  </g>
+  <g transform="translate(1420, 935)">
+    <rect class="participant-box" x="-75" y="-15" width="150" height="30" />
+    <text class="participant-title" x="0" y="5" style="font-size: 13px;">Backend 3 (:8003)</text>
+  </g>
+
+</svg>
+</div>
+</body>
+</html>

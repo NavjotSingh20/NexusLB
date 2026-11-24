@@ -25,6 +25,16 @@
 \usepackage{microtype}
 \usepackage{hyperref}
 \usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  breakatwhitespace=true,
+  frame=single,
+  tabsize=4,
+  showstringspaces=false,
+  keepspaces=true,
+  columns=fullflexible
+}
 
 % Tight list spacing: prevents excessive gaps between items
 \usepackage{enumitem}
@@ -334,9 +344,12 @@ Figure~\ref{fig:activity_diagram} details the execution path of an incoming HTTP
 \subsection{Load Balancing Strategies}
 
 NexusLB decouples policy from routing mechanics via the Strategy design pattern~\cite{gamma1994} and the unified \texttt{Balancer} interface:
-\begin{lstlisting}[language=Go, basicstyle=\ttfamily\footnotesize, frame=single]
+\begin{lstlisting}[language=Go, basicstyle=\ttfamily\footnotesize, frame=single, breaklines=true]
 type Balancer interface {
-    NextBackend(backends []*backend.Backend, r *http.Request) (*backend.Backend, error)
+    NextBackend(
+        backends []*backend.Backend,
+        r *http.Request,
+    ) (*backend.Backend, error)
     Name() string
 }
 \end{lstlisting}
@@ -486,77 +499,7 @@ To prevent partial socket writes from corrupting failed upstream streams, NexusL
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\scriptsize,
-  lifeline/.style={
-    draw=gray!60,
-    thick,
-    dashed
-  },
-  entity/.style={
-    rectangle,
-    rounded corners=3pt,
-    draw=blue!80!black,
-    fill=blue!8,
-    thick,
-    minimum width=2.2cm,
-    minimum height=0.7cm,
-    align=center,
-    font=\scriptsize\bfseries
-  },
-  msg/.style={
-    -{Stealth[scale=0.8]},
-    thick,
-    draw=blue!80!black
-  },
-  retmsg/.style={
-    -{Stealth[scale=0.8]},
-    thick,
-    dashed,
-    draw=teal!80!black
-  },
-  failmsg/.style={
-    -{Stealth[scale=0.8]},
-    thick,
-    draw=red!75!black
-  }
-]
-
-% Lifeline Entities
-\node[entity] (cli) at (0, 0) {Client};
-\node[entity] (prx) at (2.4, 0) {ReverseProxy};
-\node[entity] (lim) at (4.8, 0) {EdgeShield};
-\node[entity] (sm)  at (7.2, 0) {StrategyMgr};
-\node[entity] (b2)  at (9.6, 0) {Backend 2 (:8002)};
-\node[entity] (b3)  at (12.0, 0) {Backend 3 (:8003)};
-
-% Vertical Lifelines
-\draw[lifeline] (cli) -- (0, -7.5);
-\draw[lifeline] (prx) -- (2.4, -7.5);
-\draw[lifeline] (lim) -- (4.8, -7.5);
-\draw[lifeline] (sm)  -- (7.2, -7.5);
-\draw[lifeline] (b2)  -- (9.6, -7.5);
-\draw[lifeline] (b3)  -- (12.0, -7.5);
-
-% Messages
-\draw[msg] (0, -0.8) -- node[above, font=\tiny]{GET /api/data} (2.4, -0.8);
-\draw[msg] (2.4, -1.4) -- node[above, font=\tiny]{Allow(IP)?} (4.8, -1.4);
-\draw[retmsg] (4.8, -2.0) -- node[above, font=\tiny]{True (Token OK)} (2.4, -2.0);
-\draw[msg] (2.4, -2.6) -- node[above, font=\tiny]{NextBackend()} (7.2, -2.6);
-\draw[retmsg] (7.2, -3.2) -- node[above, font=\tiny]{Select :8002} (2.4, -3.2);
-
-\draw[msg] (2.4, -3.8) -- node[above, font=\tiny]{Forward Request} (9.6, -3.8);
-\draw[failmsg] (9.6, -4.4) -- node[above, font=\tiny\bfseries, text=red!75!black]{TCP Reset / Drop} (2.4, -4.4);
-
-% Failover handling
-\draw[msg] (2.4, -5.0) -- node[above, font=\tiny]{RecordFail(:8002)} (7.2, -5.0);
-\draw[msg] (2.4, -5.6) -- node[above, font=\tiny]{Replay to Alt Node} (12.0, -5.6);
-\draw[retmsg] (12.0, -6.2) -- node[above, font=\tiny]{200 OK Response} (2.4, -6.2);
-\draw[retmsg] (2.4, -6.8) -- node[above, font=\tiny]{Commit 200 OK} (0, -6.8);
-
-\end{tikzpicture}%
-}
+\includegraphics[width=0.96\textwidth]{images/figure_2_10_sequence.png}
 \caption{End-to-End UML Sequence Diagram of in-flight socket failure interception and transparent staged retry replay.}
 \label{fig:sequence_diagram}
 \end{figure}
